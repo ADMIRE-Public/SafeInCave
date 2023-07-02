@@ -1,0 +1,6 @@
+1) Create geometry in Gmsh and save file "geom.geo".
+2) In terminal, execute command "gmsh -3 geom.geo -format msh2".
+3) In terminal, execute command "dolfin-convert geom.msh geom.xml".
+4) Files "geom.xml", "geom_facet_region.xml" and "geom_physical_region.xml" should be created.
+
+gmsh -3 geom.geo -format msh2 && dolfin-convert geom.msh geom.xml
