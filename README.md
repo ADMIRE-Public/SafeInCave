@@ -1,8 +1,4 @@
-
-
-<p align="center">
-  <img src="./logo/Logo_12.png" style="width: 30%;">
-</p>
+![alt text](<./logo/Logo_12.png>){width=30%}
 
 # SafeInCave
 
