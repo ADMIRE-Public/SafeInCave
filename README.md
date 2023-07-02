@@ -1,6 +1,6 @@
 # SafeInCave
 
-![alt text](<./logo/Logo_12.png>){width=40%}
+![alt text](<./logo/Logo_12.png>){width=30%}
 
 ## Getting started
 
