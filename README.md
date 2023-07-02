@@ -1,4 +1,6 @@
+<center>
 ![alt text](<./logo/Logo_12.png>){width=30%}
+</center>
 
 # SafeInCave
 
