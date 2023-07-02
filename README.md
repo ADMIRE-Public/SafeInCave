@@ -1,5 +1,6 @@
 # SafeInCave
 
+<img src="https://gitlab.tudelft.nl/ADMIRE_Public/safeincave/-/blob/main/logo/Logo_12.png" height="%20" width="30%">
 
 
 ## Getting started
