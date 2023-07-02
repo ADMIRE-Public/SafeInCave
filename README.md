@@ -1,8 +1,6 @@
-# SafeInCave
+![alt text](<./logo/Logo_12.png>){width=30%,center}
 
-<div style="text-align: center;">
-![alt text](<./logo/Logo_12.png>){width=30%}
-</div>
+# SafeInCave
 
 ## Getting started
 
