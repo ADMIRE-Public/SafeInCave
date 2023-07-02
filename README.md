@@ -1,7 +1,7 @@
 
 
 <p align="center">
-  <img src="./logo/Logo_12.png" alt="Image description">
+  <img src="./logo/Logo_12.png" alt="Image description" style="width: 30%; height: auto;>
 </p>
 
 # SafeInCave
