@@ -1,6 +1,8 @@
-<center>
-![alt text](<./logo/Logo_12.png>){width=30%}
-</center>
+
+
+<p align="center">
+  <img src="./logo/Logo_12.png" alt="Image description">
+</p>
 
 # SafeInCave
 
