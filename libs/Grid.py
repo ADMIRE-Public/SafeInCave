@@ -3,7 +3,7 @@ import numpy as np
 import meshio
 import os
 
-class GridHandler(object):
+class GridHandlerGMSH(object):
 	def __init__(self, geometry_name, grid_folder):
 		self.grid_folder = grid_folder
 		self.geometry_name = geometry_name
@@ -67,6 +67,15 @@ class GridHandler(object):
 
 	def get_domain_tags(self, DOMAIN_NAME):
 		return self.dolfin_tags[self.domain_dim][DOMAIN_NAME]
+
+	def get_subdomains(self):
+		return self.subdomains
+
+	def get_boundary_names(self):
+		return self.dolfin_tags[self.boundary_dim].keys()
+
+	def get_subdomain_names(self):
+		return self.dolfin_tags[self.domain_dim].keys()
 
 
 
@@ -140,24 +149,6 @@ class GridHandlerFEniCS(object):
 		self.dolfin_tags[2]["BOTTOM"] = 5
 		self.dolfin_tags[2]["TOP"] = 6
 		self.dolfin_tags[3]["BODY"] = 1
-
-
-	def get_tags(self):
-		file_name_msh = os.path.join(self.grid_folder, self.geometry_name+".msh")
-		grid = meshio.read(file_name_msh)
-		self.tags = {1:{}, 2:{}, 3:{}}
-		for key, value in grid.field_data.items():
-			self.tags[value[1]][key] = value[0]
-		self.dolfin_tags = self.tags
-
-	def load_subdomains(self):
-		file_name_physical_region_xml = os.path.join(self.grid_folder, self.geometry_name+"_physical_region.xml")
-		subdomains0 = MeshFunction("size_t", self.mesh, file_name_physical_region_xml)
-		self.subdomains = MeshFunction("size_t", self.mesh, self.domain_dim)
-		self.subdomains.set_all(0)
-		for i, value in enumerate(self.tags[self.domain_dim].items()):
-			self.subdomains.array()[subdomains0.array() == value[1]] = i + 1
-			self.dolfin_tags[self.domain_dim][value[0]] = i + 1
 
 
 	def get_boundaries(self):

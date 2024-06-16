@@ -1,16 +1,14 @@
-import fenics as fe
-import sympy as sy
+import torch as to
+# from Elements import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
+# from Elements import *
+from dolfin import *
 import json
-import numpy as np
 
-sec = 1.
-minute = 60*sec
+MPa = 1e6
+minute = 60
 hour = 60*minute
 day = 24*hour
-month = 30*day
-kPa = 1e3
-MPa = 1e6
-GPa = 1e9
+year = 365*day
 
 def read_json(file_name):
 	with open(file_name, "r") as j_file:
@@ -21,52 +19,72 @@ def save_json(data, file_name):
 	with open(file_name, "w") as f:
 	    json.dump(data, f, indent=4)
 
-def strain2voigt(e):
-	x = 1
-	return fe.as_vector([e[0,0], e[1,1], e[2,2], x*e[0,1], x*e[0,2], x*e[1,2]])
-	# return fe.as_vector([e[0,0], e[1,1], e[2,2], e[0,1], e[0,2], e[1,2]])
-
-def voigt2stress(s):
-    return fe.as_matrix([[s[0], s[3], s[4]],
-		    		     [s[3], s[1], s[5]],
-		    		     [s[4], s[5], s[2]]])
+def local_projection(tensor, V):
+    dv = TrialFunction(V)
+    v_ = TestFunction(V)
+    a_proj = inner(dv, v_)*dx
+    b_proj = inner(tensor, v_)*dx
+    solver = LocalSolver(a_proj, b_proj)
+    solver.factorize()
+    u = Function(V)
+    solver.solve_local_rhs(u)
+    return u
 
 def epsilon(u):
-	# return 0.5*(fe.nabla_grad(u) + fe.nabla_grad(u).T)
-	# return 0.5*(fe.grad(u) + fe.grad(u).T)
-	return fe.sym(fe.grad(u))
+	return sym(grad(u))
 
-def sigma(C, eps):
-	return voigt2stress(fe.dot(C, strain2voigt(eps)))
+def dotdot(C, eps):
+	return voigt2stress(dot(C, strain2voigt(eps)))
 
-def local_projection(tensor, V):
-	dv = fe.TrialFunction(V)
-	v_ = fe.TestFunction(V)
-	a_proj = fe.inner(dv, v_)*fe.dx
-	b_proj = fe.inner(tensor, v_)*fe.dx
-	solver = fe.LocalSolver(a_proj, b_proj)
-	solver.factorize()
-	u = fe.Function(V)
-	solver.solve_local_rhs(u)
-	return u
+def strain2voigt(e):
+	x = 1
+	return as_vector([e[0,0], e[1,1], e[2,2], x*e[0,1], x*e[0,2], x*e[1,2]])
 
-def constitutive_matrix_sy(E, nu):
-	lame = E*nu/((1+nu)*(1-2*nu))
-	# lame = 0.0
-	G = E/(2 + 2*nu)
-	x = 2
-	M = sy.Matrix(6, 6, [ (2*G+lame),	lame,			lame,			0.,		0.,		0.,
-						  lame,			(2*G+lame),		lame,			0.,		0.,		0.,
-						  lame,			lame,			(2*G+lame),		0.,		0.,		0.,
-							0.,			0.,				0.,				x*G,	0.,		0.,
-							0.,			0.,				0.,				0.,		x*G,	0.,
-							0.,			0.,				0.,				0.,		0.,		x*G])
-	return M
+def voigt2stress(s):
+    return as_matrix([	[s[0], s[3], s[4]],
+						[s[3], s[1], s[5]],
+						[s[4], s[5], s[2]]])
 
-def double_dot(A, B):
-	# Performs the operation A:B, which returns a scalar. 
-	# A and B are second order tensors (2d numpy arrays)
-	return np.tensordot(A, B.T, axes=2)
-	# return float(np.tensordot(A, B, axes=([0, 1], [0, 1])))
+def to_tensor(numpy_array):
+	return to.tensor(numpy_array, dtype=to.float64)
 
-ppos = lambda x: (x+abs(x))/2.
+def dotdot2(C0_torch, eps_tot_torch):
+	n_elems = C0_torch.shape[0]
+	eps_tot_voigt = to.zeros((n_elems, 6), dtype=to.float64)
+	eps_tot_voigt[:,0] = eps_tot_torch[:,0,0]
+	eps_tot_voigt[:,1] = eps_tot_torch[:,1,1]
+	eps_tot_voigt[:,2] = eps_tot_torch[:,2,2]
+	eps_tot_voigt[:,3] = eps_tot_torch[:,0,1]
+	eps_tot_voigt[:,4] = eps_tot_torch[:,0,2]
+	eps_tot_voigt[:,5] = eps_tot_torch[:,1,2]
+	stress_voigt = to.bmm(C0_torch, eps_tot_voigt.unsqueeze(2)).squeeze(2)
+	stress_torch = to.zeros_like(eps_tot_torch, dtype=to.float64)
+	stress_torch[:,0,0] = stress_voigt[:,0]
+	stress_torch[:,1,1] = stress_voigt[:,1]
+	stress_torch[:,2,2] = stress_voigt[:,2]
+	stress_torch[:,0,1] = stress_torch[:,1,0] = stress_voigt[:,3]
+	stress_torch[:,0,2] = stress_torch[:,2,0] = stress_voigt[:,4]
+	stress_torch[:,1,2] = stress_torch[:,2,1] = stress_voigt[:,5]
+	return stress_torch
+
+
+def get_list_of_elements(input_model, n_elems, element_class="Elastic"):
+	from Elements import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
+	ELEMENT_DICT = {
+		"Spring": Spring,
+		"KelvinVoigt": Viscoelastic,
+		"DislocationCreep": DislocationCreep,
+		"ViscoplasticDesai": ViscoplasticDesai
+	}
+	list_of_elements = []
+	props = input_model[element_class]
+	for elem_name in props.keys():
+		if props[elem_name]["active"] == True:
+			element_parameters = props[elem_name]["parameters"]
+			for param in element_parameters:
+				element_parameters[param] = element_parameters[param]*to.ones(n_elems, dtype=to.float64)
+			elem = ELEMENT_DICT[props[elem_name]["type"]](element_parameters)
+			list_of_elements.append(elem)
+	if element_class == "Elastic" and len(list_of_elements) == 0:
+		raise Exception("Model must have at least 1 elastic element (Spring). None was given.")
+	return list_of_elements
