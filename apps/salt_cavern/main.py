@@ -1,104 +1,111 @@
 import os
 import sys
-import numpy as np
-import time
-import shutil
 sys.path.append(os.path.join("..", "..", "libs"))
-from Simulators import H2CaveSimulator
+from ConstitutiveModel import *
+from Grid import GridHandlerGMSH
 from Utils import *
+from dolfin import *
+from equilibrium import compute_equilibrium
+from operation import run_simulation
+import copy
+import time
 
-look_up_table = np.array([
-	[0.0*day, 20*MPa],
-	[2.0*day, 10*MPa],
-	[3.0*day, 15*MPa],
-	[4.0*day, 10*MPa],
-	[5.0*day, 15*MPa],
-	[6.0*day, 10*MPa],
-	[7.0*day, 15*MPa],
-	[8.0*day, 10*MPa],
-	[9.0*day, 15*MPa],
-	[10.0*day, 10*MPa],
-	[11.0*day, 15*MPa],
-	[12.0*day, 10*MPa],
-	[13.0*day, 15*MPa],
-	[14.0*day, 10*MPa],
-	[15.0*day, 15*MPa],
-	[16.0*day, 10*MPa],
-	[17.0*day, 15*MPa],
-	[18.0*day, 10*MPa],
-	[19.0*day, 15*MPa],
-	[20.0*day, 10*MPa],
-])
+def build_constitutive_model(input_model, n_elems):
+	theta = 0.5
+	m = ConstitutiveModelHandler(theta, n_elems)
 
-def pressure(t_list):
-	p_list = []
-	for t in t_list:
-		p = np.interp(t, look_up_table[:,0], look_up_table[:,1])
-		p_list.append(p)
-	return p_list
+	# Add elastic element(s)
+	elems_e = get_list_of_elements(input_model, n_elems, element_class="Elastic")
+	for elem_e in elems_e:
+		m.add_elastic_element(elem_e)
 
-def write_settings(input_bc):
-	# Define time levels
-	n_steps = 75
-	t_f = 5*day
-	time_list = list(np.linspace(0, t_f, n_steps))
-	input_bc["Time"]["timeList"] = time_list
+	# Add viscoelastic element
+	elems_ve = get_list_of_elements(input_model, n_elems, element_class="Viscoelastic")
+	for elem_ve in elems_ve:
+		m.add_viscoelastic_element(elem_ve)
 
-	# Define boundary conditions
-	input_bc["BoundaryConditions"]["u_x"]["SIDE_X"]["type"] = "DIRICHLET"
-	input_bc["BoundaryConditions"]["u_x"]["SIDE_X"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_x"]["SIDE_Y"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_x"]["SIDE_Y"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_x"]["OUTER"]["type"] = "DIRICHLET"
-	input_bc["BoundaryConditions"]["u_x"]["OUTER"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_x"]["BOTTOM"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_x"]["BOTTOM"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_x"]["TOP"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_x"]["TOP"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_x"]["WALL"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_x"]["WALL"]["value"] = list(np.repeat(0.0, len(time_list)))
+	# Add viscoelastic element
+	elems_ie = get_list_of_elements(input_model, n_elems, element_class="Inelastic")
+	for elem_ie in elems_ie:
+		m.add_inelastic_element(elem_ie)
+	
+	# Initialize constitutive model
+	m.initialize()
+	return m
 
-	input_bc["BoundaryConditions"]["u_y"]["SIDE_X"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_y"]["SIDE_X"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_y"]["SIDE_Y"]["type"] = "DIRICHLET"
-	input_bc["BoundaryConditions"]["u_y"]["SIDE_Y"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_y"]["OUTER"]["type"] = "DIRICHLET"
-	input_bc["BoundaryConditions"]["u_y"]["OUTER"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_y"]["BOTTOM"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_y"]["BOTTOM"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_y"]["TOP"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_y"]["TOP"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_y"]["WALL"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_y"]["WALL"]["value"] = list(np.repeat(0.0, len(time_list)))
+theta_method_dict = {
+	"IMP": 0.0,
+	"CN": 0.5,
+	"EXP": 1.0
+}
 
-	input_bc["BoundaryConditions"]["u_z"]["SIDE_X"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_z"]["SIDE_X"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_z"]["SIDE_Y"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_z"]["SIDE_Y"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_z"]["OUTER"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_z"]["OUTER"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_z"]["BOTTOM"]["type"] = "DIRICHLET"
-	input_bc["BoundaryConditions"]["u_z"]["BOTTOM"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_z"]["TOP"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_z"]["TOP"]["value"] = list(np.repeat(0.0, len(time_list)))
-	input_bc["BoundaryConditions"]["u_z"]["WALL"]["type"] = "NEUMANN"
-	input_bc["BoundaryConditions"]["u_z"]["WALL"]["value"] = pressure(time_list)
+def build_model_name(input_model):
+	model_name = "model"
+	for key in input_model["Elastic"].keys():
+		if input_model["Elastic"][key]["active"] == True:
+			model_name += "_e"
+	for key in input_model["Viscoelastic"].keys():
+		if input_model["Viscoelastic"][key]["active"] == True and input_model["Viscoelastic"][key]["parameters"]["eta"] > 1.0:
+			model_name += "_ve"
+	for key in input_model["Inelastic"].keys():
+		if input_model["Inelastic"][key]["active"] == True:
+			if input_model["Inelastic"][key]["type"] == "ViscoplasticDesai":
+				model_name += "_vp"
+			elif input_model["Inelastic"][key]["type"] == "DislocationCreep":
+				model_name += "_cr"
+	return model_name
 
-	return input_bc
 
 
 def main():
-	# Read input_model
+	start_0 = time.time()
+
+	# Input mesh
+	mesh_name = "cavern_regular"
+
+	# Choose integration method
+	theta_name = "EXP"
+
+	# Create mesh
+	mesh_folder = os.path.join("..", "..", "grids", mesh_name)
+	g = GridHandlerGMSH("geom", mesh_folder)
+	n_elems = g.mesh.num_cells()
+	
+	# Read input model
 	input_model = read_json("input_model.json")
+	model_name = build_model_name(input_model)
 
+	# This is input_model to be saved
+	input_model_to_be_saved = copy.deepcopy(input_model)
+	
 	# Read input_bc
-	input_bc = read_json("input_bc_fem.json")
-	# input_bc = write_settings(input_bc)
-	# save_json(input_bc, "input_bc_fem.json")
+	input_bc = read_json(f"input_bc.json")
 
-	# Build simulation and run
-	H2CaveSimulator(input_model, input_bc)
+	# Define constitutive model
+	m = build_constitutive_model(input_model, n_elems)
+
+	# Choose case name
+	case_name = os.path.join(mesh_name, model_name)
+
+	# Compose output name
+	output_folder = os.path.join("output", mesh_name, model_name, theta_name)
+	print(output_folder)
+
+	# Run initial simulation with elastic and viscoelastic elements
+	u_0 = compute_equilibrium(m, g, input_bc, output_folder)
+
+	# Run simulation with full constitutive model
+	m.theta = theta_method_dict[theta_name]
+	run_simulation(m, g, u_0, input_bc, output_folder)
+
+	# Save inputs
+	save_json(input_bc, os.path.join(output_folder, "input_bc.json"))
+	save_json(input_model_to_be_saved, os.path.join(output_folder, "input_model.json"))
+
+	# Print simulation CPU time
+	final = time.time()
+	print(f"Time: {final - start_0} seconds.")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 	main()

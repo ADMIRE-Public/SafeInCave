@@ -1,81 +1,56 @@
 {
-    "Paths": {
-        "Output": "output/case_0",
-        "Grid": "../../grids/cavern_0"
+    "Elastic": {
+        "Spring_0": {
+            "type": "Spring",
+            "active": true,
+            "parameters": {
+                "E": 79000000000.0,
+                "nu": 0.32
+            }
+        }
     },
-    "Time": {
-        "theta": 0.5
+    "Viscoelastic": {
+        "KelvinVoigt_0": {
+            "type": "KelvinVoigt",
+            "active": true,
+            "parameters": {
+                "E": 45000000000.0,
+                "nu": 0.32,
+                "eta": 3.7e14
+            }
+        }
     },
-    "Model": [
-        "Spring",
-        "KelvinVoigt",
-        "DislocationCreep",
-        "Damage"
-    ],
-    "Element_names (this is not read by the program)": [
-        "Spring",
-        "KelvinVoigt",
-        "Dashpot",
-        "DislocationCreep",
-        "Damage",
-        "PressureSolutionCreep"
-    ],
-    "Elements": {
-        "Spring": {
-            "E": 2800000000.0,
-            "nu": 0.3,
-            "save_strain_avg": true,
-            "save_strain_vtk": true,
-            "strain_name": "eps_e",
-            "save_stress_avg": true,
-            "save_stress_vtk": true,
-            "stress_name": "stress",
-            "save_total_strain_avg": true,
-            "save_total_strain_vtk": true,
-            "total_strain_name": "eps_tot"
+    "Inelastic": {
+        "desai": {
+            "type": "ViscoplasticDesai",
+            "active": false,
+            "parameters": {
+                "F_0": 1.0,
+                "mu_1": 9.990909e-12,
+                "N_1": 3.0527960713116853,
+                "n": 3.0,
+                "a_1": 1.3e-05,
+                "eta": 0.8275682807874163,
+                "beta_1": 0.004459,
+                "beta": 0.995,
+                "m": -0.5,
+                "gamma": 0.088012,
+                "alpha_0": 0.001881,
+                "k_v2": 0.0,
+                "k_v": 0.268738,
+                "sigma_t": 5.4
+            }
         },
-        "KelvinVoigt": {
-            "E": 1030000000.0,
-            "nu": 0.3,
-            "eta": 450000000000000.0,
-            "save_strain_avg": true,
-            "save_strain_vtk": true,
-            "strain_name": "eps_ve"
-        },
-        "Dashpot": {
-            "eta": 2000000000000000.0,
-            "save_strain_avg": true,
-            "save_strain_vtk": true,
-            "strain_name": "eps_dashpot"
-        },
-        "DislocationCreep": {
-            "A": 1.5e-36,
-            "n": 5.0,
-            "T": 298,
-            "save_strain_avg": true,
-            "save_strain_vtk": true,
-            "strain_name": "eps_cr_dis"
-        },
-        "PressureSolutionCreep": {
-            "A": 8e-27,
-            "d": 0.005,
-            "n": 1.0,
-            "save_strain_avg": true,
-            "save_strain_vtk": true,
-            "strain_name": "eps_cr_sol"
-        },
-        "Damage": {
-            "A": 2.5e-12,
-            "B": 205.0,
-            "nu0": 0.3,
-            "n": 5,
-            "r": 2.48,
-            "save_strain_avg": true,
-            "save_strain_vtk": true,
-            "strain_name": "eps_damage",
-            "save_damage_avg": true,
-            "save_damage_vtk": true,
-            "damage_name": "damage_field"
+        "creep": {
+            "type": "DislocationCreep",
+            "active": true,
+            "parameters": {
+                "A": 5.9e-29,
+                "n": 4.0,
+                "T": 298,
+                "Q": 51600,
+                "R": 8.32
+            }
         }
     }
 }

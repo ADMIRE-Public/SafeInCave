@@ -111,7 +111,7 @@ def main():
 	theta = input_bc["Time"]["theta"]
 
 	# Output folder
-	output_folder = os.path.join("output", "case_EXP")
+	output_folder = os.path.join("output", "case_IMP")
 	print(output_folder)
 	print()
 
