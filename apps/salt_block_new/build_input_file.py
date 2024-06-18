@@ -84,9 +84,9 @@ if __name__ == '__main__':
 	# # Create boundary_conditions section
 	dirichlet_zeros = list(np.zeros(len(time_list)))
 	bif.section_boundary_conditions()
-	bif.add_boundary_condition("EAST", dirichlet_zeros, "dirichlet", 0.)
-	bif.add_boundary_condition("SOUTH", dirichlet_zeros, "dirichlet", 1.)
-	bif.add_boundary_condition("BOTTOM", dirichlet_zeros, "dirichlet", 2.)
+	bif.add_boundary_condition("EAST", dirichlet_zeros, "dirichlet", 0)
+	bif.add_boundary_condition("SOUTH", dirichlet_zeros, "dirichlet", 1)
+	bif.add_boundary_condition("BOTTOM", dirichlet_zeros, "dirichlet", 2)
 
 	stress_horizontal = [5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa]
 	stress_vertical = [6*MPa, 10*MPa, 10*MPa, 6*MPa, 6*MPa, 12*MPa, 12*MPa, 6*MPa, 6*MPa]

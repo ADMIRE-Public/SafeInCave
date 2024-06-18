@@ -45,7 +45,7 @@
                 0.0,
                 0.0
             ],
-            "component": 2.0,
+            "component": 2,
             "type": "dirichlet"
         },
         "EAST": {
@@ -60,7 +60,7 @@
                 0.0,
                 0.0
             ],
-            "component": 0.0,
+            "component": 0,
             "type": "dirichlet"
         },
         "WEST": {
@@ -90,7 +90,7 @@
                 0.0,
                 0.0
             ],
-            "component": 1.0,
+            "component": 1,
             "type": "dirichlet"
         },
         "NORTH": {
