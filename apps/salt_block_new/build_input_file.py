@@ -23,6 +23,10 @@ class BuildInputFile():
 		self.list_of_subdomain_names = list(grid.get_subdomain_names())
 		self.n_elems = grid.mesh.num_cells()
 
+	def section_output(self, output_folder):
+		self.input_file["output"] = {}
+		self.input_file["output"]["path"] = output_folder
+
 	def section_time_settings(self, time_list, theta=0.5):
 		self.input_file["time_settings"] = {}
 		self.input_file["time_settings"]["theta"] = theta
@@ -76,6 +80,9 @@ if __name__ == '__main__':
 	# Create input_grid section
 	path_to_grid = os.path.join("..", "..", "grids", "cube_0")
 	bif.section_input_grid(path_to_grid, "geom")
+
+	# Create output section
+	bif.section_output(os.path.join("output", "example"))
 
 	# Create time_settings section
 	time_list = [0*hour,  2*hour,  10*hour, 12*hour, 14*hour, 16*hour, 20*hour, 22*hour, 24*hour]

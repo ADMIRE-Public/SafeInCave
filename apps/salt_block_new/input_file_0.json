@@ -3,6 +3,9 @@
         "path": "../../grids/cube_0",
         "name": "geom"
     },
+    "output": {
+        "path": "output/example"
+    },
     "time_settings": {
         "theta": 0.5,
         "time_list": [

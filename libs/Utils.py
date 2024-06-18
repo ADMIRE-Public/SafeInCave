@@ -88,3 +88,26 @@ def get_list_of_elements(input_model, n_elems, element_class="Elastic"):
 	if element_class == "Elastic" and len(list_of_elements) == 0:
 		raise Exception("Model must have at least 1 elastic element (Spring). None was given.")
 	return list_of_elements
+
+
+def get_list_of_elements_new(input_model, n_elems, element_class="Elastic"):
+	from Elements import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
+	ELEMENT_DICT = {
+		"Spring": Spring,
+		"KelvinVoigt": Viscoelastic,
+		"DislocationCreep": DislocationCreep,
+		"ViscoplasticDesai": ViscoplasticDesai
+	}
+	list_of_elements = []
+	props = input_model[element_class]
+	for elem_name in props.keys():
+		if props[elem_name]["active"] == True:
+			element_parameters = props[elem_name]["parameters"]
+			for param in element_parameters:
+				element_parameters[param] = to.tensor(element_parameters[param])
+				# element_parameters[param] = element_parameters[param]*to.ones(n_elems, dtype=to.float64)
+			elem = ELEMENT_DICT[props[elem_name]["type"]](element_parameters)
+			list_of_elements.append(elem)
+	if element_class == "Elastic" and len(list_of_elements) == 0:
+		raise Exception("Model must have at least 1 elastic element (Spring). None was given.")
+	return list_of_elements
