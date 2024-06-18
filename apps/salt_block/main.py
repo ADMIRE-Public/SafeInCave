@@ -22,7 +22,6 @@ def compute_dt(Fvp_max):
 		k1 = (dt_max/(dt_max - dt_star)) - 1
 		k2 = dt_max/(dt_max - dt_min)
 		dt = dt_max - dt_max / (k2 + k1*to.exp(-k3*Fvp_max))
-		# print(float(Fvp_max), float(dt), dt_max)
 	except:
 		dt = dt_max
 		Fvp_max = -100
@@ -34,7 +33,6 @@ def main():
 	start_0 = time.time()
 
 	# Read input_bc
-	# input_bc = read_json("input_bc_1.json")
 	input_bc = read_json("input_bc_0.json")
 	time_refined = np.array(input_bc["Time"]["timeList"])
 	sigma_axial = np.array(input_bc["sigma_axial"])
@@ -55,7 +53,6 @@ def main():
 	input_model_to_be_saved = copy.deepcopy(input_model)
 
 	# Create mesh
-	# g = GridHandlerGMSH("geom", os.path.join("..", "..", "grids", "sugar_cube_0"))
 	g = GridHandlerGMSH("geom", os.path.join("..", "..", "grids", "cube_0"))
 	n_elems = g.mesh.num_cells()
 	coordinates = g.mesh.coordinates()
@@ -111,7 +108,7 @@ def main():
 	theta = input_bc["Time"]["theta"]
 
 	# Output folder
-	output_folder = os.path.join("output", "case_IMP")
+	output_folder = os.path.join("output", "case_IMP_test")
 	print(output_folder)
 	print()
 
@@ -144,18 +141,22 @@ def main():
 		C_aux += to.flatten(elem.C1)
 	C1.vector()[:] = C_aux
 
+	# Define expressions for Neumann boundary conditions
+	s_rad = Expression("sigma", sigma=0, degree=1)
+	s_axi = Expression("sigma", sigma=0, degree=1)
+	s_rad.sigma, s_axi.sigma = get_loads(t)
+
 	# Build RHS vector
 	f = Constant((0, 0, 0))
 	b_body = dot(f, v)*dx
-	s_rad, s_axi = get_loads(t)
 	b_outer  = s_rad*normal*ds(g.get_boundary_tags("EAST"))
 	b_outer += s_rad*normal*ds(g.get_boundary_tags("NORTH"))
 	b_outer += s_axi*normal*ds(g.get_boundary_tags("TOP"))
 	b = assemble(b_body + b_outer)
 
-	s_rad, s_axi = get_loads(t)
-	print("Axial load: %.2f MPa"%(s_axi/MPa))
-	print("Radial load: %.2f MPa"%(s_rad/MPa))
+	sigma_rad, sigma_axi = get_loads(t)
+	print("Axial load: %.2f MPa"%(sigma_axi/MPa))
+	print("Radial load: %.2f MPa"%(sigma_rad/MPa))
 
 	# Build stiffness matrix
 	a_form = inner(dotdot(C0+1*C1, epsilon(du)), epsilon(v))*dx
@@ -240,6 +241,9 @@ def main():
 		# dt = compute_dt(m.elems_ie[0].Fvp)
 		t += dt
 
+		# Get new boundary stresses
+		s_rad.sigma, s_axi.sigma = get_loads(t)
+
 		# Iterative loop settings
 		tol = 1e-7
 		error = 2*tol
@@ -271,7 +275,6 @@ def main():
 
 			# Build rhs
 			b_rhs = inner(dotdot(CT, eps_rhs), epsilon(v))*dx
-			s_rad, s_axi = get_loads(t)
 			b_outer  = s_rad*normal*ds(g.get_boundary_tags("EAST"))
 			b_outer += s_rad*normal*ds(g.get_boundary_tags("NORTH"))
 			b_outer += s_axi*normal*ds(g.get_boundary_tags("TOP"))
@@ -325,9 +328,9 @@ def main():
 		m.update_eps_ie_rate_old()
 		m.update_eps_ve_rate_old()
 
-		s_rad, s_axi = get_loads(t)
-		print("Axial load: %.2f MPa"%(s_axi/MPa))
-		print("Radial load: %.2f MPa"%(s_rad/MPa))
+		sigma_rad, sigma_axi = get_loads(t)
+		print("Axial load: %.2f MPa"%(sigma_axi/MPa))
+		print("Radial load: %.2f MPa"%(sigma_rad/MPa))
 		for elem in m.elems_ie:
 			try:
 				Fvp.vector()[:] = elem.Fvp
