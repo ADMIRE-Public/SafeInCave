@@ -1,0 +1,56 @@
+{
+    "Elastic": {
+        "Spring_0": {
+            "type": "Spring",
+            "active": true,
+            "parameters": {
+                "E": 102e9,
+                "nu": 0.3
+            }
+        }
+    },
+    "Viscoelastic": {
+        "KelvinVoigt_0": {
+            "type": "KelvinVoigt",
+            "active": true,
+            "parameters": {
+                "E": 10e9,
+                "nu": 0.32,
+                "eta": 10.5e12
+            }
+        }
+    },
+    "Inelastic": {
+        "desai": {
+            "type": "ViscoplasticDesai",
+            "active": true,
+            "parameters": {
+                "F_0": 1.0,
+                "mu_1": 5.3665857009859815e-11,
+                "N_1": 3.1,
+                "n": 3.0,
+                "a_1": 1.965018496922832e-05,
+                "eta": 0.8275682807874163,
+                "beta_1": 0.0048,
+                "beta": 0.995,
+                "m": -0.5,
+                "gamma": 0.095,
+                "alpha_1": 0.0022,
+                "alpha_0": 0.0040715714049800586,
+                "k_v": 0.0,
+                "sigma_t": 5.0
+            }
+        },
+        "creep": {
+            "type": "DislocationCreep",
+            "active": true,
+            "parameters": {
+                "A": 1.9e-20,
+                "n": 3.0,
+                "T": 298,
+                "Q": 51600,
+                "R": 8.32
+            }
+        }
+    }
+}
