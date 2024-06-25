@@ -13,7 +13,7 @@ import json
 import time
 
 def compute_dt(Fvp_max):
-	dt_max = 0.5*hour
+	dt_max = 0.1*hour
 	try:
 		k3 = 1.4
 		dt_min = 0.01*hour
@@ -53,39 +53,37 @@ def main():
 	t = time_list[0]
 
 	# Create function spaces
-	VS = VectorFunctionSpace(g.mesh, "CG", 1)
-	TS = TensorFunctionSpace(g.mesh, "DG", 0)
-	P0 = FunctionSpace(g.mesh, "DG", 0)
-	V_DG_6x6 = TensorFunctionSpace(g.mesh, "DG", 0, shape=(6, 6))
+	CG_3x1 = VectorFunctionSpace(g.mesh, "CG", 1)
+	DG_1x1 = FunctionSpace(g.mesh, "DG", 0)
+	DG_3x3 = TensorFunctionSpace(g.mesh, "DG", 0)
+	DG_6x6 = TensorFunctionSpace(g.mesh, "DG", 0, shape=(6, 6))
 
 	# Create tensor fields
-	C0 = Function(V_DG_6x6)
-	C1 = Function(V_DG_6x6)
-	CT = Function(V_DG_6x6)
-	eps_tot = Function(TS)
-	eps_rhs = Function(TS)
-	sigma = Function(TS)
-	sigma_0 = Function(TS)
-	alpha_0 = Function(P0)
-	alpha = Function(P0)
-	Fvp = Function(P0)
+	C0 = Function(DG_6x6)
+	C1 = Function(DG_6x6)
+	CT = Function(DG_6x6)
+	eps_tot = Function(DG_3x3)
+	eps_rhs = Function(DG_3x3)
+	sigma = Function(DG_3x3)
+	sigma_0 = Function(DG_3x3)
+	alpha_0 = Function(DG_1x1)
+	alpha = Function(DG_1x1)
+	Fvp = Function(DG_1x1)
 
 	alpha.rename("Hardening parameter", "-")
 	Fvp.rename("Yield function", "-")
 
 	# Define variational problem
-	du = TrialFunction(VS)
-	v = TestFunction(VS)
+	du = TrialFunction(CG_3x1)
+	v = TestFunction(CG_3x1)
 	ds = Measure("ds", domain=g.mesh, subdomain_data=g.get_boundaries())
 	dx = Measure("dx", domain=g.mesh, subdomain_data=g.get_subdomains())
 	normal = dot(v, FacetNormal(g.mesh))
 	n = FacetNormal(g.mesh)
 
 	# Create displacement vector
-	u = Function(VS)
-	u_0 = Function(VS)
-	delta_u = Function(VS)
-	delta_u.rename("Displacement", "m")
+	u = Function(CG_3x1)
+	u.rename("Displacement", "m")
 
 	# Define constitutive model
 	m = ConstitutiveModelHandler(theta, n_elems)
@@ -108,7 +106,7 @@ def main():
 	# Initialize constitutive model
 	m.initialize()
 
-	# Apply Dirichlet boundary conditions
+	# Define Dirichlet boundary conditions
 	i = 0
 	bcs = []
 	bc_dirichlet_list = []
@@ -161,7 +159,7 @@ def main():
 	u_0.assign(u)
 
 	# Compute total strain
-	eps_tot.assign(local_projection(epsilon(u), TS))
+	eps_tot.assign(local_projection(epsilon(u), DG_3x3))
 
 	# Compute stress
 	eps_tot_torch = to_tensor(eps_tot.vector()[:].reshape((n_elems, 3, 3)))
@@ -205,17 +203,14 @@ def main():
 	stress_vtk = File(os.path.join(output_folder, "vtk", "stress", "stress.pvd"))
 
 	# Save displacement field
-	delta_u.vector()[:] = u.vector()[:] #- u_0.vector()[:]
-	u_vtk << (delta_u, t)
+	delta_u.vector()[:] = u.vector()[:]
+	u_vtk << (u, t)
 	Fvp_vtk << (Fvp, t)
 	alpha_vtk << (alpha, t)
 	stress_vtk << (sigma, t)
 
-	# for i in range(1, len(time_list)):
-	# for i in range(1, 10):
 	n_step = 1
 	t_final = time_list[-1]
-	# t_final = 1.5*hour
 	stress_old = m.stress.clone()
 	try:
 		Fvp_max = max(m.elems_ie[0].Fvp)
@@ -292,7 +287,7 @@ def main():
 			solver.solve(A, u.vector(), b)
 
 			# Compute total strain
-			eps_tot.assign(local_projection(epsilon(u), TS))
+			eps_tot.assign(local_projection(epsilon(u), DG_3x3))
 			eps_tot_torch = to_tensor(eps_tot.vector()[:].reshape((n_elems, 3, 3)))
 
 			# Compute stress

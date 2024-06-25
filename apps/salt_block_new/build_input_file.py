@@ -5,6 +5,7 @@ import numpy as np
 sys.path.append(os.path.join("..", "..", "libs"))
 from Grid import GridHandlerGMSH
 
+
 class BuildInputFile():
 	def __init__(self):
 		self.input_file = {}
@@ -82,22 +83,22 @@ if __name__ == '__main__':
 	bif.section_input_grid(path_to_grid, "geom")
 
 	# Create output section
-	bif.section_output(os.path.join("output", "example"))
+	bif.section_output(os.path.join("output", "case_e_ve"))
 
 	# Create time_settings section
 	time_list = [0*hour,  2*hour,  10*hour, 12*hour, 14*hour, 16*hour, 20*hour, 22*hour, 24*hour]
-	bif.section_time_settings(time_list, theta=0.5)
+	bif.section_time_settings(time_list, theta=0.0)
 
 	# # Create boundary_conditions section
 	dirichlet_zeros = list(np.zeros(len(time_list)))
 	bif.section_boundary_conditions()
-	bif.add_boundary_condition("EAST", dirichlet_zeros, "dirichlet", 0)
+	bif.add_boundary_condition("WEST", dirichlet_zeros, "dirichlet", 0)
 	bif.add_boundary_condition("SOUTH", dirichlet_zeros, "dirichlet", 1)
 	bif.add_boundary_condition("BOTTOM", dirichlet_zeros, "dirichlet", 2)
 
 	stress_horizontal = [5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa]
 	stress_vertical = [6*MPa, 10*MPa, 10*MPa, 6*MPa, 6*MPa, 12*MPa, 12*MPa, 6*MPa, 6*MPa]
-	bif.add_boundary_condition("WEST", stress_horizontal, "neumann")
+	bif.add_boundary_condition("EAST", stress_horizontal, "neumann")
 	bif.add_boundary_condition("NORTH", stress_horizontal, "neumann")
 	bif.add_boundary_condition("TOP", stress_vertical, "neumann")
 
@@ -120,9 +121,9 @@ if __name__ == '__main__':
         "type": "KelvinVoigt",
         "active": True,
         "parameters": {
-            "E": 	list(102e9*np.ones(bif.n_elems)),
-            "nu": 	list(0.3*np.ones(bif.n_elems)),
-            "eta": 	list(10.5e12*np.ones(bif.n_elems))
+            "E": 	list(10e9*np.ones(bif.n_elems)),
+            "nu": 	list(0.32*np.ones(bif.n_elems)),
+            "eta": 	list(105e11*np.ones(bif.n_elems))
 		}
     }
 	bif.add_viscoelastic_element("KelvinVoigt_0", viscoelastic_parameters)
@@ -153,7 +154,7 @@ if __name__ == '__main__':
 	# Add dislocation creep parameters
 	creep_parameters = {
         "type": "DislocationCreep",
-        "active": True,
+        "active": False,
         "parameters": {
             "A": 	list(1.9e-20*np.ones(bif.n_elems)),
             "n": 	list(3.0*np.ones(bif.n_elems)),

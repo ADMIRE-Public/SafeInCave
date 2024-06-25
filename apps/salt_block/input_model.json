@@ -12,7 +12,7 @@
     "Viscoelastic": {
         "KelvinVoigt_0": {
             "type": "KelvinVoigt",
-            "active": true,
+            "active": false,
             "parameters": {
                 "E": 10e9,
                 "nu": 0.32,
@@ -23,7 +23,7 @@
     "Inelastic": {
         "desai": {
             "type": "ViscoplasticDesai",
-            "active": true,
+            "active": false,
             "parameters": {
                 "F_0": 1.0,
                 "mu_1": 5.3665857009859815e-11,

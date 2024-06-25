@@ -13,7 +13,7 @@ import json
 import time
 
 def compute_dt(Fvp_max):
-	dt_max = 0.5*hour
+	dt_max = 0.1*hour
 	try:
 		k3 = 1.4
 		dt_min = 0.01*hour
@@ -108,7 +108,7 @@ def main():
 	theta = input_bc["Time"]["theta"]
 
 	# Output folder
-	output_folder = os.path.join("output", "case_IMP")
+	output_folder = os.path.join("output", "case_e_cr")
 	print(output_folder)
 	print()
 
