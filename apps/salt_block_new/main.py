@@ -13,10 +13,10 @@ import json
 import time
 
 def compute_dt(Fvp_max):
-	dt_max = 0.5*hour
+	dt_max = 0.25*hour
 	try:
 		k3 = 1.4
-		dt_min = 0.01*hour
+		dt_min = 0.1*hour
 		dt_star = dt_max/1.5
 
 		k1 = (dt_max/(dt_max - dt_star)) - 1
@@ -52,40 +52,43 @@ def main():
 	theta = input_file["time_settings"]["theta"]
 	t = time_list[0]
 
+	# Define salt specific weight
+	gravity = input_file["body_force"]["gravity"]
+	density = input_file["body_force"]["density"]
+	direction = input_file["body_force"]["direction"]
+
 	# Create function spaces
-	VS = VectorFunctionSpace(g.mesh, "CG", 1)
-	TS = TensorFunctionSpace(g.mesh, "DG", 0)
-	P0 = FunctionSpace(g.mesh, "DG", 0)
-	V_DG_6x6 = TensorFunctionSpace(g.mesh, "DG", 0, shape=(6, 6))
+	CG_3x1 = VectorFunctionSpace(g.mesh, "CG", 1)
+	DG_1x1 = FunctionSpace(g.mesh, "DG", 0)
+	DG_3x3 = TensorFunctionSpace(g.mesh, "DG", 0)
+	DG_6x6 = TensorFunctionSpace(g.mesh, "DG", 0, shape=(6, 6))
 
 	# Create tensor fields
-	C0 = Function(V_DG_6x6)
-	C1 = Function(V_DG_6x6)
-	CT = Function(V_DG_6x6)
-	eps_tot = Function(TS)
-	eps_rhs = Function(TS)
-	sigma = Function(TS)
-	sigma_0 = Function(TS)
-	alpha_0 = Function(P0)
-	alpha = Function(P0)
-	Fvp = Function(P0)
+	C0 = Function(DG_6x6)
+	C1 = Function(DG_6x6)
+	CT = Function(DG_6x6)
+	eps_tot = Function(DG_3x3)
+	eps_rhs = Function(DG_3x3)
+	sigma = Function(DG_3x3)
+	sigma_0 = Function(DG_3x3)
+	alpha_0 = Function(DG_1x1)
+	alpha = Function(DG_1x1)
+	Fvp = Function(DG_1x1)
 
 	alpha.rename("Hardening parameter", "-")
 	Fvp.rename("Yield function", "-")
 
 	# Define variational problem
-	du = TrialFunction(VS)
-	v = TestFunction(VS)
+	du = TrialFunction(CG_3x1)
+	v = TestFunction(CG_3x1)
 	ds = Measure("ds", domain=g.mesh, subdomain_data=g.get_boundaries())
 	dx = Measure("dx", domain=g.mesh, subdomain_data=g.get_subdomains())
 	normal = dot(v, FacetNormal(g.mesh))
 	n = FacetNormal(g.mesh)
 
 	# Create displacement vector
-	u = Function(VS)
-	u_0 = Function(VS)
-	delta_u = Function(VS)
-	delta_u.rename("Displacement", "m")
+	u = Function(CG_3x1)
+	u.rename("Displacement", "m")
 
 	# Define constitutive model
 	m = ConstitutiveModelHandler(theta, n_elems)
@@ -108,7 +111,7 @@ def main():
 	# Initialize constitutive model
 	m.initialize()
 
-	# Apply Dirichlet boundary conditions
+	# Define Dirichlet boundary conditions
 	i = 0
 	bcs = []
 	bc_dirichlet_list = []
@@ -117,8 +120,8 @@ def main():
 			bc_dirichlet_list.append(Expression("value", value=0, degree=1))
 			component = input_file["boundary_conditions"][boundary]["component"]
 			values = input_file["boundary_conditions"][boundary]["values"]
-			bc_dirichlet_list[i].value = -np.interp(t, time_list, values)
-			bcs.append(DirichletBC(VS.sub(component), bc_dirichlet_list[i], g.get_boundaries(), g.get_boundary_tags(boundary)))
+			bc_dirichlet_list[i].value = np.interp(t, time_list, values)
+			bcs.append(DirichletBC(CG_3x1.sub(component), bc_dirichlet_list[i], g.get_boundaries(), g.get_boundary_tags(boundary)))
 			i += 1
 
 	# Apply Neumann boundary conditions
@@ -126,15 +129,33 @@ def main():
 	bc_neumann_list = []
 	for boundary in input_file["boundary_conditions"]:
 		if input_file["boundary_conditions"][boundary]["type"] == "neumann":
-			bc_neumann_list.append(Expression("value", value=0, degree=1))
+			bc_direction = input_file["boundary_conditions"][boundary]["direction"]
+			bc_density = input_file["boundary_conditions"][boundary]["density"]
+			ref_position = input_file["boundary_conditions"][boundary]["reference_position"]
+			bc_neumann_list.append(Expression(f"s_0 + rho*g*(H - x[{bc_direction}])", s_0=0, rho=bc_density, g=gravity, H=ref_position, degree=1))
 			values = input_file["boundary_conditions"][boundary]["values"]
-			bc_neumann_list[i].value = -np.interp(t, time_list, values)
+			bc_neumann_list[i].s_0 = -np.interp(t, time_list, values)
 			if i == 0: 	b_outer = bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 			else: 		b_outer += bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 			i += 1
 
+	# Define solver
+	if input_file["solver_settings"]["type"] == "KrylovSolver":
+		solver = KrylovSolver(
+		                      	method = input_file["solver_settings"]["method"],
+		                      	preconditioner = input_file["solver_settings"]["preconditioner"]
+		                      )
+		solver.parameters["relative_tolerance"] = input_file["solver_settings"]["relative_tolerance"]
+
+	elif input_file["solver_settings"]["type"] == "LU":
+		solver = LUSolver(input_file["solver_settings"]["method"])
+		solver.parameters["symmetric"] = input_file["solver_settings"]["symmetric"]
+
 	# Build RHS vector
-	f = Constant((0, 0, 0))
+	f_form = [0, 0, 0]
+	f_form[direction] = gravity*density
+	f_form = tuple(f_form)
+	f = Constant(f_form)
 	b_body = dot(f, v)*dx
 	b = assemble(b_body + b_outer)
 
@@ -149,19 +170,15 @@ def main():
 	a_form = inner(dotdot(C0+1*C1, epsilon(du)), epsilon(v))*dx
 	A = assemble(a_form)
 
+
+
 	# Solve linear system
 	[bc.apply(A, b) for bc in bcs]
-	solver = KrylovSolver('cg', 'sor')
-	# solver.parameters['absolute_tolerance'] = 1e-10
-	solver.parameters['relative_tolerance'] = 1e-12
 	solver.solve(A, u.vector(), b)
 	# solve(A, u.vector(), b, "petsc")
 
-	# Assign initial displacement field
-	u_0.assign(u)
-
 	# Compute total strain
-	eps_tot.assign(local_projection(epsilon(u), TS))
+	eps_tot.assign(local_projection(epsilon(u), DG_3x3))
 
 	# Compute stress
 	eps_tot_torch = to_tensor(eps_tot.vector()[:].reshape((n_elems, 3, 3)))
@@ -205,17 +222,13 @@ def main():
 	stress_vtk = File(os.path.join(output_folder, "vtk", "stress", "stress.pvd"))
 
 	# Save displacement field
-	delta_u.vector()[:] = u.vector()[:] #- u_0.vector()[:]
-	u_vtk << (delta_u, t)
+	u_vtk << (u, t)
 	Fvp_vtk << (Fvp, t)
 	alpha_vtk << (alpha, t)
 	stress_vtk << (sigma, t)
 
-	# for i in range(1, len(time_list)):
-	# for i in range(1, 10):
 	n_step = 1
 	t_final = time_list[-1]
-	# t_final = 1.5*hour
 	stress_old = m.stress.clone()
 	try:
 		Fvp_max = max(m.elems_ie[0].Fvp)
@@ -238,7 +251,7 @@ def main():
 				component = input_file["boundary_conditions"][boundary]["component"]
 				values = input_file["boundary_conditions"][boundary]["values"]
 				bc_dirichlet_list[i].value = -np.interp(t, time_list, values)
-				bcs.append(DirichletBC(VS.sub(component), bc_dirichlet_list[i], g.get_boundaries(), g.get_boundary_tags(boundary)))
+				bcs.append(DirichletBC(CG_3x1.sub(component), bc_dirichlet_list[i], g.get_boundaries(), g.get_boundary_tags(boundary)))
 				i += 1
 
 		# Update Neumann boundary conditions
@@ -246,8 +259,8 @@ def main():
 		for boundary in input_file["boundary_conditions"]:
 			if input_file["boundary_conditions"][boundary]["type"] == "neumann":
 				values = input_file["boundary_conditions"][boundary]["values"]
-				bc_neumann_list[i].value = -np.interp(t, time_list, values)
-				if i == 0:	b_outer = bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
+				bc_neumann_list[i].s_0 = -np.interp(t, time_list, values)
+				if i == 0: 	b_outer = bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 				else: 		b_outer += bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 				i += 1
 
@@ -292,7 +305,7 @@ def main():
 			solver.solve(A, u.vector(), b)
 
 			# Compute total strain
-			eps_tot.assign(local_projection(epsilon(u), TS))
+			eps_tot.assign(local_projection(epsilon(u), DG_3x3))
 			eps_tot_torch = to_tensor(eps_tot.vector()[:].reshape((n_elems, 3, 3)))
 
 			# Compute stress
@@ -354,8 +367,7 @@ def main():
 		stress_old = m.stress.clone()
 
 		# Save displacement field
-		delta_u.vector()[:] = u.vector()[:] #- u_0.vector()[:]
-		u_vtk << (delta_u, t)
+		u_vtk << (u, t)
 		sigma.vector()[:] = m.stress.flatten()
 		stress_vtk << (sigma, t)
 

@@ -5,6 +5,7 @@ import numpy as np
 sys.path.append(os.path.join("..", "..", "libs"))
 from Grid import GridHandlerGMSH
 
+
 class BuildInputFile():
 	def __init__(self):
 		self.input_file = {}
@@ -27,6 +28,9 @@ class BuildInputFile():
 		self.input_file["output"] = {}
 		self.input_file["output"]["path"] = output_folder
 
+	def section_solver(self, solver_settings):
+		self.input_file["solver_settings"] = solver_settings
+
 	def section_time_settings(self, time_list, theta=0.5):
 		self.input_file["time_settings"] = {}
 		self.input_file["time_settings"]["theta"] = theta
@@ -40,13 +44,18 @@ class BuildInputFile():
 			self.input_file["boundary_conditions"][boundary_name]["component"] = 0
 			self.input_file["boundary_conditions"][boundary_name]["values"] = list(np.zeros(len(self.input_file["time_settings"]["time_list"])))
 
-	def add_boundary_condition(self, boundary_name, bc_values, bc_type="dirichlet", component=0.):
+	def add_boundary_condition(self, boundary_name, bc_data):
+		bc_type = bc_data["type"]
 		assert boundary_name in self.list_of_boundary_names, f"{boundary_name} is not in {self.list_of_boundary_names}."
 		assert bc_type in ["dirichlet", "neumann"], f"{bc_type} must be either 'dirichlet' or 'neumann'."
-		self.input_file["boundary_conditions"][boundary_name] = {}
-		self.input_file["boundary_conditions"][boundary_name]["values"] = bc_values
-		self.input_file["boundary_conditions"][boundary_name]["component"] = component
-		self.input_file["boundary_conditions"][boundary_name]["type"] = bc_type
+		self.input_file["boundary_conditions"][boundary_name] = bc_data
+
+	def section_body_forces(self, value, direction):
+		self.input_file["body_force"] = {
+											"gravity": -9.81,
+											"density": value,
+											"direction": direction
+		}
 
 	def section_material_properties(self):
 		self.input_file["material_properties"] = {
@@ -55,14 +64,17 @@ class BuildInputFile():
 		    "Inelastic": {}
 		}
 
+	def add_element(self, element_name, element_parameters, element_type="Elastic"):
+		self.input_file["material_properties"][element_type][element_name] = element_parameters
+
 	def add_elastic_element(self, element_name, element_parameters):
-		self.input_file["material_properties"]["Elastic"][element_name] = element_parameters
+		self.add_element(element_name, element_parameters, element_type="Elastic")
 
 	def add_viscoelastic_element(self, element_name, element_parameters):
-		self.input_file["material_properties"]["Viscoelastic"][element_name] = element_parameters
+		self.add_element(element_name, element_parameters, element_type="Viscoelastic")
 
 	def add_inelastic_element(self, element_name, element_parameters):
-		self.input_file["material_properties"]["Inelastic"][element_name] = element_parameters
+		self.add_element(element_name, element_parameters, element_type="Inelastic")
 
 
 
@@ -82,90 +94,159 @@ if __name__ == '__main__':
 	bif.section_input_grid(path_to_grid, "geom")
 
 	# Create output section
-	bif.section_output(os.path.join("output", "example"))
+	bif.section_output(os.path.join("output", "case_e_ve_vp_cr"))
+
+	# Create solver settings section
+	solver_settings = {
+        "type": "KrylovSolver",
+        "method": "cg",
+        # "preconditioner": "sor",
+        "preconditioner": "petsc_amg",
+        "relative_tolerance": 1e-12,
+    }
+	# solver_settings = {
+    #     "type": "LU",
+    #     "method": "petsc",
+    #     "symmetric": True,
+    # }
+	bif.section_solver(solver_settings)
 
 	# Create time_settings section
 	time_list = [0*hour,  2*hour,  10*hour, 12*hour, 14*hour, 16*hour, 20*hour, 22*hour, 24*hour]
-	bif.section_time_settings(time_list, theta=0.5)
+	bif.section_time_settings(time_list, theta=0.0)
+
+	# Create body_forces section
+	salt_density = 2000
+	bif.section_body_forces(value=salt_density, direction=2)
 
 	# # Create boundary_conditions section
-	dirichlet_zeros = list(np.zeros(len(time_list)))
 	bif.section_boundary_conditions()
-	bif.add_boundary_condition("EAST", dirichlet_zeros, "dirichlet", 0)
-	bif.add_boundary_condition("SOUTH", dirichlet_zeros, "dirichlet", 1)
-	bif.add_boundary_condition("BOTTOM", dirichlet_zeros, "dirichlet", 2)
 
-	stress_horizontal = [5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa]
-	stress_vertical = [6*MPa, 10*MPa, 10*MPa, 6*MPa, 6*MPa, 12*MPa, 12*MPa, 6*MPa, 6*MPa]
-	bif.add_boundary_condition("WEST", stress_horizontal, "neumann")
-	bif.add_boundary_condition("NORTH", stress_horizontal, "neumann")
-	bif.add_boundary_condition("TOP", stress_vertical, "neumann")
+	# Add Dirichlet boundary conditions
+	bif.add_boundary_condition(
+	                           boundary_name = "WEST",
+	                           bc_data = {
+	                           			"type": "dirichlet",
+	                           			"component": 0,
+	                           			"values": list(np.zeros(len(time_list)))
+	                           }
+	)
+	bif.add_boundary_condition(
+	                           boundary_name = "SOUTH",
+	                           bc_data = {
+	                           			"type": "dirichlet",
+	                           			"component": 1,
+	                           			"values": list(np.zeros(len(time_list)))
+	                           }
+	)
+	bif.add_boundary_condition(
+	                           boundary_name = "BOTTOM",
+	                           bc_data = {
+	                           			"type": "dirichlet",
+	                           			"component": 2,
+	                           			"values": list(np.zeros(len(time_list)))
+	                           }
+	)
+
+	# Add Neumann boundary condition
+	bif.add_boundary_condition(
+	                           boundary_name = "EAST",
+	                           bc_data = {
+	                           			"type": "neumann",
+	                           			"direction": 2,
+	                           			"density": 0*salt_density,
+	                           			"reference_position": 1.0,
+	                           			"values": [5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa]
+	                           }
+	)
+	bif.add_boundary_condition(
+	                           boundary_name = "NORTH",
+	                           bc_data = {
+	                           			"type": "neumann",
+	                           			"direction": 2,
+	                           			"density": 0*salt_density,
+	                           			"reference_position": 1.0,
+	                           			"values": [5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa]
+	                           }
+	)
+	bif.add_boundary_condition(
+	                           boundary_name = "TOP",
+	                           bc_data = {
+	                           			"type": "neumann",
+	                           			"direction": 2,
+	                           			"density": 0.0,
+	                           			"reference_position": 1.0,
+	                           			# "values": [0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa]
+	                           			"values": [6*MPa, 10*MPa, 10*MPa, 6*MPa, 6*MPa, 12*MPa, 12*MPa, 6*MPa, 6*MPa]
+                           		}
+	)
+
 
 	# Assign material properties
 	bif.section_material_properties()
 
 	# Add elastic properties
-	elastic_parameters = {
-        "type": "Spring",
-        "active": True,
-        "parameters": {
-            "E": 	list(102e9*np.ones(bif.n_elems)),
-            "nu": 	list(0.3*np.ones(bif.n_elems))
-        }
-    }
-	bif.add_elastic_element("Spring_0", elastic_parameters)
+	bif.add_elastic_element(	element_name = "Spring_0", 
+		                        element_parameters = {  "type": "Spring",
+												        "active": True,
+												        "parameters": {
+												            "E": 	list(102e9*np.ones(bif.n_elems)),
+												            "nu": 	list(0.3*np.ones(bif.n_elems))
+												        }
+												    }
+    )
 
 	# Add viscoelastic properties
-	viscoelastic_parameters = {
-        "type": "KelvinVoigt",
-        "active": True,
-        "parameters": {
-            "E": 	list(102e9*np.ones(bif.n_elems)),
-            "nu": 	list(0.3*np.ones(bif.n_elems)),
-            "eta": 	list(10.5e12*np.ones(bif.n_elems))
-		}
-    }
-	bif.add_viscoelastic_element("KelvinVoigt_0", viscoelastic_parameters)
+	bif.add_viscoelastic_element( 	element_name = "KelvinVoigt_0", 
+	                             	element_parameters = {
+													        "type": "KelvinVoigt",
+													        "active": True,
+													        "parameters": {
+													            "E": 	list(10e9*np.ones(bif.n_elems)),
+													            "nu": 	list(0.32*np.ones(bif.n_elems)),
+													            "eta": 	list(105e11*np.ones(bif.n_elems))
+															}
+													    }
+ 	)
 
 	# Add viscoplastic parameters
-	viscoplastic_parameters = {
-        "type": "ViscoplasticDesai",
-        "active": False,
-        "parameters": {
-            "F_0": 		list(1.0*np.ones(bif.n_elems)),
-            "mu_1": 	list(5.3665857009859815e-11*np.ones(bif.n_elems)),
-            "N_1": 		list(3.1*np.ones(bif.n_elems)),
-            "n": 		list(3.0*np.ones(bif.n_elems)),
-            "a_1":		list(1.965018496922832e-05*np.ones(bif.n_elems)),
-            "eta": 		list(0.8275682807874163*np.ones(bif.n_elems)),
-            "beta_1": 	list(0.0048*np.ones(bif.n_elems)),
-            "beta": 	list(0.995*np.ones(bif.n_elems)),
-            "m": 		list(-0.5*np.ones(bif.n_elems)),
-            "gamma": 	list(0.095*np.ones(bif.n_elems)),
-            "alpha_1": 	list(0.0022*np.ones(bif.n_elems)),
-            "alpha_0": 	list(0.0040715714049800586*np.ones(bif.n_elems)),
-            "k_v": 		list(0.0*np.ones(bif.n_elems)),
-            "sigma_t": 	list(5.0*np.ones(bif.n_elems))
-		}
-    }
-	bif.add_inelastic_element("desai", viscoplastic_parameters)
+	bif.add_inelastic_element(	element_name = "desai", 
+								element_parameters = {
+											        "type": "ViscoplasticDesai",
+											        "active": True,
+											        "parameters": {
+											            "F_0": 		list(1.0*np.ones(bif.n_elems)),
+											            "mu_1": 	list(5.3665857009859815e-11*np.ones(bif.n_elems)),
+											            "N_1": 		list(3.1*np.ones(bif.n_elems)),
+											            "n": 		list(3.0*np.ones(bif.n_elems)),
+											            "a_1":		list(1.965018496922832e-05*np.ones(bif.n_elems)),
+											            "eta": 		list(0.8275682807874163*np.ones(bif.n_elems)),
+											            "beta_1": 	list(0.0048*np.ones(bif.n_elems)),
+											            "beta": 	list(0.995*np.ones(bif.n_elems)),
+											            "m": 		list(-0.5*np.ones(bif.n_elems)),
+											            "gamma": 	list(0.095*np.ones(bif.n_elems)),
+											            "alpha_1": 	list(0.0022*np.ones(bif.n_elems)),
+											            "alpha_0": 	list(0.0040715714049800586*np.ones(bif.n_elems)),
+											            "k_v": 		list(0.0*np.ones(bif.n_elems)),
+											            "sigma_t": 	list(5.0*np.ones(bif.n_elems))
+													}
+											    }
+    )
 
 	# Add dislocation creep parameters
-	creep_parameters = {
-        "type": "DislocationCreep",
-        "active": True,
-        "parameters": {
-            "A": 	list(1.9e-20*np.ones(bif.n_elems)),
-            "n": 	list(3.0*np.ones(bif.n_elems)),
-            "T": 	list(298*np.ones(bif.n_elems)),
-            "Q": 	list(51600*np.ones(bif.n_elems)),
-            "R": 	list(8.32*np.ones(bif.n_elems))
-		}
-    }
-	bif.add_inelastic_element("creep", creep_parameters)
-
-
-
+	bif.add_inelastic_element(	element_name = "creep", 
+	                          	element_parameters = {
+													        "type": "DislocationCreep",
+													        "active": True,
+													        "parameters": {
+													            "A": 	list(1.9e-20*np.ones(bif.n_elems)),
+													            "n": 	list(3.0*np.ones(bif.n_elems)),
+													            "T": 	list(298*np.ones(bif.n_elems)),
+													            "Q": 	list(51600*np.ones(bif.n_elems)),
+													            "R": 	list(8.32*np.ones(bif.n_elems))
+															}
+													    }
+    )
 
 	# Save input_file.json
 	bif.save_input_file("input_file_0.json")
