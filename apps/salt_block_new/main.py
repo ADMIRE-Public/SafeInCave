@@ -52,6 +52,11 @@ def main():
 	theta = input_file["time_settings"]["theta"]
 	t = time_list[0]
 
+	# Define salt specific weight
+	gravity = input_file["body_force"]["gravity"]
+	density = input_file["body_force"]["density"]
+	direction = input_file["body_force"]["direction"]
+
 	# Create function spaces
 	CG_3x1 = VectorFunctionSpace(g.mesh, "CG", 1)
 	DG_1x1 = FunctionSpace(g.mesh, "DG", 0)
@@ -115,8 +120,8 @@ def main():
 			bc_dirichlet_list.append(Expression("value", value=0, degree=1))
 			component = input_file["boundary_conditions"][boundary]["component"]
 			values = input_file["boundary_conditions"][boundary]["values"]
-			bc_dirichlet_list[i].value = -np.interp(t, time_list, values)
-			bcs.append(DirichletBC(VS.sub(component), bc_dirichlet_list[i], g.get_boundaries(), g.get_boundary_tags(boundary)))
+			bc_dirichlet_list[i].value = np.interp(t, time_list, values)
+			bcs.append(DirichletBC(CG_3x1.sub(component), bc_dirichlet_list[i], g.get_boundaries(), g.get_boundary_tags(boundary)))
 			i += 1
 
 	# Apply Neumann boundary conditions
@@ -124,6 +129,14 @@ def main():
 	bc_neumann_list = []
 	for boundary in input_file["boundary_conditions"]:
 		if input_file["boundary_conditions"][boundary]["type"] == "neumann":
+
+			# bc_direction = input_file["boundary_conditions"][boundary]["direction"]
+			# bc_density = input_file["boundary_conditions"][boundary]["density"]
+
+			# bc_neumann_list.append(Expression(f"s_0 + rho*g*(H - x[{direction}])", sh=0, rho=bc_density, g=gravity, H=H, degree=1))
+
+			# bc_expr = Expression("sh + gamma*(H - x[2])", sh=sigma_h, gamma=gamma_salt, H=H, degree=1)
+
 			bc_neumann_list.append(Expression("value", value=0, degree=1))
 			values = input_file["boundary_conditions"][boundary]["values"]
 			bc_neumann_list[i].value = -np.interp(t, time_list, values)
@@ -131,8 +144,23 @@ def main():
 			else: 		b_outer += bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 			i += 1
 
+	# Define solver
+	if input_file["solver_settings"]["type"] == "KrylovSolver":
+		solver = KrylovSolver(
+		                      	method = input_file["solver_settings"]["method"],
+		                      	preconditioner = input_file["solver_settings"]["preconditioner"]
+		                      )
+		solver.parameters["relative_tolerance"] = input_file["solver_settings"]["relative_tolerance"]
+
+	elif input_file["solver_settings"]["type"] == "LU":
+		solver = LUSolver(input_file["solver_settings"]["method"])
+		solver.parameters["symmetric"] = input_file["solver_settings"]["symmetric"]
+
 	# Build RHS vector
-	f = Constant((0, 0, 0))
+	f_form = [0, 0, 0]
+	f_form[direction] = gravity*density
+	f_form = tuple(f_form)
+	f = Constant(f_form)
 	b_body = dot(f, v)*dx
 	b = assemble(b_body + b_outer)
 
@@ -147,16 +175,12 @@ def main():
 	a_form = inner(dotdot(C0+1*C1, epsilon(du)), epsilon(v))*dx
 	A = assemble(a_form)
 
+
+
 	# Solve linear system
 	[bc.apply(A, b) for bc in bcs]
-	solver = KrylovSolver('cg', 'sor')
-	# solver.parameters['absolute_tolerance'] = 1e-10
-	solver.parameters['relative_tolerance'] = 1e-12
 	solver.solve(A, u.vector(), b)
 	# solve(A, u.vector(), b, "petsc")
-
-	# Assign initial displacement field
-	u_0.assign(u)
 
 	# Compute total strain
 	eps_tot.assign(local_projection(epsilon(u), DG_3x3))
@@ -203,7 +227,6 @@ def main():
 	stress_vtk = File(os.path.join(output_folder, "vtk", "stress", "stress.pvd"))
 
 	# Save displacement field
-	delta_u.vector()[:] = u.vector()[:]
 	u_vtk << (u, t)
 	Fvp_vtk << (Fvp, t)
 	alpha_vtk << (alpha, t)
@@ -233,7 +256,7 @@ def main():
 				component = input_file["boundary_conditions"][boundary]["component"]
 				values = input_file["boundary_conditions"][boundary]["values"]
 				bc_dirichlet_list[i].value = -np.interp(t, time_list, values)
-				bcs.append(DirichletBC(VS.sub(component), bc_dirichlet_list[i], g.get_boundaries(), g.get_boundary_tags(boundary)))
+				bcs.append(DirichletBC(CG_3x1.sub(component), bc_dirichlet_list[i], g.get_boundaries(), g.get_boundary_tags(boundary)))
 				i += 1
 
 		# Update Neumann boundary conditions
@@ -349,8 +372,7 @@ def main():
 		stress_old = m.stress.clone()
 
 		# Save displacement field
-		delta_u.vector()[:] = u.vector()[:] #- u_0.vector()[:]
-		u_vtk << (delta_u, t)
+		u_vtk << (u, t)
 		sigma.vector()[:] = m.stress.flatten()
 		stress_vtk << (sigma, t)
 
