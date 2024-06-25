@@ -13,10 +13,10 @@ import json
 import time
 
 def compute_dt(Fvp_max):
-	dt_max = 0.1*hour
+	dt_max = 0.25*hour
 	try:
 		k3 = 1.4
-		dt_min = 0.01*hour
+		dt_min = 0.1*hour
 		dt_star = dt_max/1.5
 
 		k1 = (dt_max/(dt_max - dt_star)) - 1
@@ -129,17 +129,12 @@ def main():
 	bc_neumann_list = []
 	for boundary in input_file["boundary_conditions"]:
 		if input_file["boundary_conditions"][boundary]["type"] == "neumann":
-
-			# bc_direction = input_file["boundary_conditions"][boundary]["direction"]
-			# bc_density = input_file["boundary_conditions"][boundary]["density"]
-
-			# bc_neumann_list.append(Expression(f"s_0 + rho*g*(H - x[{direction}])", sh=0, rho=bc_density, g=gravity, H=H, degree=1))
-
-			# bc_expr = Expression("sh + gamma*(H - x[2])", sh=sigma_h, gamma=gamma_salt, H=H, degree=1)
-
-			bc_neumann_list.append(Expression("value", value=0, degree=1))
+			bc_direction = input_file["boundary_conditions"][boundary]["direction"]
+			bc_density = input_file["boundary_conditions"][boundary]["density"]
+			ref_position = input_file["boundary_conditions"][boundary]["reference_position"]
+			bc_neumann_list.append(Expression(f"s_0 + rho*g*(H - x[{bc_direction}])", s_0=0, rho=bc_density, g=gravity, H=ref_position, degree=1))
 			values = input_file["boundary_conditions"][boundary]["values"]
-			bc_neumann_list[i].value = -np.interp(t, time_list, values)
+			bc_neumann_list[i].s_0 = -np.interp(t, time_list, values)
 			if i == 0: 	b_outer = bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 			else: 		b_outer += bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 			i += 1
@@ -264,8 +259,8 @@ def main():
 		for boundary in input_file["boundary_conditions"]:
 			if input_file["boundary_conditions"][boundary]["type"] == "neumann":
 				values = input_file["boundary_conditions"][boundary]["values"]
-				bc_neumann_list[i].value = -np.interp(t, time_list, values)
-				if i == 0:	b_outer = bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
+				bc_neumann_list[i].s_0 = -np.interp(t, time_list, values)
+				if i == 0: 	b_outer = bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 				else: 		b_outer += bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 				i += 1
 

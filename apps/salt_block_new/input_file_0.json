@@ -4,7 +4,7 @@
         "name": "geom"
     },
     "output": {
-        "path": "output/case_e_ve"
+        "path": "output/case_e_ve_vp_cr"
     },
     "solver_settings": {
         "type": "KrylovSolver",
@@ -36,6 +36,7 @@
             "type": "neumann",
             "direction": 2,
             "density": 0.0,
+            "reference_position": 1.0,
             "values": [
                 6000000.0,
                 10000000.0,
@@ -66,7 +67,8 @@
         "EAST": {
             "type": "neumann",
             "direction": 2,
-            "density": 2000,
+            "density": 0,
+            "reference_position": 1.0,
             "values": [
                 5000000.0,
                 5000000.0,
@@ -112,7 +114,8 @@
         "NORTH": {
             "type": "neumann",
             "direction": 2,
-            "density": 2000,
+            "density": 0,
+            "reference_position": 1.0,
             "values": [
                 5000000.0,
                 5000000.0,
@@ -22526,7 +22529,7 @@
         "Inelastic": {
             "desai": {
                 "type": "ViscoplasticDesai",
-                "active": false,
+                "active": true,
                 "parameters": {
                     "F_0": [
                         1.0,
@@ -85196,7 +85199,7 @@
             },
             "creep": {
                 "type": "DislocationCreep",
-                "active": false,
+                "active": true,
                 "parameters": {
                     "A": [
                         1.9e-20,

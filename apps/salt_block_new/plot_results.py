@@ -54,7 +54,7 @@ def main():
 	fig1, ax = plt.subplots(1, 1, figsize=(10, 4))
 	fig1.subplots_adjust(top=0.945, bottom=0.115, left=0.085, right=0.980, hspace=0.35, wspace=0.225)
 
-	plot_results(ax, os.path.join("output", "example", "vtk", "displacement"), color_name="lightcoral", label_name="IMP")
+	plot_results(ax, os.path.join("output", "case_e_ve_vp_cr", "vtk", "displacement"), color_name="lightcoral", label_name="IMP")
 
 	ax.set_xlabel("Time (hour)", size=12, fontname="serif")
 	ax.set_ylabel("Total strain (%)", size=12, fontname="serif")

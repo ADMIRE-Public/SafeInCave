@@ -94,7 +94,7 @@ if __name__ == '__main__':
 	bif.section_input_grid(path_to_grid, "geom")
 
 	# Create output section
-	bif.section_output(os.path.join("output", "case_e_ve"))
+	bif.section_output(os.path.join("output", "case_e_ve_vp_cr"))
 
 	# Create solver settings section
 	solver_settings = {
@@ -154,7 +154,8 @@ if __name__ == '__main__':
 	                           bc_data = {
 	                           			"type": "neumann",
 	                           			"direction": 2,
-	                           			"density": salt_density,
+	                           			"density": 0*salt_density,
+	                           			"reference_position": 1.0,
 	                           			"values": [5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa]
 	                           }
 	)
@@ -163,7 +164,8 @@ if __name__ == '__main__':
 	                           bc_data = {
 	                           			"type": "neumann",
 	                           			"direction": 2,
-	                           			"density": salt_density,
+	                           			"density": 0*salt_density,
+	                           			"reference_position": 1.0,
 	                           			"values": [5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa, 5*MPa]
 	                           }
 	)
@@ -173,8 +175,10 @@ if __name__ == '__main__':
 	                           			"type": "neumann",
 	                           			"direction": 2,
 	                           			"density": 0.0,
+	                           			"reference_position": 1.0,
+	                           			# "values": [0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa, 0*MPa]
 	                           			"values": [6*MPa, 10*MPa, 10*MPa, 6*MPa, 6*MPa, 12*MPa, 12*MPa, 6*MPa, 6*MPa]
-	                           		}
+                           		}
 	)
 
 
@@ -209,7 +213,7 @@ if __name__ == '__main__':
 	bif.add_inelastic_element(	element_name = "desai", 
 								element_parameters = {
 											        "type": "ViscoplasticDesai",
-											        "active": False,
+											        "active": True,
 											        "parameters": {
 											            "F_0": 		list(1.0*np.ones(bif.n_elems)),
 											            "mu_1": 	list(5.3665857009859815e-11*np.ones(bif.n_elems)),
@@ -233,7 +237,7 @@ if __name__ == '__main__':
 	bif.add_inelastic_element(	element_name = "creep", 
 	                          	element_parameters = {
 													        "type": "DislocationCreep",
-													        "active": False,
+													        "active": True,
 													        "parameters": {
 													            "A": 	list(1.9e-20*np.ones(bif.n_elems)),
 													            "n": 	list(3.0*np.ones(bif.n_elems)),
