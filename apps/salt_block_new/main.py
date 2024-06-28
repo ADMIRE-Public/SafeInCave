@@ -132,9 +132,9 @@ def main():
 			bc_direction = input_file["boundary_conditions"][boundary]["direction"]
 			bc_density = input_file["boundary_conditions"][boundary]["density"]
 			ref_position = input_file["boundary_conditions"][boundary]["reference_position"]
-			bc_neumann_list.append(Expression(f"s_0 + rho*g*(H - x[{bc_direction}])", s_0=0, rho=bc_density, g=gravity, H=ref_position, degree=1))
+			bc_neumann_list.append(Expression(f"load_ref + rho*g*(H - x[{bc_direction}])", load_ref=0, rho=bc_density, g=gravity, H=ref_position, degree=1))
 			values = input_file["boundary_conditions"][boundary]["values"]
-			bc_neumann_list[i].s_0 = -np.interp(t, time_list, values)
+			bc_neumann_list[i].load_ref = -np.interp(t, time_list, values)
 			if i == 0: 	b_outer = bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 			else: 		b_outer += bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 			i += 1
@@ -259,7 +259,7 @@ def main():
 		for boundary in input_file["boundary_conditions"]:
 			if input_file["boundary_conditions"][boundary]["type"] == "neumann":
 				values = input_file["boundary_conditions"][boundary]["values"]
-				bc_neumann_list[i].s_0 = -np.interp(t, time_list, values)
+				bc_neumann_list[i].load_ref = -np.interp(t, time_list, values)
 				if i == 0: 	b_outer = bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 				else: 		b_outer += bc_neumann_list[i]*normal*ds(g.get_boundary_tags(boundary))
 				i += 1
@@ -359,9 +359,7 @@ def main():
 			Fvp_max = max(m.elems_ie[0].Fvp)
 		except:
 			Fvp_max = -100
-		# dt = compute_dt_2(m.elems_ie[0].Fvp, m.stress, stress_old, dt)
 		dt = compute_dt(Fvp_max)
-		# dt = compute_dt(m.elems_ie[0].Fvp)
 
 		# Update stress
 		stress_old = m.stress.clone()

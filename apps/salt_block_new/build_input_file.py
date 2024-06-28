@@ -215,7 +215,6 @@ if __name__ == '__main__':
 											        "type": "ViscoplasticDesai",
 											        "active": True,
 											        "parameters": {
-											            "F_0": 		list(1.0*np.ones(bif.n_elems)),
 											            "mu_1": 	list(5.3665857009859815e-11*np.ones(bif.n_elems)),
 											            "N_1": 		list(3.1*np.ones(bif.n_elems)),
 											            "n": 		list(3.0*np.ones(bif.n_elems)),

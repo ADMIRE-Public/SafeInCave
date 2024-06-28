@@ -180,8 +180,8 @@ class DislocationCreep():
 
 class ViscoplasticDesai():
 	def __init__(self, props, psi_1=1.0, psi_2=1.0):
-		print("Elements2")
-		self.F_0 = props["F_0"]
+		self.F_0 = 1.0
+		# self.F_0 = props["F_0"]
 		self.mu_1 = props["mu_1"]
 		self.N_1 = props["N_1"]
 		self.a_1 = props["a_1"]
@@ -409,10 +409,9 @@ class ViscoplasticDesai():
 
 		ramp_idx = to.where(Fvp > 0)[0]
 		lmbda = to.zeros(self.n_elems, dtype=to.float64)
-		lmbda[ramp_idx] = self.mu_1[ramp_idx]*(Fvp[ramp_idx]/self.F_0[ramp_idx])**self.N_1[ramp_idx]
+		lmbda[ramp_idx] = self.mu_1[ramp_idx]*(Fvp[ramp_idx]/self.F_0)**self.N_1[ramp_idx]
+		# lmbda[ramp_idx] = self.mu_1[ramp_idx]*(Fvp[ramp_idx]/self.F_0[ramp_idx])**self.N_1[ramp_idx]
 		eps_vp_rate = -dQdS*lmbda[:, None, None]
-		# print(eps_vp_rate[200,[0,1,2],[0,1,2]])
-		# print(eps_vp_rate[10])
 
 		if return_eps_ie:
 			return eps_vp_rate
