@@ -1,13 +1,16 @@
 import torch as to
 from Utils import *
+from Elements import *
 
 class ConstitutiveModelHandler():
-	def __init__(self, theta, n_elems):
-		self.theta = theta
+	def __init__(self, grid, input_file):
+		self.n_elems = grid.mesh.num_cells()
+		self.input_model = input_file["material_properties"]
+		self.theta = input_file["time_settings"]["theta"]
+
 		self.elems_ie = []
 		self.elems_ve = []
 		self.elems_e = []
-		self.n_elems = n_elems
 
 		self.eps_e = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 		
@@ -21,6 +24,8 @@ class ConstitutiveModelHandler():
 		self.eps_ie = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 		self.eps_t_ie = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 
+		self.C0_inv = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+		self.C0 = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
 		self.CT = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
 		self.stress = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 		self.stress_k = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
@@ -28,8 +33,21 @@ class ConstitutiveModelHandler():
 		self.initialize()
 
 	def initialize(self):
-		self.C0_inv = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-		self.C0 = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+		# Add elastic element(s)
+		elems_e = self.__get_list_of_elements(element_class="Elastic")
+		for elem_e in elems_e:
+			self.add_elastic_element(elem_e)
+
+		# Add viscoelastic element
+		elems_ve = self.__get_list_of_elements(element_class="Viscoelastic")
+		for elem_ve in elems_ve:
+			self.add_viscoelastic_element(elem_ve)
+
+		# Add viscoelastic element
+		elems_ie = self.__get_list_of_elements(element_class="Inelastic")
+		for elem_ie in elems_ie:
+			self.add_inelastic_element(elem_ie)
+
 		for elem_e in self.elems_e:
 			elem_e.initialize()
 			self.C0_inv += elem_e.C0_inv
@@ -153,6 +171,26 @@ class ConstitutiveModelHandler():
 	def update_internal_variables(self):
 		for elem_ie in self.elems_ie:
 			elem_ie.update_internal_variables()
+
+	def __get_list_of_elements(self, element_class="Elastic"):
+		ELEMENT_DICT = {
+			"Spring": Spring,
+			"KelvinVoigt": Viscoelastic,
+			"DislocationCreep": DislocationCreep,
+			"ViscoplasticDesai": ViscoplasticDesai
+		}
+		list_of_elements = []
+		props = self.input_model[element_class]
+		for elem_name in props.keys():
+			if props[elem_name]["active"] == True:
+				element_parameters = props[elem_name]["parameters"]
+				for param in element_parameters:
+					element_parameters[param] = to.tensor(element_parameters[param])
+				elem = ELEMENT_DICT[props[elem_name]["type"]](element_parameters)
+				list_of_elements.append(elem)
+		if element_class == "Elastic" and len(list_of_elements) == 0:
+			raise Exception("Model must have at least 1 elastic element (Spring). None was given.")
+		return list_of_elements
 
 
 
