@@ -316,16 +316,7 @@ class ViscoplasticDesai():
 		s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = self.extract_stress_components(stress)
 		I1, I2, I3, J2, J3, Sr, I1_star = self.compute_stress_invariants(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
 		self.alpha_0 =  self.gamma*I1_star**(2-self.n) + (Fvp_0 - J2)*I1_star**(-self.n)*(to.exp(self.beta_1*I1_star) - self.beta*Sr)**(-self.m)
-		# self.alpha_0 = self.gamma*I1**(2-self.n) + (Fvp_0 - J2)*I1**(-self.n)*(to.exp(self.beta_1*I1) - self.beta*Sr)**(-self.m)
-
-		# alpha_min_positive = min(self.alpha_0[self.alpha_0 > 0.0])
-		# print(alpha_min_positive)
-		# self.alpha_0[self.alpha_0 <= 0.0] = alpha_min_positive
-
 		self.alpha = self.alpha_0.clone()
-
-		# for i, (sr, i1, j2, j3, a) in enumerate(zip(Sr, I1, J2, J3, self.alpha_0)):
-		# 	print(i, float(sr), float(i1), float(j2), float(j3), float(a))
 
 	def compute_eps_ie_rate(self, stress, alpha=None, return_eps_ie=False):
 		if alpha == None:

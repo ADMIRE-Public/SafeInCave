@@ -4,7 +4,7 @@
         "name": "geom"
     },
     "output": {
-        "path": "output/case_e_ve_vp_cr"
+        "path": "output/case_test"
     },
     "solver_settings": {
         "type": "KrylovSolver",
