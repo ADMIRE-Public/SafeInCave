@@ -91,25 +91,25 @@ def main():
 	u.rename("Displacement", "m")
 
 	# Define constitutive model
-	m = ConstitutiveModelHandler(theta, n_elems)
+	m = ConstitutiveModelHandler(g, input_file)
 
-	# Add elastic element(s)
-	elems_e = get_list_of_elements_new(input_file["material_properties"], n_elems, element_class="Elastic")
-	for elem_e in elems_e:
-		m.add_elastic_element(elem_e)
+	# # Add elastic element(s)
+	# elems_e = get_list_of_elements_new(input_file["material_properties"], n_elems, element_class="Elastic")
+	# for elem_e in elems_e:
+	# 	m.add_elastic_element(elem_e)
 
-	# Add viscoelastic element
-	elems_ve = get_list_of_elements_new(input_file["material_properties"], n_elems, element_class="Viscoelastic")
-	for elem_ve in elems_ve:
-		m.add_viscoelastic_element(elem_ve)
+	# # Add viscoelastic element
+	# elems_ve = get_list_of_elements_new(input_file["material_properties"], n_elems, element_class="Viscoelastic")
+	# for elem_ve in elems_ve:
+	# 	m.add_viscoelastic_element(elem_ve)
 
-	# Add viscoelastic element
-	elems_ie = get_list_of_elements_new(input_file["material_properties"], n_elems, element_class="Inelastic")
-	for elem_ie in elems_ie:
-		m.add_inelastic_element(elem_ie)
+	# # Add viscoelastic element
+	# elems_ie = get_list_of_elements_new(input_file["material_properties"], n_elems, element_class="Inelastic")
+	# for elem_ie in elems_ie:
+	# 	m.add_inelastic_element(elem_ie)
 
-	# Initialize constitutive model
-	m.initialize()
+	# # Initialize constitutive model
+	# m.initialize()
 
 	# Define Dirichlet boundary conditions
 	i = 0

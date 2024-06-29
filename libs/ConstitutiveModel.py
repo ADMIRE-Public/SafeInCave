@@ -13,16 +13,15 @@ class ConstitutiveModelHandler():
 		self.elems_e = []
 
 		self.eps_e = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
-		
-		self.GT_ve = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-		self.BT_ve = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 		self.eps_ve = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
-		self.eps_t_ve = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
-
-		self.GT_ie = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-		self.BT_ie = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 		self.eps_ie = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+		self.eps_t_ve = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 		self.eps_t_ie = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+
+		self.GT_ve = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+		self.GT_ie = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+		self.BT_ve = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+		self.BT_ie = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 
 		self.C0_inv = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
 		self.C0 = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
