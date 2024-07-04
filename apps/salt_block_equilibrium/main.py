@@ -40,7 +40,6 @@ def main_0():
 	
 	# Create mesh
 	g = GridHandlerGMSH(input_file["grid"]["name"], input_file["grid"]["path"])
-	n_elems = g.mesh.num_cells()
 
 	# Define constitutive model
 	m = ConstitutiveModelHandler(g, input_file)

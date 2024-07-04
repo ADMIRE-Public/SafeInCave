@@ -284,7 +284,6 @@ def run_simulation(g, m, solver, u, input_file):
 		m.update_eps_ie_rate_old()
 		m.update_eps_ve_rate_old()
 		
-
 		# Compute time step size
 		try:
 			Fvp_max = max(m.elems_ie[0].Fvp)
