@@ -12,7 +12,6 @@ class Spring():
 			self.n_elems = 1
 		self.eps_e = to.tensor((self.n_elems, 3, 3), dtype=to.float64)
 
-
 	def initialize(self):
 		self.compute_C0()
 		self.compute_C0_inv()
@@ -55,7 +54,6 @@ class Viscoelastic():
 		self.B = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 		self.G = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
 
-	def initialize(self):
 		self.compute_C1()
 
 	def compute_C1(self):
