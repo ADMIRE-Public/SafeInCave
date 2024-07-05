@@ -2,7 +2,7 @@ import os
 import json
 import sys
 import numpy as np
-sys.path.append(os.path.join("..", "..", "libs"))
+sys.path.append(os.path.join("..", "..", "source"))
 from Grid import GridHandlerGMSH
 
 hour = 3600
@@ -63,15 +63,15 @@ class BuildInputFile():
 											"direction": direction
 		}
 
-	def section_material_properties(self):
-		self.input_file["material_properties"] = {
+	def section_constitutive_model(self):
+		self.input_file["constitutive_model"] = {
 		    "Elastic": {},
 		    "Viscoelastic": {},
 		    "Inelastic": {}
 		}
 
 	def add_element(self, element_name, element_parameters, element_type="Elastic"):
-		self.input_file["material_properties"][element_type][element_name] = element_parameters
+		self.input_file["constitutive_model"][element_type][element_name] = element_parameters
 
 	def add_elastic_element(self, element_name, element_parameters):
 		self.add_element(element_name, element_parameters, element_type="Elastic")
@@ -105,16 +105,13 @@ if __name__ == '__main__':
 	# Create solver settings section
 	solver_settings = {
         "type": "KrylovSolver",
+    #     "type": "LU",
         "method": "cg",
-        # "preconditioner": "sor",
+    #     "method": "petsc",
         "preconditioner": "petsc_amg",
+        # "preconditioner": "sor",
         "relative_tolerance": 1e-12,
     }
-	# solver_settings = {
-    #     "type": "LU",
-    #     "method": "petsc",
-    #     "symmetric": True,
-    # }
 	bif.section_solver(solver_settings)
 
 	# Create time_settings section
@@ -197,7 +194,7 @@ if __name__ == '__main__':
 
 
 	# Assign material properties
-	bif.section_material_properties()
+	bif.section_constitutive_model()
 
 	# Add elastic properties
 	bif.add_elastic_element(	element_name = "Spring_0", 

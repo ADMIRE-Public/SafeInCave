@@ -34,7 +34,8 @@
         },
         "operation": {
             "active": true,
-            "dt_max": 1800.0
+            "dt_max": 1800.0,
+            "n_skip": 1
         }
     },
     "body_force": {
@@ -140,7 +141,7 @@
             ]
         }
     },
-    "material_properties": {
+    "constitutive_model": {
         "Elastic": {
             "Spring_0": {
                 "type": "Spring",

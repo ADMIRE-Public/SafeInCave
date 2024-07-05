@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.append(os.path.join("..", "..", "libs"))
+sys.path.append(os.path.join("..", "..", "source"))
 from Simulator import Simulator
 from Utils import *
 from dolfin import *
