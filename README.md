@@ -1,8 +1,4 @@
-<!-- ![alt text](<./docs/source/_static/logo_4.png>){width=15%} -->
-
-<p align="center">
-  <img src="./docs/source/_static/logo_4.png" alt="Description" width="300"/>
-</p>
+![alt text](<./docs/source/_static/logo_4.png>){width=15%}
 
 # Introduction
 The SafeInCave simulator is developed for simulating gas storage operations in salt caverns. The finite element implementation uses the FEniCS package. Additionally, it includes different constitutive models for salt rock mechanics. 
