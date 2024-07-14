@@ -49,6 +49,8 @@ In general, the non-elastic strain rates have a (non-)linear dependency on the s
 
    \dot{\pmb{\varepsilon}}_{i} = \dot{\pmb{\varepsilon}}_{i} \left( \pmb{\sigma}, \alpha_i \right)
 
+This circular dependency on the stress tensor :math:`\pmb{\sigma}` makes of Eq. :eq:`eq:mom_0` a non-linear equation. 
+
 
 
 Numerical formulation
