@@ -1,4 +1,4 @@
-from ConstitutiveModel2 import ConstitutiveModel
+from ConstitutiveModel import ConstitutiveModel
 from Equations import LinearMomentum
 from Grid import GridHandlerGMSH
 import Utils as utils
@@ -9,6 +9,17 @@ import os
 import copy
 
 class Simulator(object):
+	"""
+	This class is responsible to carry out the simulation according to the
+	input_file.json. It loads the mesh, builds the constitutive model, builds
+	the linear momenum equation, defines the solver, defines the weak formulation
+	the run the simulation.
+
+	Parameters
+	----------
+	input_file : dict
+		Dictionary extracted from the JSON file.
+	"""
 	def __init__(self, input_file):
 		self.input_file = input_file
 
@@ -35,7 +46,7 @@ class Simulator(object):
 		self.eq = LinearMomentum(self.m, theta)
 
 		# Define solver
-		self.solver = self.__define_solver()
+		self.solver = self.define_solver()
 
 		# Save input file
 		filename = os.path.join(os.path.join(input_file["output"]["path"], "input_file.json"))
@@ -82,6 +93,9 @@ class Simulator(object):
 		self.b_body = do.dot(f, self.v)*self.dx
 
 	def run(self):
+		"""
+		Runs transient simulation.
+		"""
 		if self.input_file["simulation_settings"]["equilibrium"]["active"] == True:
 			self.run_equilibrium()
 			self.run_operation()
@@ -89,6 +103,9 @@ class Simulator(object):
 			self.run_simulation()
 
 	def run_simulation(self):
+		"""
+		Runs simulation **without** solving the equilibrium condition.
+		"""
 		# Pseudo time
 		t = self.time_list[0]
 		t_final = self.time_list[-1]
@@ -103,10 +120,10 @@ class Simulator(object):
 		operation_output_folder = os.path.join(self.input_file["output"]["path"], "operation")
 
 		# Define Dirichlet boundary conditions
-		bcs = self.__define_dirichlet_bc(t)
+		bcs = self.define_dirichlet_bc(t)
 
 		# Apply Neumann boundary conditions
-		b_outer = self.__apply_neumann_bc(t)
+		b_outer = self.apply_neumann_bc(t)
 
 		# Build RHS vector
 		b = do.assemble(self.b_body + b_outer)
@@ -134,7 +151,7 @@ class Simulator(object):
 		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
 
 		# Compute stress
-		eps_tot_torch = utils.to_tensor(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+		eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
 		self.eq.compute_stress_C0(eps_tot_torch)
 
 		# Compute old ielastic strain rates
@@ -164,10 +181,10 @@ class Simulator(object):
 			t += dt
 
 			# Define Dirichlet boundary conditions
-			bcs = self.__define_dirichlet_bc(t)
+			bcs = self.define_dirichlet_bc(t)
 
 			# Apply Neumann boundary conditions
-			b_outer = self.__apply_neumann_bc(t)
+			b_outer = self.apply_neumann_bc(t)
 
 			# Compute GT and BT matrix fields for viscoelastic elements
 			self.eq.compute_GT_BT_ve(dt)
@@ -181,7 +198,7 @@ class Simulator(object):
 			while error > tol and ite < maxiter:
 
 				# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-				eps_tot_k = utils.to_tensor(self.eps_tot.vector()[:])
+				eps_tot_k = utils.numpy2torch(self.eps_tot.vector()[:])
 
 				# Update stress of previous iteration (stress_k <-- stress)
 				self.eq.update_stress()
@@ -218,7 +235,7 @@ class Simulator(object):
 
 				# Compute total strain
 				self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-				eps_tot_torch = utils.to_tensor(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+				eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
 
 				# Compute stress
 				self.eq.compute_stress(eps_tot_torch, dt)
@@ -267,6 +284,9 @@ class Simulator(object):
 			n_step += 1
 
 	def run_operation(self):
+		"""
+		Runs transient simulation **after** the equilibrium condition. 
+		"""
 		# Pseudo time
 		t = self.time_list[0]
 		t_final = self.time_list[-1]
@@ -281,10 +301,10 @@ class Simulator(object):
 		operation_output_folder = os.path.join(self.input_file["output"]["path"], "operation")
 
 		# Define Dirichlet boundary conditions
-		bcs = self.__define_dirichlet_bc(t)
+		bcs = self.define_dirichlet_bc(t)
 
 		# Apply Neumann boundary conditions
-		b_outer = self.__apply_neumann_bc(t)
+		b_outer = self.apply_neumann_bc(t)
 
 		# Build RHS vector
 		b = do.assemble(self.b_body + b_outer)
@@ -312,7 +332,7 @@ class Simulator(object):
 		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
 
 		# Compute stress
-		eps_tot_torch = utils.to_tensor(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+		eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
 		self.eq.compute_stress_C0(eps_tot_torch)
 
 		# Compute old ielastic strain rates
@@ -342,10 +362,10 @@ class Simulator(object):
 			t += dt
 
 			# Define Dirichlet boundary conditions
-			bcs = self.__define_dirichlet_bc(t)
+			bcs = self.define_dirichlet_bc(t)
 
 			# Apply Neumann boundary conditions
-			b_outer = self.__apply_neumann_bc(t)
+			b_outer = self.apply_neumann_bc(t)
 
 			# Compute GT and BT matrix fields for viscoelastic elements
 			self.eq.compute_GT_BT_ve(dt)
@@ -359,7 +379,7 @@ class Simulator(object):
 			while error > tol and ite < maxiter:
 
 				# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-				eps_tot_k = utils.to_tensor(self.eps_tot.vector()[:])
+				eps_tot_k = utils.numpy2torch(self.eps_tot.vector()[:])
 
 				# Update stress of previous iteration (stress_k <-- stress)
 				self.eq.update_stress()
@@ -396,7 +416,7 @@ class Simulator(object):
 
 				# Compute total strain
 				self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-				eps_tot_torch = utils.to_tensor(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+				eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
 
 				# Compute stress
 				self.eq.compute_stress(eps_tot_torch, dt)
@@ -445,6 +465,11 @@ class Simulator(object):
 			n_step += 1
 
 	def run_equilibrium(self):
+		"""
+		Runs simulation to determine the equilibrium condition. The equilibrium condition
+		only considers the **elastic** and **viscoelastic** (if present) elements of the 
+		constitutive model.
+		"""
 		# Pseudo time
 		t_0 = self.time_list[0]
 		t = t_0
@@ -456,10 +481,10 @@ class Simulator(object):
 		equilibrium_output_folder = os.path.join(self.input_file["output"]["path"], "equilibrium")
 
 		# Define Dirichlet boundary conditions
-		bcs = self.__define_dirichlet_bc(t_0)
+		bcs = self.define_dirichlet_bc(t_0)
 		
 		# Apply Neumann boundary conditions
-		b_outer = self.__apply_neumann_bc(t_0)
+		b_outer = self.apply_neumann_bc(t_0)
 		
 		# Build RHS vector
 		b = do.assemble(self.b_body + b_outer)
@@ -479,7 +504,7 @@ class Simulator(object):
 		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
 
 		# Compute stress
-		eps_tot_torch = utils.to_tensor(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+		eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
 		self.eq.compute_stress_C0(eps_tot_torch)
 
 		# Compute old viscoelastic strain rates
@@ -500,7 +525,7 @@ class Simulator(object):
 		n_step = 1
 		tol_time = self.input_file["simulation_settings"]["equilibrium"]["time_tol"]
 		error_time = 2*tol_time
-		eps_tot_old = utils.to_tensor(self.eps_tot.vector()[:])
+		eps_tot_old = utils.numpy2torch(self.eps_tot.vector()[:])
 
 		while error_time > tol_time or n_step <= 2:
 
@@ -519,7 +544,7 @@ class Simulator(object):
 			while error > tol and ite < maxiter:
 
 				# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-				eps_tot_k = utils.to_tensor(self.eps_tot.vector()[:])
+				eps_tot_k = utils.numpy2torch(self.eps_tot.vector()[:])
 
 				# Update stress of previous iteration (stress_k <-- stress)
 				self.eq.update_stress()
@@ -548,7 +573,7 @@ class Simulator(object):
 
 				# Compute total strain
 				self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-				eps_tot_torch = utils.to_tensor(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+				eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
 
 				# Compute stress
 				self.eq.compute_stress(eps_tot_torch, dt)
@@ -579,7 +604,7 @@ class Simulator(object):
 			# Compute time error (to check if steady state is achieved)
 			eps_tot_flat = self.eps_tot.vector()[:]
 			error_time = np.linalg.norm(eps_tot_old - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
-			eps_tot_old = utils.to_tensor(self.eps_tot.vector()[:])
+			eps_tot_old = utils.numpy2torch(self.eps_tot.vector()[:])
 
 			# Save displacement field
 			u_vtk << (self.u, t)
@@ -593,9 +618,21 @@ class Simulator(object):
 
 
 
+	def define_dirichlet_bc(self, t):
+		"""
+		Defines a list of Dirichlet boundary conditions to be applied to the
+		linear system.
 
+		Parameters
+		----------
+		t : float
+			Time level of the simulation.
 
-	def __define_dirichlet_bc(self, t):
+		Returns
+		-------
+		bcs : list[dolfin.fem.dirichletbc.DirichletBC]
+			List containing the Dirichlet boundary conditions.
+		"""
 		i = 0
 		bcs = []
 		bc_dirichlet_list = []
@@ -609,7 +646,22 @@ class Simulator(object):
 				i += 1
 		return bcs
 
-	def __apply_neumann_bc(self, t):
+	def apply_neumann_bc(self, t):
+		"""
+		It reads all Neumann boundary conditions (external loads) applied to the geometry and
+		builds the right-hand side vector.
+
+		Parameters
+		----------
+		t : float
+			Time level.
+
+		Returns
+		-------
+		b_outer : ufl.form.Form
+			This is the right-hand side vector corresponding to the Neumann boundary conditions,
+			that is, it contains all the external loads applied to the geometry boundaries.
+		"""
 		i = 0
 		bc_neumann_list = []
 		for boundary in self.input_file["boundary_conditions"]:
@@ -623,10 +675,20 @@ class Simulator(object):
 				if i == 0: 	b_outer = bc_neumann_list[i]*self.normal*self.ds(self.grid.get_boundary_tags(boundary))
 				else: 		b_outer += bc_neumann_list[i]*self.normal*self.ds(self.grid.get_boundary_tags(boundary))
 				i += 1
-		return  b_outer
+		return b_outer
 
 
-	def __define_solver(self):
+	def define_solver(self):
+		"""
+		Defines the solver for solving the linear system according to the specifications
+		in the input_file.json.
+
+		Returns
+		-------
+		solver : dolfin.cpp.la.KrylovSolver or dolfin.cpp.la.LUSolver
+			The solver can be either an iterative solver (KrylovSolver) or a direct solver
+			(LUSolver).
+		"""
 		solver_type = self.input_file["solver_settings"]["type"]
 		if solver_type == "KrylovSolver":
 			solver = do.KrylovSolver(
