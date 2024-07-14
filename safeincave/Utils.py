@@ -11,11 +11,37 @@ day = 24*hour
 year = 365*day
 
 def read_json(file_name):
+	"""
+	This is just a convenient function to read json files.
+
+	Parameters
+	----------
+	file_name : str
+		Full path to json file, including file name, e.g. to/folder/file.json.
+
+	Returns
+	-------
+	data : dict
+		A dictionary containing the json data.
+	"""
 	with open(file_name, "r") as j_file:
 		data = json.load(j_file)
 	return data
 
 def save_json(data, file_name):
+	"""
+	This is just a convenient function to save dictionaries into json files.
+
+	Parameters
+	----------
+	data : dict
+		Dictionary containing the data to be saved in the json file.
+
+	file_name : str
+		Full path to where the json file is supposed to be saved,including
+		file name, e.g. to/folder/file.json.
+
+	"""
 	with open(file_name, "w") as f:
 	    json.dump(data, f, indent=4)
 
@@ -31,34 +57,138 @@ def local_projection(tensor, V):
     return u
 
 def epsilon(u):
-	return sym(grad(u))
+	"""
+	It computes the strain tensor based on the displacement field **u**, that is,
+
+	.. math::
+		\\pmb{\\varepsilon} (\\textbf{u}) = \\frac{1}{2} \\left( \\nabla \\textbf{u} + \\nabla \\textbf{u}^T \\right)
+
+	Parameters
+	----------
+	u : dolfin.function.function.Function
+		Displacement field.
+
+	Returns
+	-------
+	grad_u : ufl.tensoralgebra.Sym
+		Symmetric gradient of **u**.
+
+	"""
+	grad_u = sym(grad(u))
+	return grad_u
 
 def dotdot(C, eps):
-	return voigt2stress(dot(C, strain2voigt(eps)))
+	"""
+	Computes the double dot product between **C** (4th-order tensor in Voigt notation) and
+	**eps** (2nd-order tensor in tensor notation). It first converts **eps** to Voigt
+	notation, then it performs the *dot* product with **C**, and finally converts the
+	resulting quantity to tensor notation.
 
-def strain2voigt(e):
-	x = 1
-	return as_vector([e[0,0], e[1,1], e[2,2], x*e[0,1], x*e[0,2], x*e[1,2]])
+	Parameters
+	----------
+	C : dolfin.function.function.Function
+		4th-order tensor in Voigt notation.
 
-def voigt2stress(s):
-    return as_matrix([	[s[0], s[3], s[4]],
-						[s[3], s[1], s[5]],
-						[s[4], s[5], s[2]]])
+	eps : dolfin.function.function.Function
+		2nd-order tensor in tensor notation.
 
-def to_tensor(numpy_array):
-	return to.tensor(numpy_array, dtype=to.float64)
+	Returns
+	-------
+	tensor : ufl.tensors.ListTensor
+		Double dot product between **C** and **eps**.
 
-def dotdot2(C0_torch, eps_tot_torch):
-	n_elems = C0_torch.shape[0]
-	eps_tot_voigt = to.zeros((n_elems, 6), dtype=to.float64)
-	eps_tot_voigt[:,0] = eps_tot_torch[:,0,0]
-	eps_tot_voigt[:,1] = eps_tot_torch[:,1,1]
-	eps_tot_voigt[:,2] = eps_tot_torch[:,2,2]
-	eps_tot_voigt[:,3] = eps_tot_torch[:,0,1]
-	eps_tot_voigt[:,4] = eps_tot_torch[:,0,2]
-	eps_tot_voigt[:,5] = eps_tot_torch[:,1,2]
-	stress_voigt = to.bmm(C0_torch, eps_tot_voigt.unsqueeze(2)).squeeze(2)
-	stress_torch = to.zeros_like(eps_tot_torch, dtype=to.float64)
+	"""
+	tensor = voigt2tensor(dot(C, tensor2voigt(eps)))
+	return tensor
+
+def tensor2voigt(e):
+	"""
+	Converts tensor notation to Voigt notation.
+
+	Parameters
+	----------
+	e : dolfin.function.function.Function
+		A 2nd-order tensor in tensor notation.
+
+	Returns
+	-------
+	e_voigt : ufl.tensors.ListTensor
+		A 2nd-order tensor in Voigt notation.
+	"""
+	e_voigt = as_vector([e[0,0], e[1,1], e[2,2], e[0,1], e[0,2], e[1,2]])
+	return e_voigt
+
+def voigt2tensor(s):
+	"""
+	Converts a tensor from Voigt notation to tensor notation.
+
+	Parameters
+	----------
+	s : ufl.tensors.ListTensor
+		A 2nd-order tensor in Voigt notation.
+
+	Returns
+	-------
+	s_tensor : ufl.tensors.ListTensor
+		A 2nd-order tensor in tensor notation.
+	"""
+	s_tensor = as_matrix([[s[0], s[3], s[4]],
+						  [s[3], s[1], s[5]],
+						  [s[4], s[5], s[2]]])
+	return s_tensor
+
+def numpy2torch(numpy_array):
+	"""
+	It properly converts a numpy array into a pytorch tensor.
+
+	Parameters
+	----------
+	numpy_array : numpy.ndarray
+		Numpy array to be converted.
+
+	Returns
+	-------
+	torch_array : torch.tensor
+		A pytorch tensor with the same dimension as *numpy_array*.
+	"""
+	torch_array = to.tensor(numpy_array, dtype=to.float64)
+	return torch_array
+
+def dotdot2(C_voigt, eps_tensor):
+	"""
+	This function performs the double dot product between a 4th-order tensor represented 
+	in Voigt notation and a 2nd-order tensor (without Voigt notation). The operation is
+	performed by first applying the Voigt notation to the 2nd-order tensor, perform
+	matrix-vector products to obtain the 2nd-order tensor in Voigt notation, and finally
+	transform the resulting 2nd-order tensor to tensor notation.
+	
+	Parameters
+	----------
+	C_voigt : torch.Tensor
+		This is a pytorch tensor storing the 4th-order tensors for all grid elements.
+		Since Voigt notation is used, C_voigt has dimension (n_elems, 6, 6).
+
+	eps_tensor : torch.Tensor
+		This is a pytorch tensor storing 2nd-order tensors for all grid elements using
+		tensor notation. Therefore, its dimensions are (n_elems, 3, 3).
+
+	Returns
+	-------
+	stress_torch : torch.Tensor
+		A tensor of dimensions (n_elems, 3, 3) resulting from the double dot product.
+
+
+	"""
+	n_elems = C_voigt.shape[0]
+	eps_voigt = to.zeros((n_elems, 6), dtype=to.float64)
+	eps_voigt[:,0] = eps_tensor[:,0,0]
+	eps_voigt[:,1] = eps_tensor[:,1,1]
+	eps_voigt[:,2] = eps_tensor[:,2,2]
+	eps_voigt[:,3] = eps_tensor[:,0,1]
+	eps_voigt[:,4] = eps_tensor[:,0,2]
+	eps_voigt[:,5] = eps_tensor[:,1,2]
+	stress_voigt = to.bmm(C_voigt, eps_voigt.unsqueeze(2)).squeeze(2)
+	stress_torch = to.zeros_like(eps_tensor, dtype=to.float64)
 	stress_torch[:,0,0] = stress_voigt[:,0]
 	stress_torch[:,1,1] = stress_voigt[:,1]
 	stress_torch[:,2,2] = stress_voigt[:,2]
@@ -67,47 +197,34 @@ def dotdot2(C0_torch, eps_tot_torch):
 	stress_torch[:,1,2] = stress_torch[:,2,1] = stress_voigt[:,5]
 	return stress_torch
 
+def compute_C(n_elems, nu, E):
+	"""
+	Assemble the :math:`\\mathbb{C}` matrices for each element of the grid.
 
-def get_list_of_elements(input_model, n_elems, element_class="Elastic"):
-	from Elements import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
-	ELEMENT_DICT = {
-		"Spring": Spring,
-		"KelvinVoigt": Viscoelastic,
-		"DislocationCreep": DislocationCreep,
-		"ViscoplasticDesai": ViscoplasticDesai
-	}
-	list_of_elements = []
-	props = input_model[element_class]
-	for elem_name in props.keys():
-		if props[elem_name]["active"] == True:
-			element_parameters = props[elem_name]["parameters"]
-			for param in element_parameters:
-				element_parameters[param] = element_parameters[param]*to.ones(n_elems, dtype=to.float64)
-			elem = ELEMENT_DICT[props[elem_name]["type"]](element_parameters)
-			list_of_elements.append(elem)
-	if element_class == "Elastic" and len(list_of_elements) == 0:
-		raise Exception("Model must have at least 1 elastic element (Spring). None was given.")
-	return list_of_elements
+	Parameters
+	----------
+	n_elems : int
+		Number of grid elements.
 
+	nu : list
+		List containing Poisson's ratio values for each grid element.
 
-def get_list_of_elements_new(input_model, n_elems, element_class="Elastic"):
-	from Elements import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
-	ELEMENT_DICT = {
-		"Spring": Spring,
-		"KelvinVoigt": Viscoelastic,
-		"DislocationCreep": DislocationCreep,
-		"ViscoplasticDesai": ViscoplasticDesai
-	}
-	list_of_elements = []
-	props = input_model[element_class]
-	for elem_name in props.keys():
-		if props[elem_name]["active"] == True:
-			element_parameters = props[elem_name]["parameters"]
-			for param in element_parameters:
-				element_parameters[param] = to.tensor(element_parameters[param])
-				# element_parameters[param] = element_parameters[param]*to.ones(n_elems, dtype=to.float64)
-			elem = ELEMENT_DICT[props[elem_name]["type"]](element_parameters)
-			list_of_elements.append(elem)
-	if element_class == "Elastic" and len(list_of_elements) == 0:
-		raise Exception("Model must have at least 1 elastic element (Spring). None was given.")
-	return list_of_elements
+	E : list
+		List containing the value of Young's modulus for each grid element.
+
+	Returns
+	-------
+	C : torch.Tensor
+		Returns a (n_elems, 6, 6) containing matrices :math:`\\mathbb{C}` for all grid element.
+	
+	"""
+	C = to.zeros((n_elems, 6, 6), dtype=to.float64)
+	a0 = E/((1 + nu)*(1 - 2*nu))
+	C[:,0,0] = a0*(1 - nu)
+	C[:,1,1] = a0*(1 - nu)
+	C[:,2,2] = a0*(1 - nu)
+	C[:,3,3] = a0*(1 - 2*nu)
+	C[:,4,4] = a0*(1 - 2*nu)
+	C[:,5,5] = a0*(1 - 2*nu)
+	C[:,0,1] = C[:,1,0] = C[:,0,2] = C[:,2,0] = C[:,2,1] = C[:,1,2] = a0*nu
+	return C

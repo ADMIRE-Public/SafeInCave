@@ -5,6 +5,28 @@ import numpy as np
 import os
 
 def convert_vtk_to_pandas(pvd_path, pvd_file):
+    """
+    This function reads vtk files containing the time dependent *displacement* solution
+    and convert it to pandas dataframes
+
+    Parameters
+    ----------
+    pvd_path : str
+        Path to the .pvd file, which must be at the same directory as the .vtk files.
+    pvd_file : str
+        Name of the .pvd file (usually *displacement.pvd*).
+
+    Returns
+    -------
+    df_coord : pandas.core.frame.DataFrame
+        Spatial coordinates (*x*, *y*, *z*) of the grid nodes.
+    df_ux : pandas.core.frame.DataFrame
+        Component *x* of the displacement vector solution.
+    df_uy : pandas.core.frame.DataFrame
+        Component *y* of the displacement vector solution.
+    df_uz : pandas.core.frame.DataFrame
+        Component *z* of the displacement vector solution.
+    """
     tree = ET.parse(os.path.join(pvd_path, pvd_file))
     root = tree.getroot()
     vtu_files = [os.path.join(pvd_path, child.get("file")) for child in root.findall(".//DataSet")]
@@ -31,6 +53,28 @@ def convert_vtk_to_pandas(pvd_path, pvd_file):
     return df_coord, df_ux, df_uy, df_uz
 
 def read_vector_from_points(pvd_path, pvd_file):
+    """
+    This function reads vtk files containing the time dependent *displacement* solution
+    at grid nodes and convert it to pandas dataframes.
+
+    Parameters
+    ----------
+    pvd_path : str
+        Path to the .pvd file, which must be at the same directory as the .vtk files.
+    pvd_file : str
+        Name of the .pvd file (usually *displacement.pvd*).
+
+    Returns
+    -------
+    df_coord : pandas.core.frame.DataFrame
+        Spatial coordinates (*x*, *y*, *z*) of the grid nodes.
+    df_ux : pandas.core.frame.DataFrame
+        Component *x* of the displacement vector solution.
+    df_uy : pandas.core.frame.DataFrame
+        Component *y* of the displacement vector solution.
+    df_uz : pandas.core.frame.DataFrame
+        Component *z* of the displacement vector solution.
+    """
     tree = ET.parse(os.path.join(pvd_path, pvd_file))
     root = tree.getroot()
     vtu_files = [os.path.join(pvd_path, child.get("file")) for child in root.findall(".//DataSet")]
@@ -61,6 +105,24 @@ def read_vector_from_points(pvd_path, pvd_file):
     return df_coord, df_ux, df_uy, df_uz
 
 def read_scalar_from_cells(pvd_path, pvd_file):
+    """
+    This function reads vtk files containing the time dependent solution of a scalar
+    function defined on elements and convert it to pandas dataframes.
+
+    Parameters
+    ----------
+    pvd_path : str
+        Path to the .pvd file, which must be at the same directory as the .vtk files.
+    pvd_file : str
+        Name of the .pvd file (usually *displacement.pvd*).
+
+    Returns
+    -------
+    df_coord : pandas.core.frame.DataFrame
+        Spatial coordinates (*x*, *y*, *z*) of the centroids of all grid elements.
+    df_scalar : pandas.core.frame.DataFrame
+        Scalar values at each grid element.
+    """
     tree = ET.parse(os.path.join(pvd_path, pvd_file))
     root = tree.getroot()
     vtu_files = [os.path.join(pvd_path, child.get("file")) for child in root.findall(".//DataSet")]
@@ -101,6 +163,34 @@ def read_scalar_from_cells(pvd_path, pvd_file):
     return df_coord, df_scalar
 
 def read_tensor_from_cells(pvd_path, pvd_file):
+    """
+    This function reads vtk files containing the time dependent solution of a 
+    rank-2 tensor function **A** defined on elements and convert it to pandas dataframes.
+
+    Parameters
+    ----------
+    pvd_path : str
+        Path to the .pvd file, which must be at the same directory as the .vtk files.
+    pvd_file : str
+        Name of the .pvd file (usually *displacement.pvd*).
+
+    Returns
+    -------
+    df_coord : pandas.core.frame.DataFrame
+        Spatial coordinates (*x*, *y*, *z*) of the centroids of all grid elements.
+    df_sx : pandas.core.frame.DataFrame
+        Values of component :math:`A_{xx}`.
+    df_sy : pandas.core.frame.DataFrame
+        Values of component :math:`A_{yy}`.
+    df_sz : pandas.core.frame.DataFrame
+        Values of component :math:`A_{zz}`.
+    df_sxy : pandas.core.frame.DataFrame
+        Values of component :math:`A_{xy}`.
+    df_sxz : pandas.core.frame.DataFrame
+        Values of component :math:`A_{xz}`.
+    df_syz : pandas.core.frame.DataFrame
+        Values of component :math:`A_{yz}`.
+    """
     tree = ET.parse(os.path.join(pvd_path, pvd_file))
     root = tree.getroot()
     vtu_files = [os.path.join(pvd_path, child.get("file")) for child in root.findall(".//DataSet")]
