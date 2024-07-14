@@ -9,8 +9,8 @@ The best way to get started is to visit the examples in the folder "apps" and ru
 The simulator also includes a material point model, which is useful for calibration purposes. Check function SmpSimulator at "libs/Simulators.py".
 
 ## Current members : 
-- [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principle Investigator
 - [Hermínio Tasinafo Honório] (H.TasinafoHonorio@tudelft.nl),  Maintainer, 2023-present
+- [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principle Investigator
 
 <!-- ## Installation
 Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
