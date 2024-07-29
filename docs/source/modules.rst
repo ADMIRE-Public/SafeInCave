@@ -8,6 +8,7 @@ safeincave
    Elements
    Equations
    Grid
+   InputFileAssistant
    MaterialPointSimulator
    ResultsHandler
    Simulator
