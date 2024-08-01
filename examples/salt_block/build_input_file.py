@@ -37,10 +37,6 @@ def main():
     }
 	bif.section_solver(solver_settings)
 
-	# Create time_settings section
-	time_list = [0*hour,  2*hour,  10*hour, 12*hour, 14*hour, 16*hour, 20*hour, 22*hour, 24*hour]
-	bif.section_time(time_list, theta=0.0)
-
 	# Create simulation_settings section
 	bif.section_simulation(simulation_settings = {
 	                       		"equilibrium": {
@@ -58,6 +54,10 @@ def main():
 	# Create body_forces section
 	salt_density = 2000
 	bif.section_body_forces(value=salt_density, direction=2)
+
+	# Create time_settings section
+	time_list = [0*hour,  2*hour,  10*hour, 12*hour, 14*hour, 16*hour, 20*hour, 22*hour, 24*hour]
+	bif.section_time(time_list, theta=0.0)
 
 	# # Create boundary_conditions section
 	bif.section_boundary_conditions()

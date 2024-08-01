@@ -47,6 +47,8 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../../safeincave'))
 
+numfig = True
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -101,14 +103,14 @@ latex_elements = {
         \begin{titlepage}
             \centering
             \vspace*{2cm}
-            \Huge \textbf{Documentation} \\
+            \Huge \textbf{{\fontfamily{phv}\selectfont Documentation}} \\
             \vspace{1cm}
-            \LARGE \textbf{Version 0.1.0} \\
+            \LARGE \textbf{{\fontfamily{phv}\selectfont Version 0.1.0}} \\
             \vfill
-            \includegraphics[width=0.3\textwidth]{logo_4.png}
+            \includegraphics[width=0.5\textwidth]{logo_2.png}
             \vfill
-            \Large \textbf{Herminio T. Honorio} \\
-            \large \textbf{July 2024}
+            \Large \textbf{{\fontfamily{phv}\selectfont Herm\'inio T. Hon\'orio}} \\
+            \large \textbf{{\fontfamily{phv}\selectfont August 2024}}
         \end{titlepage}
         \begingroup
           \pagestyle{empty}

@@ -3,14 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. image:: _static/logo_4.png
+.
+
+.
+
+.. image:: _static/logo_2.png
    :alt: Project Logo
    :align: center
    :class: logo
-   :width: 30%
+   :width: 50%
 
 Salt cavern simulations made easy!
-======================================
+==================================
 
 The **SafeInCave** is a 3D finite element simulator for the geomechanics of gas storage in salt caverns.
 The simulator is developed in Python and it uses `FEniCS 2019.1 
@@ -25,14 +29,13 @@ Check out the :doc:`introduction` section for further information.
    This project is under active development.
 
 
-Installation
-------------
 
-Dependencies:
+Getting started
+---------------
 
 .. toctree::
 
-   installation
+   getting_started
 
 
 Fundamental Theory
