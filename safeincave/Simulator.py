@@ -129,7 +129,7 @@ class Simulator(object):
 		b = do.assemble(self.b_body + b_outer)
 
 		# Compute initial hardening
-		for elem in self.eq.elems_ie:
+		for elem in self.eq.m.elems_ie:
 			try:
 				# Compute initial hardening parameter (alpha_0) based on initial stresses
 				elem.compute_initial_hardening(self.eq.stress, Fvp_0=0.0)
@@ -218,11 +218,11 @@ class Simulator(object):
 
 				# Build rhs
 				b_rhs = do.inner(utils.dotdot(self.CT, self.eps_rhs), utils.epsilon(self.v))*self.dx
-				b = assemble(self.b_body + b_outer + b_rhs)
+				b = do.assemble(self.b_body + b_outer + b_rhs)
 
 				# Build lhs
 				a_form = do.inner(utils.dotdot(self.CT, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
-				A = assemble(a_form)
+				A = do.assemble(a_form)
 
 				# Solve linear system
 				[bc.apply(A, b) for bc in bcs]
