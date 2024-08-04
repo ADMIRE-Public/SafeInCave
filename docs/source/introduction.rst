@@ -129,7 +129,7 @@ where :math:`\delta \pmb{\sigma} = \pmb{\sigma}^{k+1} - \pmb{\sigma}^k` and :mat
 
 .. note::
 
-   The term :math:`\frac{\partial \dot{\pmb{\varepsilon}}_{i}}{\partial \pmb{\sigma}}` is a rank 4 tensor, whereas :math:`\delta \pmb{\sigma}`, hence the double dot product between them, which results a rank 2 tensor.
+   The term :math:`\frac{\partial \dot{\pmb{\varepsilon}}_{i}}{\partial \pmb{\sigma}}` is a rank-4 tensor, whereas :math:`\delta \pmb{\sigma}` is a rank-2 tensor, hence the double dot product between them, which results a rank-2 tensor.
 
 The increment of internal variable :math:`\delta \alpha_i` can be obtained by defining a residual equation of the evolution equation of :math:`\alpha_i` and using Newton-Raphson to drive the residue to zero. Considering the residual equation is of the form :math:`r_i = r_i(\pmb{\sigma}, \alpha_i)`, it follows that
 
@@ -252,6 +252,7 @@ in which :math:`\mathbf{w} \in \mathcal{V}`.
 
 
 
+.. _constitutive-models-section:
 
 Constitutive models
 ===================

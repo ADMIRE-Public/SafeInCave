@@ -16,10 +16,14 @@
 Salt cavern simulations made easy!
 ==================================
 
-The **SafeInCave** is a 3D finite element simulator for the geomechanics of gas storage in salt caverns.
-The simulator is developed in Python and it uses `FEniCS 2019.1 
-<https://fenics.readthedocs.io/projects/ufl/en/2019.1.0/manual/examples.html>`_ 
-for the finite element implementation.
+The **SafeInCave** simulator is intended to study the mechanical behavior/stability of salt caverns for gas storage.
+This is a three-dimensional simulator developed in Python, in which the finite element implementation is based on
+`FEniCS 2019.1 <https://fenicsproject.org/download/archive/>`_.
+
+.. The **SafeInCave** is a 3D finite element simulator for the geomechanics of gas storage in salt caverns.
+.. The simulator is developed in Python and it uses `FEniCS 2019.1 
+.. <https://fenics.readthedocs.io/projects/ufl/en/2019.1.0/manual/examples.html>`_ 
+.. for the finite element implementation.
 
 
 Check out the :doc:`introduction` section for further information.
@@ -36,6 +40,17 @@ Getting started
 .. toctree::
 
    getting_started
+
+
+
+Tutorials
+---------------
+
+This chapter presents some tutorials.
+
+.. toctree::
+
+   tutorials
 
 
 Fundamental Theory

@@ -1,0 +1,305 @@
+Tutorial 1
+----------
+
+Build input file
+~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    import os
+    import json
+    import sys
+    import numpy as np
+    sys.path.append(os.path.join("..", "..", "safeincave"))
+    from Grid import GridHandlerGMSH
+    from InputFileAssistant import BuildInputFile
+    import dolfin as do
+
+.. code-block:: python
+
+    # Useful units
+    hour = 60*60
+    day = 24*hour
+    MPa = 1e6
+    GPa = 1e9
+
+.. code-block:: python
+
+    # Initialize input file object
+    ifa = BuildInputFile()
+
+.. code-block:: python
+
+    # Create input_grid section
+    path_to_grid = os.path.join("..", "..", "grids", "cube_2regions")
+    ifa.section_input_grid(path_to_grid, "geom")
+
+.. code-block:: python
+
+    # Create output section
+    ifa.section_output(os.path.join("output", "case_0"))
+
+.. code-block:: python
+
+    # Create solver settings section
+    solver_settings = {
+        "type": "KrylovSolver",
+        "method": "cg",
+        "preconditioner": "petsc_amg",
+        "relative_tolerance": 1e-12,
+    }
+    ifa.section_solver(solver_settings)
+
+.. code-block:: python
+
+    # Create simulation_settings section
+    ifa.section_simulation(simulation_settings = {
+                                "equilibrium": {
+                                    "active": False,
+                                    "dt_max": 0.5*hour,
+                                    "time_tol": 1e-4
+                                },
+                                "operation": {
+                                    "active": True,
+                                    "dt_max": 0.005*hour,
+                                    "n_skip": 1
+                                }
+                           })
+
+.. code-block:: python
+
+    # Create body_forces section
+    salt_density = 2000
+    ifa.section_body_forces(value=salt_density, direction=2)
+
+.. code-block:: python
+
+    # Create time_settings section
+    time_list = [0*hour,  1*hour]
+    ifa.section_time(time_list, theta=0.0)
+
+.. code-block:: python
+
+    # Create boundary_conditions section
+    ifa.section_boundary_conditions()
+
+    # Add Dirichlet boundary conditions
+    ifa.add_boundary_condition(boundary_name = "WEST",
+                               bc_data = {
+                                        "type": "dirichlet",
+                                        "component": 0,
+                                        "values": list(np.zeros(len(time_list)))
+                               }
+    )
+    ifa.add_boundary_condition(boundary_name = "SOUTH",
+                               bc_data = {
+                                        "type": "dirichlet",
+                                        "component": 1,
+                                        "values": list(np.zeros(len(time_list)))
+                               }
+    )
+    ifa.add_boundary_condition(boundary_name = "BOTTOM",
+                               bc_data = {
+                                        "type": "dirichlet",
+                                        "component": 2,
+                                        "values": list(np.zeros(len(time_list)))
+                               }
+    )
+
+    # Add Neumann boundary condition
+    ifa.add_boundary_condition(boundary_name = "EAST",
+                               bc_data = {
+                                        "type": "neumann",
+                                        "direction": 2,
+                                        "density": 0*salt_density,
+                                        "reference_position": 1.0,
+                                        "values": [5*MPa, 5*MPa]
+                               }
+    )
+    ifa.add_boundary_condition(boundary_name = "NORTH",
+                               bc_data = {
+                                        "type": "neumann",
+                                        "direction": 2,
+                                        "density": 0*salt_density,
+                                        "reference_position": 1.0,
+                                        "values": [5*MPa, 5*MPa]
+                               }
+    )
+    ifa.add_boundary_condition(boundary_name = "TOP",
+                               bc_data = {
+                                        "type": "neumann",
+                                        "direction": 2,
+                                        "density": 0.0,
+                                        "reference_position": 1.0,
+                                        "values": [8*MPa, 8*MPa]
+                                }
+    )
+
+
+.. code-block:: pycon
+    
+    >>> region_marker_A = ifa.grid.get_subdomain_tags("OMEGA_A")
+    >>> print(region_marker_A)
+    1
+    >>> region_marker_B = ifa.grid.get_subdomain_tags("OMEGA_B")
+    >>> print(region_marker_B)
+    2
+
+
+.. code-block:: python
+
+    index_A = []
+    index_B = []
+
+    # Sweep over the grid regions and elements
+    for cell in do.cells(ifa.grid.mesh):
+        region_marker = ifa.grid.subdomains[cell]
+        if region_marker == ifa.grid.get_subdomain_tags("OMEGA_A"):
+            index_A.append(cell.index())
+        elif region_marker == ifa.grid.get_subdomain_tags("OMEGA_B"):
+            index_B.append(cell.index())
+        else:
+            raise Exception("Subdomain tag not valid. Check your mesh file.")
+
+.. code-block:: python
+
+    # Assign material properties
+    ifa.section_constitutive_model()
+
+.. code-block:: python
+
+    # Add elastic properties
+    E = np.zeros(ifa.n_elems)
+    E[index_A] = 8*GPa
+    E[index_B] = 10*GPa
+
+    nu = np.zeros(ifa.n_elems)
+    nu[index_A] = 0.2
+    nu[index_B] = 0.3
+
+    ifa.add_elastic_element(    element_name = "Spring_0", 
+                                element_parameters = {  "type": "Spring",
+                                                        "active": True,
+                                                        "parameters": {
+                                                            "E": list(E),
+                                                            "nu": list(nu)
+                                                        }
+                                                    }
+    )
+
+.. code-block:: python
+    
+    # Add viscoelastic properties
+    E[index_A] = 8*GPa
+    E[index_B] = 5*GPa
+
+    nu[index_A] = 0.35
+    nu[index_B] = 0.28
+
+    eta = np.zeros(ifa.n_elems)
+    eta[index_A] = 105e11
+    eta[index_B] = 38e11
+
+    # Add viscoelastic properties
+    ifa.add_viscoelastic_element(   element_name = "KelvinVoigt_0", 
+                                    element_parameters = {
+                                                            "type": "KelvinVoigt",
+                                                            "active": True,
+                                                            "parameters": {
+                                                                "E":    list(E),
+                                                                "nu":   list(nu),
+                                                                "eta":  list(eta)
+                                                            }
+                                                        }
+    )
+
+.. code-block:: python
+
+    # Save input_file.json
+    ifa.save_input_file("input_file.json")
+
+To visualize the results...
+
+.. code-block:: python
+
+    import os
+    import sys
+    sys.path.append(os.path.join("..", "..", "safeincave"))
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from ResultsHandler import read_vector_from_points
+
+    # Read displacement results
+    pvd_path = os.path.join("output", "case_0", "operation", "vtk", "displacement")
+    pvd_file = "displacement.pvd"
+    df_coord, u, v, w = read_vector_from_points(pvd_path, pvd_file)
+
+    point_A = df_coord[(df_coord["z"] == 1) & (df_coord["x"] == 0) & (df_coord["y"] == 0)].index[0]
+    point_B = df_coord[(df_coord["z"] == 1) & (df_coord["x"] == 0) & (df_coord["y"] == 1)].index[0]
+    point_C = df_coord[(df_coord["z"] == 1) & (df_coord["x"] == 1) & (df_coord["y"] == 1)].index[0]
+    point_D = df_coord[(df_coord["z"] == 1) & (df_coord["x"] == 1) & (df_coord["y"] == 0)].index[0]
+    print(point_A, point_B, point_C, point_D)
+
+    w_A = w.iloc[point_A].values[1:]
+    w_B = w.iloc[point_B].values[1:]
+    w_C = w.iloc[point_C].values[1:]
+    w_D = w.iloc[point_D].values[1:]
+
+    t = w.iloc[point_A].index.values[1:]
+
+    # Plot pressure schedule
+    fig, ax = plt.subplots(1, 1, figsize=(5, 3.5))
+    fig.subplots_adjust(top=0.970, bottom=0.135, left=0.140, right=0.980, hspace=0.35, wspace=0.225)
+
+    ax.plot(t/60, w_A*1000, ".-", color="#377eb8", label="Point A")
+    ax.plot(t/60, w_B*1000, ".-", color="#ff7f00", label="Point B")
+    ax.plot(t/60, w_C*1000, ".-", color="#4daf4a", label="Point C")
+    ax.plot(t/60, w_D*1000, ".-", color="#f781bf", label="Point D")
+    ax.set_xlabel("Time (minutes)", size=12, fontname="serif")
+    ax.set_ylabel("Displacement (mm)", size=12, fontname="serif")
+    ax.grid(True)
+    ax.legend(loc=0, shadow=True, fancybox=True)
+
+    plt.show()
+
+.. _tutorial-1-results-0:
+
+.. figure:: _static/tutorial_1_results_0.png
+   :alt: block
+   :align: center
+   :width: 50%
+
+
+Run simulation
+~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    import os
+    import sys
+    sys.path.append(os.path.join("..", "..", "safeincave"))
+    from Simulator import Simulator
+    from Utils import read_json
+
+    # Read input file
+    input_file = read_json("input_file.json")
+
+    # Build simulator
+    sim = Simulator(input_file)
+
+    # Run simulation
+    sim.run()
+
+
+To run your first simulation, access the *example* folder and run the *main.py* file of one of the test cases. For example:
+
+.. code-block:: console
+
+   user:~/safeincave$ cd examples/case_1/
+   user:~/safeincave$ python main.py
+
+.. code-block:: console
+
+   (.venv) $ cd examples/case_1/
+   (.venv) $ python main.py

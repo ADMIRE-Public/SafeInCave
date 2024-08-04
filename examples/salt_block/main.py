@@ -12,7 +12,7 @@ def main_0():
 	start_0 = time.time()
 
 	# Read input file
-	input_file = read_json("input_file_0.json")
+	input_file = read_json("input_file.json")
 
 	# Build simulator
 	sim = Simulator(input_file)

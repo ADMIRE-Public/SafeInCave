@@ -158,7 +158,6 @@ def main():
 											            "beta": 	list(0.995*np.ones(bif.n_elems)),
 											            "m": 		list(-0.5*np.ones(bif.n_elems)),
 											            "gamma": 	list(0.095*np.ones(bif.n_elems)),
-											            "alpha_1": 	list(0.0022*np.ones(bif.n_elems)),
 											            "alpha_0": 	list(0.0040715714049800586*np.ones(bif.n_elems)),
 											            "k_v": 		list(0.0*np.ones(bif.n_elems)),
 											            "sigma_t": 	list(5.0*np.ones(bif.n_elems))
@@ -182,7 +181,7 @@ def main():
     )
 
 	# Save input_file.json
-	bif.save_input_file("input_file_0.json")
+	bif.save_input_file("input_file.json")
 
 
 if __name__ == '__main__':
