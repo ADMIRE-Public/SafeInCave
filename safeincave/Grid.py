@@ -117,9 +117,21 @@ class GridHandlerGMSH(object):
 			tag_number = self.dolfin_tags[self.boundary_dim][BOUNDARY_NAME]
 			return tag_number
 
-	def get_domain_tags(self, DOMAIN_NAME):
+	def get_boundary_names(self):
 		"""
-		Get domain tag (integer) corresponding to *DOMAIN_NAME*.
+		Provides the names of all the boundaries.
+
+		Returns
+		-------
+		boundary_names : dict_keys
+			List of strings containing the boundary names.
+		"""
+		boundary_names = self.dolfin_tags[self.boundary_dim].keys()
+		return boundary_names
+
+	def get_subdomain_tags(self, DOMAIN_NAME):
+		"""
+		Get subdomain tag (integer) corresponding to *DOMAIN_NAME*.
 
 		Parameters
 		----------
@@ -144,18 +156,6 @@ class GridHandlerGMSH(object):
 			Mesh subdomains.
 		"""
 		return self.subdomains
-
-	def get_boundary_names(self):
-		"""
-		Provides the names of all the boundaries.
-
-		Returns
-		-------
-		boundary_names : dict_keys
-			List of strings containing the boundary names.
-		"""
-		boundary_names = self.dolfin_tags[self.boundary_dim].keys()
-		return boundary_names
 
 	def get_subdomain_names(self):
 		"""
