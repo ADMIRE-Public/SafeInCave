@@ -15,10 +15,10 @@ class BuildInputFile():
 		self.input_file["grid"]["name"] = grid_name
 
 		from Grid import GridHandlerGMSH
-		grid = GridHandlerGMSH(grid_name, path_to_grid)
-		self.list_of_boundary_names = list(grid.get_boundary_names())
-		self.list_of_subdomain_names = list(grid.get_subdomain_names())
-		self.n_elems = grid.mesh.num_cells()
+		self.grid = GridHandlerGMSH(grid_name, path_to_grid)
+		self.list_of_boundary_names = list(self.grid.get_boundary_names())
+		self.list_of_subdomain_names = list(self.grid.get_subdomain_names())
+		self.n_elems = self.grid.mesh.num_cells()
 
 	def section_output(self, output_folder):
 		self.input_file["output"] = {}
