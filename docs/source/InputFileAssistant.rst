@@ -1,5 +1,8 @@
+.. _input-file-assistant:
+
 InputFileAssistant module
 =========================
+
 
 .. automodule:: InputFileAssistant
    :members:
