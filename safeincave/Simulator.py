@@ -128,6 +128,24 @@ class Simulator(object):
 		# Build RHS vector
 		b = do.assemble(self.b_body + b_outer)
 
+		# Initialize elastic stiffness matrix, C0
+		self.C0.vector()[:] = to.flatten(self.eq.m.C0)
+
+		# Build stiffness matrix
+		a_form = do.inner(utils.dotdot(self.C0, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
+		A = do.assemble(a_form)
+
+		# Solve linear system
+		[bc.apply(A, b) for bc in bcs]
+		self.solver.solve(A, self.u.vector(), b)
+
+		# Compute total strain
+		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
+
+		# Compute stress
+		eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+		self.eq.compute_stress_C0(eps_tot_torch)
+
 		# Compute initial hardening
 		for elem in self.eq.m.elems_ie:
 			try:
@@ -137,7 +155,6 @@ class Simulator(object):
 				# Compute initial yield function values
 				I1, I2, I3, J2, J3, Sr, I1_star = elem.compute_stress_invariants(*elem.extract_stress_components(self.eq.stress))
 				_ = elem.compute_Fvp(elem.alpha, I1_star, J2, Sr)
-				# Fvp.vector()[:] = elem.compute_Fvp(elem.alpha, I1_star, J2, Sr)
 
 				print("Fvp: ", float(max(elem.Fvp)))
 				print("alpha_min: ", float(min(elem.alpha)))
@@ -147,12 +164,9 @@ class Simulator(object):
 			except:
 				pass
 
-		# Compute total strain
-		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-
-		# Compute stress
-		eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
-		self.eq.compute_stress_C0(eps_tot_torch)
+		print("Fvp: ", float(min(self.eq.m.elems_ie[0].Fvp)))
+		print("alpha_min: ", float(min(self.eq.m.elems_ie[0].alpha)))
+		print("alpha_max: ", float(max(self.eq.m.elems_ie[0].alpha)))
 
 		# Compute old ielastic strain rates
 		self.eq.compute_eps_ie_rate()
@@ -240,6 +254,9 @@ class Simulator(object):
 				# Compute stress
 				self.eq.compute_stress(eps_tot_torch, dt)
 
+				# Increment internal variables
+				self.eq.increment_internal_variables(dt)
+
 				# Compute strain rates
 				self.eq.compute_eps_ie_rate()
 				self.eq.compute_eps_ve_rate(dt)
@@ -254,6 +271,9 @@ class Simulator(object):
 
 				# Increment iteration counter
 				ite += 1
+
+			# Update internal variables
+			self.eq.update_internal_variables()
 
 			# Compute strains
 			self.eq.compute_eps_ie(dt)
@@ -280,6 +300,11 @@ class Simulator(object):
 
 			# Print stuff
 			print(n_step, f"{t_final/utils.hour}", t/utils.hour, ite, error)
+			try:
+				print("Fvp: ", float(max(self.eq.m.elems_ie[0].Fvp)))
+				print("alpha: ", float(max(self.eq.m.elems_ie[0].alpha)))
+			except:
+				pass
 			print()
 			n_step += 1
 
@@ -331,9 +356,9 @@ class Simulator(object):
 		# Compute total strain
 		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
 
-		# Compute stress
-		eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
-		self.eq.compute_stress_C0(eps_tot_torch)
+		# # Compute stress
+		# eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+		# self.eq.compute_stress_C0(eps_tot_torch)
 
 		# Compute old ielastic strain rates
 		self.eq.compute_eps_ie_rate()
@@ -408,11 +433,6 @@ class Simulator(object):
 				# Solve linear system
 				[bc.apply(A, b) for bc in bcs]
 				self.solver.solve(A, self.u.vector(), b)
-				# try:
-				# except:
-				# 	print("***** KABUM *****")
-				# 	t = 2*t_final
-				# 	break
 
 				# Compute total strain
 				self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
@@ -420,6 +440,9 @@ class Simulator(object):
 
 				# Compute stress
 				self.eq.compute_stress(eps_tot_torch, dt)
+
+				# Increment internal variables
+				self.eq.increment_internal_variables(dt)
 
 				# Compute strain rates
 				self.eq.compute_eps_ie_rate()
@@ -435,6 +458,9 @@ class Simulator(object):
 
 				# Increment iteration counter
 				ite += 1
+
+			# Update internal variables
+			self.eq.update_internal_variables()
 
 			# Compute strains
 			self.eq.compute_eps_ie(dt)
@@ -461,6 +487,11 @@ class Simulator(object):
 
 			# Print stuff
 			print(n_step, f"{t_final/utils.hour}", t/utils.hour, ite, error)
+			try:
+				print("Fvp: ", float(max(self.eq.m.elems_ie[0].Fvp)))
+				print("alpha: ", float(max(self.eq.m.elems_ie[0].alpha)))
+			except:
+				pass
 			print()
 			n_step += 1
 
