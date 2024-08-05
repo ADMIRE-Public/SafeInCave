@@ -44,8 +44,6 @@ class GridHandlerGMSH(object):
 		for key, value in grid.field_data.items():
 			self.tags[value[1]][key] = value[0]
 		self.dolfin_tags = self.tags
-		print("tags")
-		print(self.dolfin_tags)
 
 	def read_grid_dimensions(self):
 		"""
