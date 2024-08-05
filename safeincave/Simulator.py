@@ -288,7 +288,7 @@ class Simulator(object):
 			self.eq.update_eps_ve_rate_old()
 
 			# Save displacement field
-			if n_step % n_skip == 0:
+			if n_step % n_skip == 0 or n_step == 1:
 				u_vtk << (self.u, t)
 				self.sigma.vector()[:] = self.eq.stress.flatten()
 				stress_vtk << (self.sigma, t)
@@ -471,7 +471,7 @@ class Simulator(object):
 			self.eq.update_eps_ve_rate_old()
 
 			# Save displacement field
-			if n_step % n_skip == 0:
+			if n_step % n_skip == 0 or n_step == 1:
 				u_vtk << (self.u, t)
 				self.sigma.vector()[:] = self.eq.stress.flatten()
 				stress_vtk << (self.sigma, t)
