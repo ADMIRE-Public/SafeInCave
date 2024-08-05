@@ -1,7 +1,7 @@
 Installation
 ------------
 
-The SafeInCave simulator requires the following dependencies to be installed:
+The following dependencies are required:
 
 - `PyTorch <https://pytorch.org/>`_
 - `pandas <https://pandas.pydata.org/>`_
@@ -9,9 +9,7 @@ The SafeInCave simulator requires the following dependencies to be installed:
 
 The SafeInCave simulator has been developed and tested only on Windows platform, but it should also work with other operational systems. In this section, only Windows installation is covered.
 
-The SafeInCave simulator is based on `FEniCS 2019.1 <https://fenicsproject.org/download/archive/>`_, 
-
-Because the SafeInCave simulator is based on `FEniCS 2019.1 <https://fenicsproject.org/download/archive/>`_, which can be installed on Ubuntu, the installation on Windows requires the Windows Subsystem for Linux (WSL). To install WSL, open the Power Shell in **administrator mode** and run the following commands:
+Because SafeInCave is based on `FEniCS 2019.1 <https://fenicsproject.org/download/archive/>`_, which can be installed on Ubuntu, the Windows installation requires the Windows Subsystem for Linux (WSL). To install WSL, open the Power Shell in **administrator mode** and run the following commands:
 
 .. code-block:: powershell
 
@@ -56,7 +54,7 @@ Download `Gmsh version 4.10.1 <https://gmsh.info/bin/Windows/>`_
 Running your first simulation
 ------------------------------
 
-The fastest way to run a simulation is to execute the *main.py* file of one of the examples in the *examples* folder. The example in folder *safeincave/examples/triaxial* simulates a triaxial test performed on a salt rock sample of cubic shape. The salt sample is subjected to a constant confining pressure and varying axial load, which can be visualized by executing the *plot_bcs.py* file, that is
+The fastest way to run a simulation is to execute the *main.py* file of one of the examples in the *examples* folder. The example in folder *safeincave/examples/triaxial* simulates a triaxial test performed on a salt rock sample of cubic shape. The salt sample is subjected to a constant confining pressure (horizontal stresses) and varying axial (vertical) load, which can be visualized by executing the *plot_bcs.py* file, that is
 
 .. code-block:: console
 

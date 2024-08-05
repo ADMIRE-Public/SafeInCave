@@ -50,7 +50,7 @@ salt_density = 2000
 bif.section_body_forces(value=salt_density, direction=2)
 
 # Create time_settings section
-time_list = [0*hour,  2*hour,  10*hour, 12*hour, 14*hour, 16*hour, 20*hour, 22*hour, 24*hour]
+time_list = [0*hour,  2*hour,  14*hour, 16*hour, 24*hour]
 bif.section_time(time_list, theta=0.0)
 
 # # Create boundary_conditions section
@@ -90,7 +90,7 @@ bif.add_boundary_condition(
 		"direction": 2,
 		"density": 0*salt_density,
 		"reference_position": 1.0,
-		"values": [4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa]
+		"values": [4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa]
 	}
 )
 
@@ -101,7 +101,7 @@ bif.add_boundary_condition(
 		"direction": 2,
 		"density": 0*salt_density,
 		"reference_position": 1.0,
-		"values": [4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa]
+		"values": [4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa]
 	}
 )
 
@@ -112,7 +112,7 @@ bif.add_boundary_condition(
 		"direction": 2,
 		"density": 0.0,
 		"reference_position": 1.0,
-		"values": [4.1*MPa, 12*MPa, 12*MPa, 12*MPa, 12*MPa, 6*MPa, 6*MPa, 6*MPa, 6*MPa]
+		"values": [4.1*MPa, 12*MPa, 12*MPa, 6*MPa, 6*MPa]
 	}
 )
 
@@ -174,7 +174,7 @@ bif.add_inelastic_element(
 	element_name = "creep", 
 	element_parameters = {
 		"type": "DislocationCreep",
-		"active": False,
+		"active": True,
 		"parameters": {
 			"A": list(1.9e-20*np.ones(bif.n_elems)),
 			"n": list(3.0*np.ones(bif.n_elems)),

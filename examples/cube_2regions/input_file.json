@@ -1,6 +1,6 @@
 {
     "grid": {
-        "path": "../../grids/cube_2regions",
+        "path": "../../grids/cube",
         "name": "geom"
     },
     "output": {
