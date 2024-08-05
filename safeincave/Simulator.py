@@ -288,15 +288,11 @@ class Simulator(object):
 			self.eq.update_eps_ve_rate_old()
 
 			# Save displacement field
-			u_vtk << (self.u, t)
-			self.sigma.vector()[:] = self.eq.stress.flatten()
-			stress_vtk << (self.sigma, t)
-
-			# Save displacement field
 			if n_step % n_skip == 0:
 				u_vtk << (self.u, t)
 				self.sigma.vector()[:] = self.eq.stress.flatten()
 				stress_vtk << (self.sigma, t)
+				print("Save step %i"%n_step)
 
 			# Print stuff
 			print(n_step, f"{t_final/utils.hour}", t/utils.hour, ite, error)
@@ -475,15 +471,11 @@ class Simulator(object):
 			self.eq.update_eps_ve_rate_old()
 
 			# Save displacement field
-			u_vtk << (self.u, t)
-			self.sigma.vector()[:] = self.eq.stress.flatten()
-			stress_vtk << (self.sigma, t)
-
-			# Save displacement field
 			if n_step % n_skip == 0:
 				u_vtk << (self.u, t)
 				self.sigma.vector()[:] = self.eq.stress.flatten()
 				stress_vtk << (self.sigma, t)
+				print("Save step %i"%n_step)
 
 			# Print stuff
 			print(n_step, f"{t_final/utils.hour}", t/utils.hour, ite, error)
