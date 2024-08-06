@@ -102,6 +102,11 @@ class Simulator(object):
 		else:
 			self.run_simulation()
 
+		# Save input file
+		utils.save_json(self.input_file_to_be_saved, os.path.join(self.output_folder, "equilibrium", "input_file.json"))
+		utils.save_json(self.input_file_to_be_saved, os.path.join(self.output_folder, "operation", "input_file.json"))
+
+
 	def run_simulation(self):
 		"""
 		Runs simulation **without** solving the equilibrium condition.
