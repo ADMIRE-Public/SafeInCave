@@ -5,22 +5,23 @@ from Grid import GridHandlerGMSH
 from ResultsHandler import read_tensor_from_cells
 from Utils import *
 from dolfin import *
+import dolfin as do
 import pandas as pd
 import numpy as np
 
-def save_dfs(output_path):
-	cells_coord, s_x, s_y, s_z, s_xy, s_xz, s_yz = read_tensor_from_cells(os.path.join(output_path, "vtk", "stress"), "stress.pvd")
+def save_dfs(case_folder):
+	cells_coord, s_x, s_y, s_z, s_xy, s_xz, s_yz = read_tensor_from_cells(os.path.join(case_folder, "vtk", "stress"), "stress.pvd")
 
-	if not os.path.exists(os.path.join(output_path, "pandas")):
-		os.makedirs(os.path.join(output_path, "pandas"))
+	if not os.path.exists(os.path.join(case_folder, "pandas")):
+		os.makedirs(os.path.join(case_folder, "pandas"))
 
-	cells_coord.to_pickle(os.path.join(output_path, "pandas", "cells_coord.pkl"))
-	s_x.to_pickle(os.path.join(output_path, "pandas", "s_x.pkl"))
-	s_y.to_pickle(os.path.join(output_path, "pandas", "s_y.pkl"))
-	s_z.to_pickle(os.path.join(output_path, "pandas", "s_z.pkl"))
-	s_xy.to_pickle(os.path.join(output_path, "pandas", "s_xy.pkl"))
-	s_xz.to_pickle(os.path.join(output_path, "pandas", "s_xz.pkl"))
-	s_yz.to_pickle(os.path.join(output_path, "pandas", "s_yz.pkl"))
+	cells_coord.to_pickle(os.path.join(case_folder, "pandas", "cells_coord.pkl"))
+	s_x.to_pickle(os.path.join(case_folder, "pandas", "s_x.pkl"))
+	s_y.to_pickle(os.path.join(case_folder, "pandas", "s_y.pkl"))
+	s_z.to_pickle(os.path.join(case_folder, "pandas", "s_z.pkl"))
+	s_xy.to_pickle(os.path.join(case_folder, "pandas", "s_xy.pkl"))
+	s_xz.to_pickle(os.path.join(case_folder, "pandas", "s_xz.pkl"))
+	s_yz.to_pickle(os.path.join(case_folder, "pandas", "s_yz.pkl"))
 
 
 def exctract_material_props(input_model):
@@ -42,7 +43,7 @@ def read_stresses(case_folder):
 	s_yz = pd.read_pickle(os.path.join(case_folder, "s_yz.pkl"))
 	return s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
 
-def save_FOS_to_pandas(case_folder):
+def compute_FOS(case_folder):
 	try:
 		s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = read_stresses(os.path.join(case_folder, "pandas"))
 	except:
@@ -83,18 +84,16 @@ def main():
 	case_folder = os.path.join("output", "case_0", "operation")
 
 	# Load mesh
-	mesh_folder = os.path.join("..", "..", "grids", "cavern_regular")
+	mesh_folder = os.path.join("..", "..", "grids", "cavern_irregular")
 	g = GridHandlerGMSH("geom", mesh_folder)
 
-	P0 = FunctionSpace(g.mesh, "DG", 0)
-	FOS = Function(P0)
+	P0 = do.FunctionSpace(g.mesh, "DG", 0)
+	FOS = do.Function(P0)
 	FOS.rename("Factor of Safety", "-")
 
-	FOS_vtk = File(os.path.join(case_folder, "vtk", "FOS", "FOS.pvd"))
+	FOS_vtk = do.File(os.path.join(case_folder, "vtk", "FOS", "FOS.pvd"))
 
-	# save_FOS_to_pandas(case_folder)
-
-	times, FOS_data = save_FOS_to_pandas(case_folder)
+	times, FOS_data = compute_FOS(case_folder)
 
 	for i, time in enumerate(times):
 		FOS.vector()[:] = FOS_data[:,i]

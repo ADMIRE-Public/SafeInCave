@@ -21,7 +21,7 @@ fig.subplots_adjust(top=0.970, bottom=0.155, left=0.080, right=0.980, hspace=0.3
 
 ax.plot(time_list, over_burden, ".-", color="#377eb8", label="Overburden")
 ax.plot(time_list, side_burden, ".-", color="#ff7f00", label="Sideburden")
-ax.plot(time_list, gas_pressure, ".-", color="#4daf4a", label="Sideburden")
+ax.plot(time_list, gas_pressure, ".-", color="#4daf4a", label="Gas pressure")
 ax.set_xlabel("Time (h)", size=12, fontname="serif")
 ax.set_ylabel("Stress (MPa)", size=12, fontname="serif")
 ax.legend(loc=0, shadow=True, fancybox=True)

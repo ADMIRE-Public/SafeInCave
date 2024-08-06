@@ -14,7 +14,7 @@ MPa = 1e6
 bif = BuildInputFile()
 
 # Create input_grid section
-path_to_grid = os.path.join("..", "..", "grids", "cavern_regular")
+path_to_grid = os.path.join("..", "..", "grids", "cavern_irregular")
 bif.section_input_grid(path_to_grid, "geom")
 
 print(bif.grid.get_boundary_names())
@@ -26,7 +26,7 @@ Lz = bif.grid.Lz
 cavern_roof = 430
 
 # Create output section
-bif.section_output(os.path.join("output", "case_1"))
+bif.section_output(os.path.join("output", "case_0"))
 
 # Create solver settings section
 solver_settings = {
@@ -47,8 +47,8 @@ bif.section_simulation(
 		},
 		"operation": {
 			"active": True,
-			"dt_max": 0.1*hour,
-			"n_skip": 2
+			"dt_max": 0.05*hour,
+			"n_skip": 4
 		}
 	}
 )
@@ -171,7 +171,7 @@ bif.add_inelastic_element(
 	element_name = "desai", 
 	element_parameters = {
 		"type": "ViscoplasticDesai",
-		"active": False,
+		"active": True,
 		"parameters": {
 			"mu_1": 	list(5.3665857009859815e-11*np.ones(bif.n_elems)),
 			"N_1": 		list(3.1*np.ones(bif.n_elems)),
