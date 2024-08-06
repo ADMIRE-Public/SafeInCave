@@ -152,26 +152,36 @@ def plot_results(ax_shape, ax_closure, results_folder, mesh_folder, case_name="n
 	ax_closure.grid(True)
 
 def main():
-	fig = plt.figure(figsize=(10, 3.5))
-	fig.subplots_adjust(top=0.920, bottom=0.145, left=0.060, right=0.990, hspace=0.35, wspace=0.000)
+	fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3))
+	fig.subplots_adjust(top=0.985, bottom=0.145, left=0.060, right=0.990, hspace=0.35, wspace=0.260)
 
-	gs = gridspec.GridSpec(1, 12, figure=fig)
-	ax1 = fig.add_subplot(gs[0, 0:3])
-	ax2 = fig.add_subplot(gs[0, 4:8])
-	ax3 = fig.add_subplot(gs[0:, 9:13])
-
-	CB_color_cycle = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00']
-
-	mesh_name = "cavern_regular"
 	results_folder = os.path.join("output", "case_0", "operation", "vtk")
-	mesh_folder = os.path.join("..", "..", "grids", mesh_name)
-	plot_results(ax1, ax2, results_folder, mesh_folder, case_name="Cavern A", line_style="-", case_color="#377eb8")
+	mesh_folder = os.path.join("..", "..", "grids", "cavern_regular")
+	plot_results(ax1, ax2, results_folder, mesh_folder, case_name="With viscoplasticity", line_style=".-", case_color="#377eb8")
 
-	ax1.set_xlim(-63, 186)
-	ax1.set_ylim(193, 482)
+	ax1.axis("equal")
 
-	ax3.set_xlim(-82, 157)
-	ax3.set_ylim(200, 478)
+	apply_grey_theme(fig, [ax1, ax2], transparent=True)
+	# apply_dark_theme(fig, [ax_inset], transparent=True)
+
+	plt.show()
+
+def main_2():
+	fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(9, 3))
+	fig.subplots_adjust(top=0.985, bottom=0.145, left=0.070, right=0.990, hspace=0.35, wspace=0.310)
+
+	results_folder = os.path.join("output", "case_0", "operation", "vtk")
+	mesh_folder = os.path.join("..", "..", "grids", "cavern_regular")
+	plot_results(ax1, ax3, results_folder, mesh_folder, case_name="With viscoplasticity", line_style=".-", case_color="#377eb8")
+
+	results_folder = os.path.join("output", "case_1", "operation", "vtk")
+	mesh_folder = os.path.join("..", "..", "grids", "cavern_regular")
+	plot_results(ax2, ax3	, results_folder, mesh_folder, case_name="No viscoplasticity", line_style=".-", case_color="#ff7f00")
+
+	# ax1.set_xlim(-63, 186)
+	# ax1.set_ylim(193, 482)
+	ax1.axis("equal")
+	ax2.axis("equal")
 
 	apply_grey_theme(fig, [ax1, ax2, ax3], transparent=True)
 	# apply_dark_theme(fig, [ax_inset], transparent=True)
@@ -179,4 +189,5 @@ def main():
 	plt.show()
 
 if __name__ == '__main__':
-	main()
+	# main()
+	main_2()
