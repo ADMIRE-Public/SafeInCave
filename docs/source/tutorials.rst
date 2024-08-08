@@ -8,31 +8,95 @@
 Tutorial 1
 ----------
 
-.. tutorial-1-geom:
+In this example, we simulate a cubic material subjected to a triaxial stress condition. The domain :math:`\Omega`, its dimensions and boundary conditions are shown in :numref:`Fig. %s-a <tutorial-1-geom>`. :numref:`Fig. %s-b <tutorial-1-geom>` presents the corresponding names of the geometry boundaries and regions. Finally, :numref:`Fig. %s-c <tutorial-1-geom>` shows the tetrahedral mesh used for this problem.
 
-.. figure:: _static/tutorial_1_geom.png
+.. _tutorial-1-geom:
+
+.. figure:: _static/tutorial_1_geom_2.png
    :align: center
    :width: 100%
 
    Boundary names, region (subdomain) names and computational mesh.
 
+The domain :math:`\Omega` is bounded by a closed surface :math:`\Gamma`. For mathematical convenience, let us split :math:`\Gamma` into non-overlapping subsets comprising each boundary shown in :numref:`Figure %s-b <tutorial-1-geom>`, such that 
+
+.. math::
+
+    \Gamma_\text{west} &= \{ \mathbf{r} \in \Omega | x = 0 \} \\
+    \Gamma_\text{east} &= \{ \mathbf{r} \in \Omega | x = 1\text{ m} \} \\
+    \Gamma_\text{south} &= \{ \mathbf{r} \in \Omega | y = 0 \} \\
+    \Gamma_\text{north} &= \{ \mathbf{r} \in \Omega | y = 1\text{ m} \} \\
+    \Gamma_\text{bottom} &= \{ \mathbf{r} \in \Omega | z = 0 \} \\
+    \Gamma_\text{top} &= \{ \mathbf{r} \in \Omega | z = 1\text{ m} \},
+
+and :math:`\Gamma = \Gamma_\text{west} \cup \Gamma_\text{east} \cup \Gamma_\text{south} \cup \Gamma_\text{north} \cup \Gamma_\text{bottom} \cup \Gamma_\text{top}`. Finally, the boundary conditions applied for this problem can be written as,
+
+.. math::
+
+    u(\mathbf{r},t) = 0, \quad \quad &\forall \quad \mathbf{r} \in \Gamma_\text{west}, \\
+    v(\mathbf{r},t) = 0, \quad \quad &\forall \quad \mathbf{r} \in \Gamma_\text{south}, \\
+    w(\mathbf{r},t) = 0, \quad \quad &\forall \quad \mathbf{r} \in \Gamma_\text{bottom}, \\
+    \pmb{\sigma}(\mathbf{r},t) \cdot \mathbf{n} = 5 \text{ MPa}, \quad &\forall \quad \mathbf{r} \in \Gamma_\text{east}, \\
+    \pmb{\sigma}(\mathbf{r},t) \cdot \mathbf{n} = 5 \text{ MPa}, \quad &\forall \quad \mathbf{r} \in \Gamma_\text{north}, \\
+    \pmb{\sigma}(\mathbf{r},t) \cdot \mathbf{n} = 8 \text{ MPa}, \quad &\forall \quad \mathbf{r} \in \Gamma_\text{top}.
+
+The material behavior represented by a constitutive model composed of a linear spring and a Kelvin-Voigt element (i.e. viscoelastic model), as shown in :numref:`Fig. %s <tutorial-1-model>`.
+
+.. _tutorial-1-model:
+
+.. figure:: _static/tutorial_1_model.png
+   :align: center
+   :width: 40%
+
+   Viscoelastic constitutive model considered for Tutorial 1.
+
+:numref:`Figure %s-b <tutorial-1-geom>` also shows that the cubic sample is divided in two regions (subdomains), called :math:`\Omega_A` and :math:`\Omega_B`. Different material properties are assigned to these two regions, and they are summarized in :numref:`Table %s <table-tutorial-1>`.
+
+.. _table-tutorial-1:
+
+.. list-table:: Material properties for domains :math:`\Omega_A` and :math:`\Omega_B`.
+   :widths: 25 25 25
+   :header-rows: 1
+
+   * - Property name
+     - Domain :math:`\Omega_A`
+     - Domain :math:`\Omega_B`
+   * - :math:`E_0` (GPa)
+     - :math:`8`
+     - :math:`10`
+   * - :math:`\nu_0` (-)
+     - :math:`0.2`
+     - :math:`0.3`
+   * - :math:`E_1` (GPa)
+     - :math:`8`
+     - :math:`5`
+   * - :math:`\nu_1` (-)
+     - :math:`0.35`
+     - :math:`0.28`
+   * - :math:`\eta_1` (Pa.s)
+     - :math:`105\times 10^{11}`
+     - :math:`38\times 10^{11}`
+
+The next subsection describes the creation of the input file for this particular problem.
+
 Build input file
 ~~~~~~~~~~~~~~~~
 
+:numref:`Listing %s <tutorial-1-codeblock-1>` imports the necessary modules and defines some useful units to be used throughout this example. Notice the *dolfin* package is imported in line 6. The reason for this is because we want to loop over the mesh elements to identify to which region (:math:`\Omega_A` or :math:`\Omega_B`) each element belongs to. For this, we some tools from *dolfin* package.
+
+.. _tutorial-1-codeblock-1:
+
 .. code-block:: python
     :linenos:
+    :emphasize-lines: 6
+    :caption: Import modules.
 
     import os
-    import json
     import sys
     import numpy as np
     sys.path.append(os.path.join("..", "..", "safeincave"))
-    from Grid import GridHandlerGMSH
     from InputFileAssistant import BuildInputFile
     import dolfin as do
-
-.. code-block:: python
-    :linenos:
 
     # Useful units
     hour = 60*60
@@ -40,29 +104,33 @@ Build input file
     MPa = 1e6
     GPa = 1e9
 
+Initialize input file object.
+
 .. code-block:: python
     :linenos:
 
-    # Initialize input file object
     ifa = BuildInputFile()
 
+Create *input_grid* section.
+
 .. code-block:: python
     :linenos:
 
-    # Create input_grid section
-    path_to_grid = os.path.join("..", "..", "grids", "cube_2regions")
+    path_to_grid = os.path.join("..", "..", "grids", "cube")
     ifa.section_input_grid(path_to_grid, "geom")
 
+Create *output* section.
+
 .. code-block:: python
     :linenos:
 
-    # Create output section
     ifa.section_output(os.path.join("output", "case_0"))
 
+Create *solver_settings* section and choose conjugate gradient method with algebraic multi-grid for solving the linear system.
+
 .. code-block:: python
     :linenos:
 
-    # Create solver settings section
     solver_settings = {
         "type": "KrylovSolver",
         "method": "cg",
@@ -71,10 +139,16 @@ Build input file
     }
     ifa.section_solver(solver_settings)
 
+Create *simulation_settings* section. Note in line 3 that we set the *equilibrium* stage to **False**. Since the external loads applied to the cubic sample are constant in time and the constitutive model is viscoelastic, running only the *equilibrium* stage or only the *operational* stage will produce the same result (provided that the time step sizes are the same in these two stages). Setting both stages to **True**, however, would produce zero results for the *operational* stage. 
+
+.. tip::
+
+    The user is encouraged to play with the *equilibrium* and *operational* stages and checking the results in */output/case_0/equilibrium* and */output/case_0/operational*.
+
 .. code-block:: python
     :linenos:
+    :emphasize-lines: 3
 
-    # Create simulation_settings section
     ifa.section_simulation(simulation_settings = {
                                 "equilibrium": {
                                     "active": False,
@@ -88,24 +162,28 @@ Build input file
                                 }
                            })
 
+Create *body_forces* section.
+
 .. code-block:: python
     :linenos:
 
-    # Create body_forces section
     salt_density = 2000
     ifa.section_body_forces(value=salt_density, direction=2)
 
+Create *time_settings* section. The transient simulation is set to run from :math:`t=0` to :math:`t=1.0` hour, and the fully-implicit method is chosen for time integration.
+
 .. code-block:: python
     :linenos:
 
-    # Create time_settings section
     time_list = [0*hour,  1*hour]
     ifa.section_time(time_list, theta=0.0)
 
+Create *boundary_conditions* section. Boundaries *WEST*, *SOUTH* and *BOTTOM* are prevented from normal displacement (Dirichlet boundary condition). A normal compressive load is applied to boundaries *EAST*, *NORTH* and *TOP*, and the corresponding loading values are respectively shown in lines 37, 47 and 57.
+
 .. code-block:: python
     :linenos:
+    :emphasize-lines: 37, 47, 57
 
-    # Create boundary_conditions section
     ifa.section_boundary_conditions()
 
     # Add Dirichlet boundary conditions
@@ -140,7 +218,7 @@ Build input file
         bc_data = {
             "type": "neumann",
             "direction": 2,
-            "density": 0*salt_density,
+            "density": 0,
             "reference_position": 1.0,
             "values": [5*MPa, 5*MPa]
         }
@@ -150,7 +228,7 @@ Build input file
         bc_data = {
             "type": "neumann",
             "direction": 2,
-            "density": 0*salt_density,
+            "density": 0,
             "reference_position": 1.0,
             "values": [5*MPa, 5*MPa]
         }
@@ -166,8 +244,12 @@ Build input file
         }
     )
 
+Before creating the *constitutive_model* section, we first mark the element of the grid that belong to regions :math:`\Omega_A` and :math:`\Omega_B`. The first step is to check the tags (integers) used by FEniCS to identify these two subdomains. This can be achieved the *get_subdomain_tag* function of the *grid* object belonging to object *ifa*. That is,
+
+.. _tutorial-1-tags:
 
 .. code-block:: pycon
+    :caption: Subdomain tags.
     
     >>> region_marker_A = ifa.grid.get_subdomain_tags("OMEGA_A")
     >>> print(region_marker_A)
@@ -176,9 +258,13 @@ Build input file
     >>> print(region_marker_B)
     2
 
+As shown in :numref:`Listing %s <tutorial-1-tags>`, the tags corresponding to subdomains :math:`\Omega_A` and :math:`\Omega_B` are 1 and 2, respectively. This information is used in :numref:`Listing %s <tutorial-1-regions>` to store the element indices belonging to regions :math:`\Omega_A` and :math:`\Omega_B` in lists *index_A* and *index_B*, respectively. In line 6, the attribute *subdomains* is a dolfin *MeshFunction* object that retrieves the subdomain tag associated to element *cell*. This can be compared to the corresponding tags of each region to decide whether the element index is stored in *index_A* or *index_B*.
+
+.. _tutorial-1-regions:
 
 .. code-block:: python
     :linenos:
+    :caption: Identifying element regions.
 
     index_A = []
     index_B = []
@@ -193,14 +279,20 @@ Build input file
         else:
             raise Exception("Subdomain tag not valid. Check your mesh file.")
 
+Now that we have identified to which region each element belongs to, we can create the *constitutive_model* section with appropriate lists of material properties. 
+
 .. code-block:: python
     :linenos:
 
-    # Assign material properties
     ifa.section_constitutive_model()
 
+As summarized in :numref:`Table %s <table-tutorial-1>`, the Young's modulus of the linear spring for regions :math:`\Omega_A` and :math:`\Omega_B` are 8 GPa and 10 GPa, respectively. These two properties are assigned in lines 3 and 4 of :numref:`Listing %s <tutorial-1-model-spring>`. Notice how *index_A* and *index_B* are used as indices of numpy array *E*, created in line 2. A similar procedure is done for assigning the Poisson's ratios in lines 6, 7 and 8.
+
+.. _tutorial-1-model-spring:
+
 .. code-block:: python
     :linenos:
+    :caption: Assign linear spring to constitutive model.
 
     # Add elastic properties
     E = np.zeros(ifa.n_elems)
@@ -212,7 +304,7 @@ Build input file
     nu[index_B] = 0.3
 
     ifa.add_elastic_element(
-        element_name = "Spring_0", 
+        element_name = "Spring0", 
         element_parameters = {
             "type": "Spring",
             "active": True,
@@ -223,8 +315,13 @@ Build input file
         }
     )
 
+The viscoelastic properties (:math:`E_1`, :math:`\nu_1` and :math:`\eta_1`) are assigned in the same manner in lines 2, 3, 5, 6, 9 and 10 of :numref:`Listing %s <tutorial-1-model-viscoelastic>`.
+
+.. _tutorial-1-model-viscoelastic:
+
 .. code-block:: python
     :linenos:
+    :caption: Assign viscoelastic properties.
     
     # Add viscoelastic properties
     E[index_A] = 8*GPa
@@ -239,7 +336,7 @@ Build input file
 
     # Add viscoelastic properties
     ifa.add_viscoelastic_element(
-        element_name = "KelvinVoigt_0", 
+        element_name = "KelvinVoigt1", 
         element_parameters = {
             "type": "KelvinVoigt",
             "active": True,
@@ -251,16 +348,32 @@ Build input file
         }
     )
 
+Finally, the input_file.json is saved in the current directory.
+
 .. code-block:: python
     :linenos:
 
-    # Save input_file.json
     ifa.save_input_file("input_file.json")
 
-To visualize the results...
+To run this example, execute the *main.py* file in *examples/tutorial_1* folder. That is,
+
+.. code-block:: console
+
+    (myenv) user@institution:~/safeincave$ cd examples/tutorial_1
+    (myenv) user@institution:~/safeincave/examples/tutorial_1$ python main.py
+
+Visualize results
+~~~~~~~~~~~~~~~~~
+
+The results for equilibrium and operational stages are respectively stored in *output/case_0/equilibrium* and *output/case_0/operational* folders. Although these results can be readily visualized in Paraview, the code below shows how to plot the vertical displacements on boundary *TOP* over time using Python. 
+
+:numref:`Listing %s <tutorial-1-results-1>` imports the necessary modules. Notice the function *read_vector_from_points* is imported from *ResultsHandler*, which is responsible for reading the vtk files, extracting the vector field defined on all nodes for all time steps, and saving them in pandas datasets. This facilitates the manipulation of results.
+
+.. _tutorial-1-results-1:
 
 .. code-block:: python
     :linenos:
+    :caption: Results visualization for Tutorial 1.
 
     import os
     import sys
@@ -270,10 +383,19 @@ To visualize the results...
     import matplotlib.pyplot as plt
     from ResultsHandler import read_vector_from_points
 
-    # Read displacement results
+The next code-block reads the displacement results from folder *operation*. Variable *df_coord* stores the coordinates of all grid nodes, whereas *u*, *v* and *w* stores the displacement components for all time steps of the simulation.
+
+.. code-block:: python
+    :linenos:
+
     pvd_path = os.path.join("output", "case_0", "operation", "vtk", "displacement")
     pvd_file = "displacement.pvd"
     df_coord, u, v, w = read_vector_from_points(pvd_path, pvd_file)
+
+Points A, B, C and D are shown in :numref:`Fig. %s-a <tutorial-1-results-0>`. To access the displacement at these points, it is necessary to identify their corresponding indexes. This is performed in the code-block below.
+
+.. code-block:: python
+    :linenos:
 
     point_A = df_coord[(df_coord["z"]==1) & (df_coord["x"]==0) & (df_coord["y"]==0)].index[0]
     point_B = df_coord[(df_coord["z"]==1) & (df_coord["x"]==0) & (df_coord["y"]==1)].index[0]
@@ -281,12 +403,22 @@ To visualize the results...
     point_D = df_coord[(df_coord["z"]==1) & (df_coord["x"]==1) & (df_coord["y"]==0)].index[0]
     print(point_A, point_B, point_C, point_D)
 
+Once the indices of the points of interest are identified, they can be used to access the vertical displacement *w* at these points. The list of time steps can also be retrieved from dataset *w*, as performed in line 5 of the code-block below.
+
+.. code-block:: python
+    :linenos:
+    :emphasize-lines: 5
+
     w_A = w.iloc[point_A].values[1:]
     w_B = w.iloc[point_B].values[1:]
     w_C = w.iloc[point_C].values[1:]
     w_D = w.iloc[point_D].values[1:]
-
     t = w.iloc[point_A].index.values[1:]
+
+Finally, plot the results using Matplotlib.
+
+.. code-block:: python
+    :linenos:
 
     # Plot pressure schedule
     fig, ax = plt.subplots(1, 1, figsize=(5, 3.5))
@@ -307,11 +439,14 @@ To visualize the results...
 
 .. _tutorial-1-results-0:
 
-.. figure:: _static/tutorial_1_results_0.png
+.. figure:: _static/tutorial_1_results_1.png
    :alt: block
    :align: center
-   :width: 50%
+   :width: 80%
 
+   Position of points of interest (a) and the corresponding vertical displacements over time (b).
+
+The results presented in :numref:`Fig. %s-b <tutorial-1-results-0>` reveal an interesting behavior. As shown in :numref:`Table %s <table-tutorial-1>`, the Young's modulus of the linear spring (:math:`E_0`) for :math:`\Omega_A` is smaller than for :math:`\Omega_B`. In other words, :math:`\Omega_B` is instantaneously stiffer than :math:`\Omega_A`. For this reason, immediately after the load is applied, points A and D, which belong to :math:`\Omega_A`, present larger displacements than the other two points on :math:`\Omega_B`. However, the Kelvin-Voigt spring is stiffer for :math:`\Omega_A` than for :math:`\Omega_B`. Therefore, as time passes by, the Kelvin-Voigt element slowly starts to the deform and the displacements at points B and C (:math:`\Omega_B`) take over the other two points on :math:`\Omega_A`.
 
 
 
@@ -319,19 +454,80 @@ To visualize the results...
 Tutorial 2
 ----------
 
-.. _tutorial-2-loading-schedule:
+This tutorial intends to setup a simulation for hydrogen storage in a salt cavern. The domain :math:`\Omega` and its dimensions are depicted in :numref:`Fig. %s-a <tutorial-2-geom-mesh>`. This figure also shows the tetrahedral mesh employed, with mesh refinement close to the cavern walls. The names of each boundary for correctly applying the boundary conditions are shown in :numref:`Figure %s-b <tutorial-2-geom-mesh>`.
 
-.. figure:: _static/tutorial_2_loading_schedule.png
+.. _tutorial-2-geom-mesh:
+
+.. figure:: _static/tutorial_2_geom_mesh.png
    :alt: block
    :align: center
    :width: 80%
 
+   Geometry dimensions and mesh (a); boundary and region names (b).
+
+As illustrated in :numref:`Fig. %s-a <tutorial-2-loading-schedule>`, a constant overburden of 10 MPa is applied to the geometry, whereas the a sideburden increases with depth according to salt density. This figure also presents a schematic representation of the gas pressure imposed on the cavern walls, showing the minimum (7 MPa) and maximum (10 MPa) gas pressure at the cavern roof.
+
+.. _tutorial-2-loading-schedule:
+
+.. figure:: _static/tutorial_2_bcs_pr.png
+   :alt: block
+   :align: center
+   :width: 95%
+
+   Planar view of overburden and sideburden (a); time history of gas pressure at cavern roof (b).
+
+The domain :math:`\Omega` is bounded by a closed surface :math:`\Gamma`. For mathematical convenience, let us split :math:`\Gamma` into non-overlapping subsets comprising each boundary shown in :numref:`Figure %s-b <tutorial-2-geom-mesh>`, such that 
+
+.. math::
+
+    \Gamma = \Gamma_\text{bottom} \cup \Gamma_\text{top} \cup \Gamma_\text{south} \cup \Gamma_\text{north} \cup \Gamma_\text{west} \cup \Gamma_\text{east} \cup \Gamma_\text{cavern}.
+
+In this manner, the boundary conditions applied to this problem can be written as,
+
+.. math::
+
+    u(\mathbf{r},t) = 0, \quad \quad &\forall \quad \mathbf{r} \in \Gamma_\text{west}, \\
+    v(\mathbf{r},t) = 0, \quad \quad &\forall \quad \mathbf{r} \in \Gamma_\text{south}, \\
+    w(\mathbf{r},t) = 0, \quad \quad &\forall \quad \mathbf{r} \in \Gamma_\text{bottom}, \\
+    \pmb{\sigma}(\mathbf{r},t) \cdot \mathbf{n} = p_1(z), \quad &\forall \quad \mathbf{r} \in \Gamma_\text{east}, \\
+    \pmb{\sigma}(\mathbf{r},t) \cdot \mathbf{n} = p_1(z), \quad &\forall \quad \mathbf{r} \in \Gamma_\text{north}, \\
+    \pmb{\sigma}(\mathbf{r},t) \cdot \mathbf{n} = p_1(z), \quad &\forall \quad \mathbf{r} \in \Gamma_\text{top}, \\
+    \pmb{\sigma}(\mathbf{r},t) \cdot \mathbf{n} = p_2(z,t), \quad &\forall \quad \mathbf{r} \in \Gamma_\text{cavern},
+
+in which
+
+.. math::
+    
+    p_1(z) &= p_h + \rho_\text{salt} g (H - z), \\
+    p_2(z,t) &= p_r(t) + \rho_{\text{H}_2} g (H_r - z),
+
+with :math:`\rho_\text{salt} = 2000` :math:`\text{kg}/\text{m}^3`, :math:`\rho_{\text{H}_2} = 10` :math:`\text{kg}/\text{m}^3`, :math:`H_r = 430` :math:`\text{m}`, :math:`p_h = 10` :math:`\text{MPa}` and :math:`p_r(t)` is shown in :numref:`Fig. %s-b <tutorial-2-loading-schedule>`.
+
+The constitutive model employed in this example is shown in :numref:`Fig. %s <tutorial-2-model>`. It comprises a linear spring for instantaneous elastic response, a Kelvin-Voigt element for time dependent elasticity (i.e. viscoelasticity), a viscoplastic element following Desai's model, and a power law model for steady-state dislocation creep.
+
+.. _tutorial-2-model:
+
+.. figure:: _static/tutorial_2_model.png
+   :alt: block
+   :align: center
+   :width: 60%
+
+   Constitutive model employed in Tutorial 2.
+
+
 Build input file
 ~~~~~~~~~~~~~~~~
 
+The following code-blocks show how to build the input file for the problem described above.
+
+In :numref:`Listing %s <tutorial-2-block-1>` the relevant modules are imported, useful units are defined and the *BuildInputFile* object (*bif*) is created. Notice in lines 20 and 21 how the boundary and subdomain (region) names can be retrieved
+
+.. _tutorial-2-block-1:
 
 .. code-block:: python
     :linenos:
+    :caption: Initial steps.
+    :emphasize-lines: 20, 21
 
     import os
     import sys
@@ -340,16 +536,10 @@ Build input file
     from Grid import GridHandlerGMSH
     from InputFileAssistant import BuildInputFile
 
-.. code-block:: python
-    :linenos:
-
     # Useful units
     hour = 60*60
     day = 24*hour
     MPa = 1e6
-
-.. code-block:: python
-    :linenos:
 
     # Initialize input file object
     bif = BuildInputFile()
@@ -359,24 +549,28 @@ Build input file
     bif.section_input_grid(path_to_grid, "geom")
 
     print(bif.grid.get_boundary_names())
+    print(bif.grid.get_subdomain_names())
+
+In :numref:`Listing %s <tutorial-2-block-2>`, some useful dimensions are extracted from the grid, except for the cavern roof position, which is hard coded for convenience.
+
+.. _tutorial-2-block-2:
 
 .. code-block:: python
     :linenos:
+    :caption: Extract geometry dimensions.
 
-    # Extract geometry dimensions
     Lx = bif.grid.Lx
     Ly = bif.grid.Ly
     Lz = bif.grid.Lz
     cavern_roof = 430
+
+The following code block is pretty much the same as in Tutorial 1.
 
 .. code-block:: python
     :linenos:
 
     # Create output section
     bif.section_output(os.path.join("output", "case_1"))
-
-.. code-block:: python
-    :linenos:
 
     # Create solver settings section
     solver_settings = {
@@ -386,9 +580,6 @@ Build input file
         "relative_tolerance": 1e-12,
     }
     bif.section_solver(solver_settings)
-
-.. code-block:: python
-    :linenos:
 
     # Create simulation_settings section
     bif.section_simulation(
@@ -406,23 +597,30 @@ Build input file
         }
     )
 
-.. code-block:: python
-    :linenos:
-
     # Create body_forces section
     salt_density = 2000
     bif.section_body_forces(value=salt_density, direction=2)
 
-.. code-block:: python
+As shown in :numref:`Fig. %s-b <tutorial-2-loading-schedule>`, the times when the gas pressure change are 0, 2h, 14h, 16h and 24h. Therefore, the time list should be defined as in line 2 of :numref:`Listing %s <tutorial-2-block-3>`
 
-    # Create time_settings section
-    time_list = [0*hour,  2*hour,  14*hour, 16*hour, 24*hour]
-    bif.section_time(time_list, theta=0.0)
+.. _tutorial-2-block-3:
 
 .. code-block:: python
     :linenos:
+    :caption: Defining time list according to :numref:`Fig. %s-b <tutorial-2-loading-schedule>`.
 
-    # Create boundary_conditions section
+    time_list = [0*hour,  2*hour,  14*hour, 16*hour, 24*hour]
+    bif.section_time(time_list, theta=0.0)
+
+The boundary conditions are defined in :numref:`Listing %s <tutorial-2-block-4>`. The Dirichlet boundary conditions are defined in lines 5, 13 and 21. The sideburden is applied to boundaries *East* and *North* in lines 31 and 42, respectively. Notice the salt density is assigned to the *density* key, and height of the geometry (Lz) is assigned to *reference_position* key. The sideburden and overburden are time independent, which is why lists with constant values are used in lines 38, 49 and 60. Also note that it would make no difference if the density value in line 57 would be zero, as this boundary is perpendicular to the *z* direction (direction 2). For the cavern wall (boundary *Cavern*), the *density* value is the one of hydrogen (line 69), the *reference_position* corresponds to the cavern roof (line 70), and a time dependent list is informed in line 71 according to :numref:`Fig. %s-b <tutorial-2-loading-schedule>`.
+
+.. _tutorial-2-block-4:
+
+.. code-block:: python
+    :linenos:
+    :caption: Create *boundary_conditions* section.
+    :emphasize-lines: 4, 12, 20, 37, 48, 59, 57, 69, 70, 71
+
     bif.section_boundary_conditions()
 
     # Add Dirichlet boundary conditions
@@ -479,7 +677,7 @@ Build input file
         bc_data = {
             "type": "neumann",
             "direction": 2,
-            "density": 0.0,
+            "density": salt_density,
             "reference_position": Lz,
             "values": [10*MPa, 10*MPa, 10*MPa, 10*MPa, 10*MPa]
         }
@@ -497,15 +695,20 @@ Build input file
         }
     )
 
+The code block :numref:`Listing %s <tutorial-2-block-5>` defines the constitutive model shown in :numref:`Fig. %s <tutorial-2-model>`. The material properties, as discussed before, are all homogeneous (i.e. no spatial variation).
+
+.. _tutorial-2-block-5:
+
 .. code-block:: python
     :linenos:
+    :caption: Defining *constitutive_model* section.
 
     # Assign material properties
     bif.section_constitutive_model()
 
     # Add elastic properties
     bif.add_elastic_element(    
-        element_name = "Spring_0", 
+        element_name = "Spring0", 
         element_parameters = {
             "type": "Spring",
             "active": True,
@@ -518,7 +721,7 @@ Build input file
 
     # Add viscoelastic properties
     bif.add_viscoelastic_element(   
-        element_name = "KelvinVoigt_0", 
+        element_name = "KelvinVoigt1", 
         element_parameters = {
             "type": "KelvinVoigt",
             "active": True,
@@ -532,7 +735,7 @@ Build input file
 
     # Add viscoplastic parameters
     bif.add_inelastic_element(  
-        element_name = "desai", 
+        element_name = "ViscPlastDesai", 
         element_parameters = {
             "type": "ViscoplasticDesai",
             "active": False,
@@ -555,7 +758,7 @@ Build input file
 
     # Add dislocation creep parameters
     bif.add_inelastic_element(  
-        element_name = "creep", 
+        element_name = "DisCreep", 
         element_parameters = {
             "type": "DislocationCreep",
             "active": True,
@@ -572,8 +775,18 @@ Build input file
     # Save input_file.json
     bif.save_input_file("input_file.json")
 
+To run this example, build the input file and execute the *main.py* file in *examples/tutorial_2* folder. That is,
+
+.. code-block:: console
+
+    (myenv) user@institution:~/safeincave$ cd examples/tutorial_2
+    (myenv) user@institution:~/safeincave/examples/tutorial_2$ python build_input_file.py
+    (myenv) user@institution:~/safeincave/examples/tutorial_2$ python main.py
+
 Visualize results
 ~~~~~~~~~~~~~~~~~
+
+For the purpose of demonstration, in this section we intend to plot the initial and final cavern shape, as well as the volumetric closure of the cavern over time. 
 
 
 .. code-block:: python
@@ -632,15 +845,6 @@ Visualize results
 .. code-block:: python
     :linenos:
 
-    # Create figure
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3))
-    fig.subplots_adjust(
-        top=0.985, bottom=0.145, left=0.070, right=0.990, hspace=0.35, wspace=0.260
-    )
-
-.. code-block:: python
-    :linenos:
-
     # Define folders
     results_folder = os.path.join("output", "case_0", "operation", "vtk")
     mesh_folder = os.path.join("..", "..", "grids", "cavern_regular")
@@ -653,10 +857,15 @@ Visualize results
     pvd_file = "displacement.pvd"
     df_coord, u, v, w = convert_vtk_to_pandas(pvd_path, pvd_file)
 
+During the geometry construction in Gmsh, we have selected the border of the cavern wall (a line) and gave it a name. In this manner, this information is saved in the mesh file so that we can retrieve it at our convenience. This is done in line 2 of :numref:`Listing %s <get-indices-of-wall-profile>`.
+
+.. _get-indices-of-wall-profile:
+
 .. code-block:: python
     :linenos:
+    :caption: Get indices of wall profile.
+    :emphasize-lines: 2
 
-    # Get indices of wall profile
     mesh = meshio.read(os.path.join(mesh_folder, "geom.msh"))
     wall_ind = np.unique(mesh.cells["line"].flatten())
 
@@ -688,6 +897,15 @@ Visualize results
 .. code-block:: python
     :linenos:
 
+    # Create figure
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3))
+    fig.subplots_adjust(
+        top=0.985, bottom=0.145, left=0.070, right=0.990, hspace=0.35, wspace=0.260
+    )
+
+.. code-block:: python
+    :linenos:
+
     # Plot cavern shape
     expansion_factor = 50
     xf = x0 + expansion_factor*u[t_final]
@@ -715,8 +933,11 @@ Visualize results
     ax2.set_facecolor("0.85")
 
 .. code-block:: python
+    :linenos:
 
     plt.show()
+
+The results are shown in :numref:`Fig. %s <tutorial-2-results-0>`.
 
 .. _tutorial-2-results-0:
 

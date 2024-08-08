@@ -65,9 +65,8 @@ extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
-    # 'sphinx.ext.viewcode',
-    # 'sphinxcontrib.pseudocode',
-    'sphinx.ext.mathjax',
+    # 'sphinx.ext.mathjax',
+    # 'sphinxcontrib.pseudocode'
 ]
 
 templates_path = ['_templates']

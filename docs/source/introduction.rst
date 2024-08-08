@@ -297,7 +297,7 @@ Viscoplastic element
 Algorithms
 ~~~~~~~~~~
 
-.. code-block:: none
+.. code-block:: latex
 
    BEGIN
       INPUTS param1, param2
@@ -308,4 +308,5 @@ Algorithms
          RETURN param2 - param1
       ENDIF
    END
+
 
