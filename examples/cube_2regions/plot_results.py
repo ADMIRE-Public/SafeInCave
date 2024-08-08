@@ -34,6 +34,10 @@ point_B = df_coord[(df_coord["z"] == 1) & (df_coord["x"] == 0) & (df_coord["y"] 
 point_C = df_coord[(df_coord["z"] == 1) & (df_coord["x"] == 1) & (df_coord["y"] == 1)].index[0]
 point_D = df_coord[(df_coord["z"] == 1) & (df_coord["x"] == 1) & (df_coord["y"] == 0)].index[0]
 print(point_A, point_B, point_C, point_D)
+print("Point A: ", df_coord.iloc[point_A].values)
+print("Point B: ", df_coord.iloc[point_B].values)
+print("Point C: ", df_coord.iloc[point_C].values)
+print("Point D: ", df_coord.iloc[point_D].values)
 
 w_A = w.iloc[point_A].values[1:]
 w_B = w.iloc[point_B].values[1:]

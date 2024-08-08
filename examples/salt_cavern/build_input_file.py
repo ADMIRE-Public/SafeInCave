@@ -18,6 +18,7 @@ path_to_grid = os.path.join("..", "..", "grids", "cavern_irregular")
 bif.section_input_grid(path_to_grid, "geom")
 
 print(bif.grid.get_boundary_names())
+print(bif.grid.get_subdomain_names())
 
 # Extract geometry dimensions
 Lx = bif.grid.Lx
@@ -61,7 +62,7 @@ bif.section_body_forces(value=salt_density, direction=2)
 time_list = [0*hour,  2*hour,  14*hour, 16*hour, 24*hour]
 bif.section_time(time_list, theta=0.0)
 
-# # Create boundary_conditions section
+# Create boundary_conditions section
 bif.section_boundary_conditions()
 
 # Add Dirichlet boundary conditions
@@ -118,7 +119,7 @@ bif.add_boundary_condition(
 	bc_data = {
 		"type": "neumann",
 		"direction": 2,
-		"density": 0.0,
+		"density": salt_density,
 		"reference_position": Lz,
 		"values": [10*MPa, 10*MPa, 10*MPa, 10*MPa, 10*MPa]
 	}
@@ -141,7 +142,7 @@ bif.section_constitutive_model()
 
 # Add elastic properties
 bif.add_elastic_element(	
-	element_name = "Spring_0", 
+	element_name = "Spring0", 
 	element_parameters = {
 		"type": "Spring",
 		"active": True,
@@ -154,7 +155,7 @@ bif.add_elastic_element(
 
 # Add viscoelastic properties
 bif.add_viscoelastic_element( 	
-	element_name = "KelvinVoigt_0", 
+	element_name = "KelvinVoigt1", 
 	element_parameters = {
 		"type": "KelvinVoigt",
 		"active": True,
@@ -168,7 +169,7 @@ bif.add_viscoelastic_element(
 
 # Add viscoplastic parameters
 bif.add_inelastic_element(	
-	element_name = "desai", 
+	element_name = "ViscPlastDesai", 
 	element_parameters = {
 		"type": "ViscoplasticDesai",
 		"active": True,
@@ -191,7 +192,7 @@ bif.add_inelastic_element(
 
 # Add dislocation creep parameters
 bif.add_inelastic_element(	
-	element_name = "creep", 
+	element_name = "DisCreep", 
 	element_parameters = {
 		"type": "DislocationCreep",
 		"active": True,

@@ -1,9 +1,7 @@
 import os
-import json
 import sys
 import numpy as np
 sys.path.append(os.path.join("..", "..", "safeincave"))
-from Grid import GridHandlerGMSH
 from InputFileAssistant import BuildInputFile
 import dolfin as do
 

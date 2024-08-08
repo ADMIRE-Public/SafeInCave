@@ -54,6 +54,7 @@ for i in [0, -1]:
 	x = np.array([tf, tf, tf, tf, tf])
 	y = np.array([0, p_bot, p_top, 0, 0])
 	z = np.array([0, 0, H, H, 0])
+	print(z)
 	xb.append(x)
 	yb.append(y)
 	zb.append(z)
@@ -86,6 +87,17 @@ for i in range(len(gas_pressure)):
 		ax.plot([x[4], xb[i-1][4]], [y[4], yb[i-1][4]], [z[4], zb[i-1][4]], "--", color="0.5", linewidth=1.0)
 		ax.plot([x[5], xb[i-1][5]], [y[5], yb[i-1][5]], [z[5], zb[i-1][5]], "--", color="0.5", linewidth=1.0)
 ax.plot(x, y, z, ".-", color="lightcoral", label="Gas pressure")
+
+ax.plot([2, 2], [0, 0], [0, H_sump], "--", color="0.5", linewidth=1.0)
+ax.plot([14, 14], [0, 0], [0, H_sump], "--", color="0.5", linewidth=1.0)
+ax.plot([16, 16], [0, 0], [0, H_sump], "--", color="0.5", linewidth=1.0)
+ax.plot([24, 24], [0, 0], [0, H_sump], "--", color="0.5", linewidth=1.0)
+
+ax.set_xticks([0, 2, 14, 16, 24])
+ax.set_xticklabels([0, 2, 14, 16, 24])
+
+ax.set_zticks([0, H_sump, H_roof, H])
+ax.set_zticklabels([0, H_sump, H_roof, H])
 
 ax.legend(loc=0, shadow=True, fancybox=True)
 

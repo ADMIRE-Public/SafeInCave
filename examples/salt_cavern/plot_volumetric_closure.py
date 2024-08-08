@@ -40,10 +40,6 @@ def reorder_data(df_coord, u, v, w, wall_ind):
 	w = w.iloc[wall_ind].loc[sorted_z0_ind]
 	return x0, y0, z0, u, v, w
 
-# Create figure
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3))
-fig.subplots_adjust(top=0.985, bottom=0.145, left=0.070, right=0.990, hspace=0.35, wspace=0.260)
-
 # Define folders
 results_folder = os.path.join("output", "case_0", "operation", "vtk")
 mesh_folder = os.path.join("..", "..", "grids", "cavern_irregular")
@@ -73,6 +69,10 @@ for t in times[1:]:
 	x = x0.values + u[t].values
 	vol = trapezoidal_volume(z, x)
 	volumes.append(100*abs(vol_0 - vol)/vol_0)
+
+# Create figure
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3))
+fig.subplots_adjust(top=0.985, bottom=0.145, left=0.070, right=0.990, hspace=0.35, wspace=0.260)
 
 # Plot cavern shape
 expansion_factor = 50
