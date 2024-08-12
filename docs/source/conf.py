@@ -65,12 +65,15 @@ extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
+    'sphinxcontrib.bibtex',
     # 'sphinx.ext.mathjax',
     # 'sphinxcontrib.pseudocode'
 ]
 
 templates_path = ['_templates']
 exclude_patterns = []
+
+bibtex_bibfiles = ['references.bib']
 
 
 

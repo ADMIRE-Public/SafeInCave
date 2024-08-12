@@ -458,7 +458,7 @@ This tutorial intends to setup a simulation for hydrogen storage in a salt caver
 
 .. _tutorial-2-geom-mesh:
 
-.. figure:: _static/tutorial_2_geom_mesh.png
+.. figure:: _static/tutorial_2_geom_mesh_1.png
    :alt: block
    :align: center
    :width: 80%
