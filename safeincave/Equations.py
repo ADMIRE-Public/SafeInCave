@@ -10,6 +10,8 @@ class LinearMomentum():
 	----------
 	m : :class:`safeincave.ConstitutiveModel.ConstitutiveModel`
 		Object containing the constitutive model data.
+	theta : int
+		Choice of the time integration method: explicit (theta=1.0), Crank-Nicolson (theta=0.5) or fully-implicit (theta=0.0).
 	"""
 	def __init__(self, m, theta):
 		self.m = m
