@@ -187,3 +187,4 @@ Physical Surface("Bottom", 69) = {6};
 Physical Surface("Top", 70) = {5};
 Physical Surface("Cavern", 71) = {7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
 Physical Volume("Salt", 72) = {1};
+Physical Curve("Wall_profile", 73) = {7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
