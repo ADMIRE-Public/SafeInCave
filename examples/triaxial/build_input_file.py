@@ -14,7 +14,7 @@ MPa = 1e6
 bif = BuildInputFile()
 
 # Create input_grid section
-path_to_grid = os.path.join("..", "..", "grids", "cube_2regions")
+path_to_grid = os.path.join("..", "..", "grids", "cube")
 bif.section_input_grid(path_to_grid, "geom")
 
 # Create output section
@@ -24,7 +24,7 @@ bif.section_output(os.path.join("output", "case_0"))
 solver_settings = {
     "type": "KrylovSolver",
     "method": "cg",
-    "preconditioner": "petsc_amg",
+    "preconditioner": "ilu",
     "relative_tolerance": 1e-12,
 }
 bif.section_solver(solver_settings)
