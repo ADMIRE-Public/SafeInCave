@@ -98,12 +98,12 @@ class Simulator(object):
 		"""
 		if self.input_file["simulation_settings"]["equilibrium"]["active"] == True:
 			self.run_equilibrium()
+			utils.save_json(self.input_file_to_be_saved, os.path.join(self.output_folder, "equilibrium", "input_file.json"))
 			self.run_operation()
 		else:
 			self.run_simulation()
 
 		# Save input file
-		utils.save_json(self.input_file_to_be_saved, os.path.join(self.output_folder, "equilibrium", "input_file.json"))
 		utils.save_json(self.input_file_to_be_saved, os.path.join(self.output_folder, "operation", "input_file.json"))
 
 
@@ -168,10 +168,6 @@ class Simulator(object):
 				print()
 			except:
 				pass
-
-		print("Fvp: ", float(min(self.eq.m.elems_ie[0].Fvp)))
-		print("alpha_min: ", float(min(self.eq.m.elems_ie[0].alpha)))
-		print("alpha_max: ", float(max(self.eq.m.elems_ie[0].alpha)))
 
 		# Compute old ielastic strain rates
 		self.eq.compute_eps_ie_rate()
@@ -726,7 +722,6 @@ class Simulator(object):
 			solver.parameters["relative_tolerance"] = self.input_file["solver_settings"]["relative_tolerance"]
 		elif solver_type == "LU":
 			solver = do.LUSolver(self.input_file["solver_settings"]["method"])
-			solver.parameters["symmetric"] = self.input_file["solver_settings"]["symmetric"]
 		else:
 			raise Exception(f"Solver type {solver_type} not supported. Choose between KrylovSolver and LU.")
 		return solver
