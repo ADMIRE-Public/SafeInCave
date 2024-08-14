@@ -11,3 +11,14 @@ The simulator also includes a material point model, which is useful for calibrat
 ## Current members : 
 - [Hermínio Tasinafo Honório] (H.TasinafoHonorio@tudelft.nl),  Maintainer, 2023-present
 - [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principle Investigator
+
+## Copyright Notice
+
+© 2024 Hermínio Tasinafo Honório. All rights reserved.
+
+This software is provided as is without any express or implied warranties. The source code and any associated files are proprietary and confidential, and no license is granted. Use, distribution, or modification of this software is prohibited without explicit, prior written permission from the copyright holder.
+
+**Note:** A license will be added soon. Please check back later or contact H.TasinafoHonorio@tudelft.nl for updates on the licensing status.
+
+If you are interested in using this software in the meantime, please contact H.TasinafoHonorio@tudelft.nl for more information on obtaining a temporary license or for any inquiries.
+
