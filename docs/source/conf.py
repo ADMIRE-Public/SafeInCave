@@ -108,7 +108,7 @@ latex_elements = {
             \vspace*{2cm}
             \Huge \textbf{{\fontfamily{phv}\selectfont Documentation}} \\
             \vspace{1cm}
-            \LARGE \textbf{{\fontfamily{phv}\selectfont Version 0.1.0}} \\
+            \LARGE \textbf{{\fontfamily{phv}\selectfont Version 1.0.0}} \\
             \vfill
             \includegraphics[width=0.5\textwidth]{logo_2.png}
             \vfill
