@@ -1,4 +1,4 @@
-![alt text](<./logo/Logo_12.png>){width=30%}
+![alt text](<./docs/source/_static/logo_2.png>){width=35%}
 
 # Introduction
 The SafeInCave simulator is developed for simulating gas storage operations in salt caverns. The finite element implementation uses the FEniCS package. Additionally, it includes different constitutive models for salt rock mechanics. 
@@ -9,33 +9,16 @@ The best way to get started is to visit the examples in the folder "apps" and ru
 The simulator also includes a material point model, which is useful for calibration purposes. Check function SmpSimulator at "libs/Simulators.py".
 
 ## Current members : 
-- [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principle Investigator
 - [Hermínio Tasinafo Honório] (H.TasinafoHonorio@tudelft.nl),  Maintainer, 2023-present
+- [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principle Investigator
 
-<!-- ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## Copyright Notice
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+© 2024 Hermínio Tasinafo Honório. All rights reserved.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+This software is provided as is without any express or implied warranties. The source code and any associated files are proprietary and confidential, and no license is granted. Use, distribution, or modification of this software is prohibited without explicit, prior written permission from the copyright holder.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+**Note:** A license will be added soon. Please check back later or contact H.TasinafoHonorio@tudelft.nl for updates on the licensing status.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+If you are interested in using this software in the meantime, please contact H.TasinafoHonorio@tudelft.nl for more information on obtaining a temporary license or for any inquiries.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers. -->
