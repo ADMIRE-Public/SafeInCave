@@ -24,7 +24,7 @@ bif.section_output(os.path.join("output", "case_0"))
 solver_settings = {
     "type": "KrylovSolver",
     "method": "cg",
-    "preconditioner": "ilu",
+    "preconditioner": "petsc_amg",
     "relative_tolerance": 1e-12,
 }
 bif.section_solver(solver_settings)

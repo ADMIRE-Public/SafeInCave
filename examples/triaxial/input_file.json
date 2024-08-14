@@ -1,6 +1,6 @@
 {
     "grid": {
-        "path": "../../grids/cube_2regions",
+        "path": "../../grids/cube",
         "name": "geom"
     },
     "output": {
@@ -36,7 +36,7 @@
             7200,
             50400,
             57600,
-            86400
+            61200
         ]
     },
     "boundary_conditions": {
