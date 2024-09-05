@@ -56,7 +56,7 @@ numfig = True
 project = 'SafeInCave'
 copyright = '2024, Herminio T. Honorio'
 author = 'Herminio T. Honorio'
-release = '0.1.0'
+release = '1.0.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -112,8 +112,11 @@ latex_elements = {
             \vfill
             \includegraphics[width=0.5\textwidth]{logo_2.png}
             \vfill
-            \Large \textbf{{\fontfamily{phv}\selectfont Herm\'inio T. Hon\'orio}} \\
-            \large \textbf{{\fontfamily{phv}\selectfont August 2024}}
+            \normalsize \textbf{{\fontfamily{phv}\selectfont Herm\'inio T. Hon\'orio}} \\
+            \vspace*{0.25cm}
+            \normalsize \textbf{{\fontfamily{phv}\selectfont Hadi Hajibeygi}} \\
+            \vspace*{2cm}
+            \small \textbf{{\fontfamily{phv}\selectfont September 2024}}
         \end{titlepage}
         \begingroup
           \pagestyle{empty}
