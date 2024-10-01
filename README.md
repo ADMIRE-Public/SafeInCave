@@ -9,7 +9,7 @@ The user should start by reading the documentation at folder docs/manual. There 
 1) Tensorial operations (theory): https://youtu.be/w5KX3F_rdzU?si=QQLVBq1NcrvOiS32
 2) Tensorial operations (exercises): https://youtu.be/JiN6jwp0RPk?si=K1Qhe3lAxJD4LI5w
 3) SafeInCave installation: https://youtu.be/J0KQ-nBMwwU?si=VXUVk60yrxavfT1E
-4) Stay tuned for upcoming video-lectures.
+4) Stay tuned for upcoming video lectures.
 
 ## Current members 
 - [Hermínio Tasinafo Honório] (H.TasinafoHonorio@tudelft.nl),  Maintainer, 2023-present
