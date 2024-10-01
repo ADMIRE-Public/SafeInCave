@@ -20,18 +20,20 @@ The **SafeInCave** simulator is developed to study the mechanical behavior/stabi
 This is a three-dimensional simulator developed in Python, in which the finite element implementation is based on
 `FEniCS 2019.1 <https://fenicsproject.org/download/archive/>`_.
 
-
-.. note::
-
-   This project is under active development.
+**Acknowledgements**:
 
 This simulator was developed as a deliverable of a project also called **SafeInCave** and financially supported by Shell.
 
+**Current members**:
+
+- [Hermínio Tasinafo Honório] (H.TasinafoHonorio@tudelft.nl),  Maintainer, 2023-present
+- [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principal Investigator
+
 
 Getting started
----------------
+~~~~~~~~~~~~~~~~
 
-This chapter presents the installation steps for SafeInCave simulator and its dependencies. It also shows how to run a simple simulation of a triaxial test performed on a salt rock cubic sample.
+This chapter presents the installation steps for SafeInCave simulator and its dependencies. It also shows how to run a simple simulation of a triaxial test performed on a salt rock cubic sample. See :ref:`tutorials` for more examples with detailed descriptions.
 
 .. toctree::
 
@@ -40,7 +42,7 @@ This chapter presents the installation steps for SafeInCave simulator and its de
 
 
 The Input File
----------------
+~~~~~~~~~~~~~~~~
 
 The SafeInCave simulator runs entirely based on a single input file in JSON format. This chapter describes the structure of the input file and how it can be created automatically using class **InputFileAssistant**.
 
@@ -49,9 +51,10 @@ The SafeInCave simulator runs entirely based on a single input file in JSON form
    input_file
 
 
+.. _tutorials:
 
 Tutorials
----------------
+~~~~~~~~~~~~~~~~
 
 This chapter presents two tutorials that illustrate different capabilities of the SafeInCave simulator. The first tutorial handles a heterogeneous medium and shows how to assign different material properties for each region of the domain. The second tutorial addresses how to simulate a salt cavern with realistic boundary conditions.
 
@@ -63,7 +66,7 @@ This chapter presents two tutorials that illustrate different capabilities of th
 .. _fundamental-theory:
 
 Fundamental Theory
-------------------
+~~~~~~~~~~~~~~~~~~
 
 This chapter is intended to provide the basic concepts of computational solid mechanics
 necessary to understand the SafeInCave implementation.
@@ -79,7 +82,7 @@ necessary to understand the SafeInCave implementation.
 
 
 API DOCUMENTATION
------------------
+~~~~~~~~~~~~~~~~~
 
 API reference
 
