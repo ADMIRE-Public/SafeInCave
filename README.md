@@ -13,7 +13,7 @@ The user should start by reading the documentation at folder docs/manual. There 
 
 ## Current members 
 - [Hermínio Tasinafo Honório] (H.TasinafoHonorio@tudelft.nl),  Maintainer, 2023-present
-- [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principle Investigator
+- [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principal Investigator
 
 ## Acknowledgements
 We would like to thank Shell Global Solutions International B.V for sponsoring the project SafeInCave, within which this simulator was developed.
