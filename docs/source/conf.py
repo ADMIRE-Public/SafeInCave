@@ -112,10 +112,6 @@ latex_elements = {
             \vfill
             \includegraphics[width=0.5\textwidth]{logo_2.png}
             \vfill
-            \normalsize \textbf{{\fontfamily{phv}\selectfont Herm\'inio T. Hon\'orio}} \\
-            \vspace*{0.25cm}
-            \normalsize \textbf{{\fontfamily{phv}\selectfont Hadi Hajibeygi}} \\
-            \vspace*{2cm}
             \small \textbf{{\fontfamily{phv}\selectfont September 2024}}
         \end{titlepage}
         \begingroup

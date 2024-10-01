@@ -1,4 +1,15 @@
 
+Preliminary
+-----------
+
+Before proceeding with the tutorials, the notation used throughout this chapter is introduced below
+
+.. admonition:: Notation:
+
+    - Position vector: :math:`\mathbf{r} = \begin{bmatrix} x & y & z \end{bmatrix}^T`.
+    - Displacement vector: :math:`\mathbf{u} = \begin{bmatrix} u & v & w \end{bmatrix}^T`.
+    - Normal vector: :math:`\mathbf{n} = \begin{bmatrix} n_x & n_y & n_z \end{bmatrix}^T`.
+    - Stress tensor: :math:`\pmb{\sigma} = \begin{bmatrix} \sigma_{xx} & \sigma_{xy} & \sigma_{xz} \\ \sigma_{xy} & \sigma_{yy} & \sigma_{yz} \\ \sigma_{xz} & \sigma_{yz} & \sigma_{zz} \end{bmatrix}^T`..
 
 
 
@@ -359,8 +370,8 @@ To run this example, execute the *main.py* file in *examples/tutorial_1* folder.
 
 .. code-block:: console
 
-    (myenv) user@institution:~/safeincave$ cd examples/tutorial_1
-    (myenv) user@institution:~/safeincave/examples/tutorial_1$ python main.py
+    user@computer:~/safeincave$ cd examples/tutorial_1
+    user@computer:~/safeincave/examples/tutorial_1$ python main.py
 
 Visualize results
 ~~~~~~~~~~~~~~~~~
@@ -779,9 +790,9 @@ To run this example, build the input file and execute the *main.py* file in *exa
 
 .. code-block:: console
 
-    (myenv) user@institution:~/safeincave$ cd examples/tutorial_2
-    (myenv) user@institution:~/safeincave/examples/tutorial_2$ python build_input_file.py
-    (myenv) user@institution:~/safeincave/examples/tutorial_2$ python main.py
+    user@computer:~/safeincave$ cd examples/tutorial_2
+    user@computer:~/safeincave/examples/tutorial_2$ python build_input_file.py
+    user@computer:~/safeincave/examples/tutorial_2$ python main.py
 
 Visualize results
 ~~~~~~~~~~~~~~~~~
