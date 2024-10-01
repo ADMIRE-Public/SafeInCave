@@ -6,13 +6,13 @@ Initial considerations
 
 .. admonition:: Definitions used throughout this documentation:
 
-   - A spring describes an instantaneous (i.e. time-independent) elastic response. When a load is applied, this element instantaneously deforms to its final configuration. When the load is removed, the material instantaneously recovers to its initial configuration.
+   - A **spring element** describes an instantaneous (i.e. time-independent) elastic response. When a load is applied, this element instantaneously deforms to its final configuration. When the load is removed, the material instantaneously recovers to its initial configuration.
 
-   - A Kelvin-Voigt element describes a viscoelastic (i.e. time-dependent elastic) response. When a load is applied, it takes a finite amount of time for this element to reach its final configuration (equilibrium condition). When the load is removed, the deformation is fully recovered within a finite amount of time.
+   - A **Kelvin-Voigt element** describes a viscoelastic (i.e. time-dependent elastic) response. When a load is applied, it takes a finite amount of time for this element to reach its final configuration (equilibrium condition). When the load is removed, the deformation is fully recovered within a finite amount of time.
 
-   - A plastic element describes an instantaneous (i.e. time-indepentent) inelastic response. If the stresses applied exceeds a certain threshold (yield surface), this element will instantaneously deform to its final configuration. If the load is removed, the material does not recover at all. In case the applied load does not exceed the threshold, this element does not deform.
+   - A **plastic element** describes an instantaneous (i.e. time-indepentent) inelastic response. If the stresses applied exceeds a certain threshold (yield surface), this element will instantaneously deform to its final configuration. If the load is removed, the material does not recover at all. In case the applied load does not exceed the threshold, this element does not deform.
 
-   - A viscoplastic element describes a time-dependent inelastic response. It behaves exactly as the plastic element, except that the inelastic deformations take place within a finite amount of time. For example, if the applied stresses exceed the yield surface, the material will not instantaneously reach its final configuration, but within some time.
+   - A **viscoplastic element** describes a time-dependent inelastic response. It behaves exactly as the plastic element, except that the inelastic deformations take place within a finite amount of time. For example, if the applied stresses exceed the yield surface, the material will not instantaneously reach its final configuration, but within some time.
 
 - Stress tensor:
 
@@ -105,7 +105,7 @@ Initial considerations
 Constitutive models
 ===================
 
-In general, a constitutive model can be represented as illustrated in :numref:`Fig. %s <introduction-constitutive-model>`, which shows a serial arrangement of different types of elements (springs, dashpots, etc). The total deformation :math:`\pmb{\varepsilon}` is given by the sum of the individual deformation of all elements composing the constitutive model. In this text, we make a distinction between **elastic** and **non-elastic** deformations. Elastic deformations :math:`\pmb{\varepsilon}_{e}` refer exclusively to time-independent (instantaneous) elastic deformations -- in other words, in only includes the deformation of the yellow spring in :numref:`Fig. %s <introduction-constitutive-model>`. The non-elastic deformations comprise the viscoelastic (:math:`\pmb{\varepsilon}_{ve}`) and inelastic (:math:`\pmb{\varepsilon}_{ie}`) deformations. In the SafeInCave simulator, the only viscoelastic element implemented is the Kelvin-Voigt element, which consists of parallel arrangement between a spring and a dashpot. More than one Kelvin-Voigt element can be arranged in series. For inelastic elements, the SafeInCave simulator provides two options: a viscoplastic element and a dislocation creep element. The viscoplastic element refers to the model proposed by Desai (1987) and used in Khaledi (2016) for salt caverns. This element can be represented by a parallel arrangement between a dashpot, which represents the time dependency, and a friction element, which indicates that the dashpot will only move if the stresses exceed a certain threshold (the yield surface). As shown below, this dashpot also includes a hardening rule that expands the yield surface. Finally, the dislocation creep element is represented by a single dashpot, that starts to deform as soon as a non-zero deviatoric stress is applied. Moreover, this element has a non-linear dependency on stress.
+In general, a constitutive model can be represented as illustrated in :numref:`Fig. %s <introduction-constitutive-model>`, which shows a serial arrangement of different types of elements (springs, dashpots, etc). The total deformation :math:`\pmb{\varepsilon}` is given by the sum of the individual deformation of all elements composing the constitutive model. In this text, we make a distinction between **elastic** and **non-elastic** deformations. Elastic deformations :math:`\pmb{\varepsilon}_{e}` refer exclusively to time-independent (instantaneous) elastic deformations -- in other words, in only includes the deformation of the yellow spring in :numref:`Fig. %s <introduction-constitutive-model>`. The non-elastic deformations comprise the viscoelastic (:math:`\pmb{\varepsilon}_{ve}`) and inelastic (:math:`\pmb{\varepsilon}_{ie}`) deformations. In the SafeInCave simulator, the only viscoelastic element implemented is the Kelvin-Voigt element, which consists of parallel arrangement between a spring and a dashpot. More than one Kelvin-Voigt element can be arranged in series. For inelastic elements, the SafeInCave simulator provides two options: a viscoplastic element and a dislocation creep element. The viscoplastic element refers to the model proposed by Desai and Varadarajan (1987) :cite:`desai1987constitutive` and used in Khaledi *et al* (2016) :cite:`khaledi2016stability` for salt caverns. This element can be represented by a parallel arrangement between a dashpot, which represents the time dependency, and a friction element, which indicates that the dashpot will only move if the stresses exceed a certain threshold (the yield surface). As shown below, this dashpot also includes a hardening rule that expands the yield surface. Finally, the dislocation creep element is represented by a single dashpot, that starts to deform as soon as a non-zero deviatoric stress is applied. Moreover, this element has a non-linear dependency on stress.
 
 .. _introduction-constitutive-model:
 
@@ -189,6 +189,7 @@ where :math:`\gamma`, :math:`n`, :math:`\beta_1`, :math:`\beta` and :math:`m` ar
 where :math:`a_1` and :math:`\eta` are material parameters, :math:`\alpha_0` is the initial hardening parameter, and the accumulated inelastic strain is given by
 
 .. math::
+   :label: eq:qsi
 
    \xi = \int_{t_0}^t \sqrt{ \dot{\pmb{\varepsilon}}_{vp} : \dot{\pmb{\varepsilon}}_{vp} } \mathrm{dt}.
 
@@ -207,7 +208,7 @@ Evidently, placing the stress state at the onset of viscoplasticity is achieved 
 Mathematical Formulation
 ========================
 
-Something here.
+This section presents the linear momentum balance equation for a general consitutive model considering small strains assumption, such that the additive decomposition can be applied to the total strain tensor.
 
 Linear momentum balance equation
 --------------------------------
@@ -226,38 +227,38 @@ with :math:`\mathbf{f}` representing the body forces. In Eq. :eq:`eq:mom_0`, the
 
    \pmb{\sigma} = \mathbb{C}_0 : \pmb{\varepsilon}_{e}
 
-where :math:`\pmb{\varepsilon}_{e}` is the elastic strain tensor and :math:`\mathbb{C}_0` is the 4th-order tensor associated to the linear elastic response of the material (yellow spring of :numref:`Fig. %s <introduction-constitutive-model>`). However, most constitutive models for geomaterials, especially salt rocks, comprise elastic, viscoelastic (i.e. time-dependent elastic) 
+where :math:`\pmb{\varepsilon}_{e}` is the elastic strain tensor and :math:`\mathbb{C}_0` is the 4th-order tensor associated to the linear elastic response of the material (yellow spring of :numref:`Fig. %s <introduction-constitutive-model>`). However, most constitutive models for geomaterials, especially salt rocks, comprise elastic, viscoelastic (i.e. time-dependent elastic), and viscoplastic (i.e. time-dependent inelastic) deformations.
 
 .. note::
    In the present work, non-elastic deformation includes all types of deformation that are not instantaneously elastic, that is, viscoelastic (time dependent elastic) and inelastic (viscoplastic, plastic, creep, etc) deformations.
 
-The total strain tensor can be represented as
+The elastic strain tensor can be represented as
 
 .. math::
-   :label: eq:strain_total
+   :label: eq:strain_elastic
 
-   \pmb{\varepsilon} = \pmb{\varepsilon}_{e} + \pmb{\varepsilon}_{ne} = \pmb{\varepsilon}_{e} + \underbrace{\pmb{\varepsilon}_{ve} + \pmb{\varepsilon}_{ie}}_{\pmb{\varepsilon}_{ne}}
+   \pmb{\varepsilon}_{e} = \pmb{\varepsilon} - \pmb{\varepsilon}_{ne}
 
-where :math:`\pmb{\varepsilon}_{ve}` and :math:`\pmb{\varepsilon}_{ie}` are the viscoelastic and inelastic strains, respectively, and
+where the non-elastic strains are given by
 
 .. math::
    :label: eq:eps_ne
 
-   \pmb{\varepsilon}_{ne} = \sum_{i=1}^{N_{ne}} \pmb{\varepsilon}_{i}
+   \pmb{\varepsilon}_{ne} = \sum_{i=1}^{N_{ne}} \pmb{\varepsilon}_{i},
 
 with :math:`N_{ne}` denoting the number of non-elastic elements included in the constitutive model. In this manner, the stress tensor can be expressed as
 
 .. math::
    :label: eq:stress_1
 
-   \pmb{\sigma} = \mathbb{C}_0^{-1} : \left( \pmb{\varepsilon} - \pmb{\varepsilon}_{ne} \right)
+   \pmb{\sigma} = \mathbb{C}_0^{-1} : \left( \pmb{\varepsilon} - \pmb{\varepsilon}_{ne} \right).
 
 In general, the non-elastic strain rates have a (non-)linear dependency on the stress tensor :math:`\pmb{\sigma}` and, possibly, on internal parameters :math:`\alpha_i`. For example, for a non-elastic element *i*,
 
 .. math::
    :label: eq:eps_ne_sigma_alpha
 
-   \dot{\pmb{\varepsilon}}_{i} = \dot{\pmb{\varepsilon}}_{i} \left( \pmb{\sigma}, \alpha_i \right)
+   \dot{\pmb{\varepsilon}}_{i} = \dot{\pmb{\varepsilon}}_{i} \left( \pmb{\sigma}, \alpha_i \right).
 
 The circular dependency of the non-elastic strains on the stress tensor :math:`\pmb{\sigma}` makes of Eq. :eq:`eq:mom_0` a non-linear equation. The numerical procedure for treating this non-linearity and solving Eq. :eq:`eq:mom_0` is described below.
 
@@ -265,6 +266,8 @@ The circular dependency of the non-elastic strains on the stress tensor :math:`\
 
 Numerical formulation
 =====================
+
+This section discusses possible linearization strategies for the momentum balance equation presented above. First, the time discretization method (:math:`\theta`-method) is presented, which is followed by Picard's and Newton's linearization methods. The weak form of the governning equations is also presented, but the finite element implementation is supressed as it is handled by FEniCS. Finally, the algorithm for the Newton's linearization method implemented in SafeInCave simulator is discussed.
 
 Time integration
 ----------------
@@ -349,6 +352,7 @@ The increment of internal variable :math:`\delta \alpha_i` can be obtained by de
 Substituting Eq. :eq:`eq:delta_alpha` into Eq. :eq:`eq:eps_newton_0` yields
 
 .. math::
+   :label: eq:eps_rate_i
 
    \dot{\pmb{\varepsilon}}^{k+1}_{i} 
    = \dot{\pmb{\varepsilon}}^{k}_{i} 
@@ -386,12 +390,14 @@ Finally, substituting Eq. :eq:`eq:eps_newton_1` into Eq. :eq:`eq:stress_2` leads
 where :math:`\bar{\pmb{\varepsilon}}^k_{ne} = \pmb{\varepsilon}^t_{ne} + \phi_1 \dot{\pmb{\varepsilon}}^t_{ne} + \phi_2 \dot{\pmb{\varepsilon}}^{k}_{ne}` and the consistent tangent matrix :math:`\mathbb{C}_T` is given by
 
 .. math::
+   :label: eq:CT
 
    \mathbb{C}_T = \left( \mathbb{C}_0^{-1} + \phi_1 \mathbb{G}_{ne} \right)^{-1}.
 
 We can further simplify Eq. :eq:`eq:stress_3` by defining
 
 .. math::
+   :label: eq:eps_rhs
 
    \pmb{\varepsilon}_{\text{rhs}}^k = \bar{\pmb{\varepsilon}}^k_{ne} - \phi_2 \left(
          \mathbb{G}_{ne} : \pmb{\sigma}^k
@@ -425,12 +431,89 @@ and the linearized momentum balance equation becomes
    It is important to note that :math:`\mathbb{G}_{ne}` is a rank-4 tensor, hence the double dot product :math:`:` between :math:`\mathbb{G}_{ne}` and :math:`\pmb{\sigma}^k`. On the other hand, :math:`\mathbf{B}_{ne}` is a rank-2 tensor.
 
 
+To close the formulation, the tensors :math:`\mathbb{G}_i` and :math:`\mathbf{B}_i` must be computed for each type of element included in the constitutive model. The procedure to compute these tensors for each element is presented below.
+
+
+
+
+
+
+
+Viscoelastic element
+~~~~~~~~~~~~~~~~~~~~
+An expression for the viscoelastic strain rate can be obtained by combining Equations :eq:`eq:eps_rate_ve_0` and :eq:`eq:eps_time_integration`, with :math:`i=ve`, and solving for :math:`\dot{\pmb{\varepsilon}}_{ve}`. This results in the following equations
+
+.. math::
+   :label: eq:eps_rate_ve_1
+
+   \dot{\pmb{\varepsilon}}_{ve} = \left( \eta_1 \mathbb{I} + \phi_2 \mathbb{C}_1 \right)^{-1} : \left[ \pmb{\sigma} - \mathbb{C}_1 : \left( \pmb{\varepsilon}_{ve}^t + \phi_1 \dot{\pmb{\varepsilon}}_{ve}^t \right) \right],
+
+where :math:`\mathbb{I}` represents the 4th-order identity tensor. The derivative of Eq. :eq:`eq:eps_rate_ve_1` with respect to :math:`\pmb{\sigma}` gives,
+
+.. math::
+   :label: eq:G_ve
+
+    \mathbb{G}_{ve} = \frac{\partial \dot{\pmb{\varepsilon}}_{ve}}{\partial \pmb{\sigma}} = \left( \eta_1 \mathbb{I} + \phi_2 \mathbb{C}_1 \right)^{-1}.
+
+Furthermore, the viscoelastic model has no internal variables, implying that :math:`\mathbf{B}_{ve} = 0`. Finally, the viscoelastic strain at iteration :math:`k+1` can be computed as,
+
+.. math::
+
+    \pmb{\varepsilon}_{ve}^{k+1} = \pmb{\varepsilon}_{ve}^t + \phi_1 \dot{\pmb{\varepsilon}}_{ve}^t + \phi_2 \left( \dot{\pmb{\varepsilon}}_{ve}^k + \mathbb{G}_{ve} : \delta \pmb{\sigma} \right).
+
+
+Dislocation creep element
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Equation :eq:`eq:eps_rate_dc_0` gives the strain rate for the dislocation creep element. The tangent matrix is given by
+
+.. math::
+
+    \mathbb{G}_{cr} = \frac{\partial \dot{\pmb{\varepsilon}}_{cr}}{\partial \pmb{\sigma}},
+
+where the partial derivatives are computed by finite differences. Since the dislocation creep model does not depend on internal variables (:math:`\mathbf{B}_{cr} = 0`), the creep strain at iteration :math:`k+1` is computed as,
+
+.. math::
+
+    \pmb{\varepsilon}_{cr}^{k+1} = \pmb{\varepsilon}_{cr}^t + \phi_1 \dot{\pmb{\varepsilon}}_{cr}^t + \phi_2 \left( \dot{\pmb{\varepsilon}}_{cr}^k + \mathbb{G}_{cr} : \delta \pmb{\sigma} \right).
+
+Viscoplastic element
+~~~~~~~~~~~~~~~~~~~~
+
+The viscoplastic strain rate is computed by Eq. :eq:`eq:eps_rate_vp_0`, where :math:`\alpha` is an internal variable. For this reason, a residual function is defined based on the hardening rule as
+
+.. math::
+   :label: eq:r_vp
+
+    r^k_{vp} = \alpha^k - a_1 \left[ \left( \frac{a_1}{\alpha_0} \right)^{1/\eta} + \xi^k \right]^{-\eta}.
+
+From Equations :eq:`eq:r_vp` and :eq:`eq:eps_rate_vp_0`, tensors :math:`\mathbb{G}_{vp}` and :math:`\mathbf{B}_{vp}` are calculated as
+
+.. math::
+
+   &\mathbb{G}_{vp} = \frac{\partial \dot{\pmb{\varepsilon}}_{vp}}{\partial \pmb{\sigma}} - \frac{1}{h_{vp}} \frac{\partial \dot{\pmb{\varepsilon}}_{vp}}{\partial \alpha} \frac{\partial r_{vp}}{\partial \pmb{\sigma}},
+   \\
+   &\mathbf{B}_{vp} = \frac{r_i^k}{h_i} \frac{\partial \dot{\pmb{\varepsilon}}_{i}}{\partial \alpha_i},
+
+where :math:`h_{vp}^k = \frac{\partial r_{vp}^k}{\partial \alpha}`, according to Eq. :eq:`eq:delta_alpha`. All derivatives, in this case, are computed by finite differences. The viscoplastic strain at iteration :math:`k+1` is
+
+.. math::
+   :label: eq:r_ve
+
+    \pmb{\varepsilon}_{vp}^{k+1} = \pmb{\varepsilon}_{vp}^t + \phi_1 \dot{\pmb{\varepsilon}}_{vp}^t + \phi_2 \left( \dot{\pmb{\varepsilon}}_{vp}^k + \mathbb{G}_{vp} : \delta \pmb{\sigma} \right) - \phi_2 \mathbf{B}_{vp}.
+
+.. note::
+   
+   To compute the derivative of :math:`r_{vp}`, shown in Eq. :eq:`eq:r_ve`, with respect to :math:`\alpha`, one must remember that the accumulated vicoplastic strain :math:`\xi` also depends on :math:`\alpha` (see Eq. :eq:`eq:qsi`).
+
+
 Weak formulation
 ----------------
 
 Consider a domain :math:`\Omega` bounded by a surface :math:`\Gamma` outward oriented by a normal vector :math:`\mathbf{n}`. Additionally, consider a vector **test** function :math:`\mathbf{v} \in \mathcal{V}` and a vector **trial** function :math:`\mathbf{u} \in \mathcal{V}`, where :math:`\mathcal{V}` is the test function space generated by continuous piecewise linear polynomials. In this manner, the weak formulation of the linearized momentum balance equation can be expressed as, 
 
 .. math::
+   :label: eq:weak_form
 
    \underbrace{
         \int_\Omega \mathbb{C}_T : \pmb{\varepsilon} \left( \mathbf{u}^{k+1} \right) : \pmb{\varepsilon} \left( \mathbf{v} \right) \text{d} \Omega
@@ -458,20 +541,36 @@ in which :math:`\mathbf{w} \in \mathcal{V}`.
 
 
 
-Algorithms
-~~~~~~~~~~
+Algorithm
+---------
 
-.. code-block:: latex
+The linear momentum balance equation is solved iteratively for each time step of the simulation due to the nonlinearities contained in the strain rates. The time marching and iterative procedures are illustrated in :numref:`Fig. %s <alg-0>`. At the beginning of the time marching loop, the total strain, non-elastic strain rate and stress tensor fields are updated with the values of the previous time level. To make it general, line 5 loops over all non-elastic elements to update the corresponding internal parameters :math:`\alpha_i`. It should be emphasized, however, that the only element in our constitutive model that depends on an internal parameter is the viscoplastic element.
 
-   BEGIN
-      INPUTS param1, param2
-      IF param1 > param2 THEN
-         :math:`\sqrt{param1^2 + param2^2}`
-         RETURN param1 - param2
-      ELSE
-         RETURN param2 - param1
-      ENDIF
-   END
+.. note::
+
+   Remember that superscript *t* denotes a variable evaluated at the previous time level, whereas the superscripts *k* and *k+1* denote the variables evaluated at previous and current iteration, respectively, of the current time level.
+
+.. _alg-0:
+
+.. figure:: _static/alg_0.png
+   :alt: block
+   :align: center
+   :width: 40%
+
+   Pseudocode for solving the nonlinear mechanical model using Newton's method.
+
+The iterative loop starts in line 8. In lines 9 and 10, the computation of matrices :math:`\mathbb{G}_i` and :math:`\mathbf{B}_i` follows Eq. :eq:`eq:eps_rate_i`. The consistent tangent matrix is computed in line 12, according to Eq. :eq:`eq:CT`. In line 13, the linear momentum balance equation is solved for total strain :math:`\pmb{\varepsilon}^{k+1}`. This is, of course, a simplification of the process. In reallity, the discretized formulation of the weak form presented in Eq. :eq:`eq:weak_form` is solved for :math:`\mathbf{u}^{k+1}`, and the total strain is computed as,
+
+.. math::
+
+   \pmb{\varepsilon}^{k+1} = \frac{1}{2} \left[ \nabla \mathbf{u}^{k+1} + \left(\nabla \mathbf{u}^{k+1}\right)^T \right] = \nabla_s \mathbf{u}^{k+1}.
+
+
+As soon as the new total strain is computed, the stress tensor field of the current iteration is calculated in line 15, which then allows for incrementing the internal variables in line 17. With updated stress and internal variables, the nonelastic strain rate is of the current iteration :math:`\dot{\pmb{\varepsilon}}_\text{ne}` is computed in line 19. 
+
+.. note::
+
+   Note that variables :math:`r_i^k`, :math:`h_i^k`, and :math:`\frac{\partial r_i^k}{\partial \pmb{\sigma}}` required in line 17 have already been calculated in line 9, when matrix :math:`\mathbb{G}_\text{ne}` had to be calculated. 
 
 
 .. bibliography:: references.bib

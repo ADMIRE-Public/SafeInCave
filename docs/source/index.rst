@@ -16,21 +16,22 @@
 Salt cavern simulations made easy!
 ==================================
 
-The **SafeInCave** simulator is intended to study the mechanical behavior/stability of salt caverns for gas storage.
+The **SafeInCave** simulator is developed to study the mechanical behavior/stability of salt caverns for gas storage.
 This is a three-dimensional simulator developed in Python, in which the finite element implementation is based on
 `FEniCS 2019.1 <https://fenicsproject.org/download/archive/>`_.
 
-
-Check out the :ref:`fundamental-theory` section for further information.
 
 .. note::
 
    This project is under active development.
 
+This simulator was developed as a deliverable of a project also called **SafeInCave** and financially supported by Shell.
 
 
 Getting started
 ---------------
+
+This chapter presents the installation steps for SafeInCave simulator and its dependencies. It also shows how to run a simple simulation of a triaxial test performed on a salt rock cubic sample.
 
 .. toctree::
 
@@ -38,17 +39,21 @@ Getting started
 
 
 
+The Input File
+---------------
+
+The SafeInCave simulator runs entirely based on a single input file in JSON format. This chapter describes the structure of the input file and how it can be created automatically using class **InputFileAssistant**.
+
+.. toctree::
+
+   input_file
+
+
+
 Tutorials
 ---------------
 
-This chapter presents some tutorials.
-
-.. admonition:: Notation:
-
-    - Position vector: :math:`\mathbf{r} = \begin{bmatrix} x & y & z \end{bmatrix}^T`.
-    - Displacement vector: :math:`\mathbf{u} = \begin{bmatrix} u & v & w \end{bmatrix}^T`.
-    - Normal vector: :math:`\mathbf{n} = \begin{bmatrix} n_x & n_y & n_z \end{bmatrix}^T`.
-    - Stress tensor: :math:`\pmb{\sigma} = \begin{bmatrix} \sigma_{xx} & \sigma_{xy} & \sigma_{xz} \\ \sigma_{xy} & \sigma_{yy} & \sigma_{yz} \\ \sigma_{xz} & \sigma_{yz} & \sigma_{zz} \end{bmatrix}^T`.
+This chapter presents two tutorials that illustrate different capabilities of the SafeInCave simulator. The first tutorial handles a heterogeneous medium and shows how to assign different material properties for each region of the domain. The second tutorial addresses how to simulate a salt cavern with realistic boundary conditions.
 
 .. toctree::
 
