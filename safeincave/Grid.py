@@ -315,9 +315,21 @@ class GridHandlerFEniCS(object):
 		else:
 			return self.dolfin_tags[self.boundary_dim][BOUNDARY_NAME]
 
-	def get_domain_tags(self, DOMAIN_NAME):
+	def get_boundary_names(self):
 		"""
-		Get domain tag (integer) corresponding to *DOMAIN_NAME*.
+		Provides the names of all the boundaries.
+
+		Returns
+		-------
+		boundary_names : dict_keys
+			List of strings containing the boundary names.
+		"""
+		boundary_names = self.dolfin_tags[self.boundary_dim].keys()
+		return boundary_names
+
+	def get_subdomain_tags(self, DOMAIN_NAME):
+		"""
+		Get subdomain tag (integer) corresponding to *DOMAIN_NAME*.
 
 		Parameters
 		----------
@@ -331,18 +343,6 @@ class GridHandlerFEniCS(object):
 		"""
 		return self.dolfin_tags[self.domain_dim][DOMAIN_NAME]
 
-	def get_boundary_names(self):
-		"""
-		Provides the names of all the boundaries.
-
-		Returns
-		-------
-		boundary_names : dict_keys
-			List of strings containing the boundary names.
-		"""
-		boundary_names = self.dolfin_tags[self.boundary_dim].keys()
-		return boundary_names
-
 	def get_subdomain_names(self):
 		"""
 		Provides the names of all the subdomains.
@@ -355,17 +355,13 @@ class GridHandlerFEniCS(object):
 		subdomain_names = self.dolfin_tags[self.domain_dim].keys()
 		return subdomain_names
 
+	def get_subdomains(self):
+		"""
+		Get mesh subdomains. It can be used for solving different models in different subdomains.
 
-if __name__ == '__main__':
-	geometry_name = "geom"
-	grid_folder = os.path.join("..", "grids", "cavern_0")
-	g = GridHandlerGMSH(geometry_name, grid_folder)
-
-	print(g.tags)
-	print()
-	print(g.dolfin_tags)
-
-	print()
-	print()
-	print(type(g.get_boundary_names()))
-	print(g.get_subdomain_names())
+		Returns
+		-------
+		subdomains : dolfin.cpp.mesh.MeshFunctionSizet
+			Mesh subdomains.
+		"""
+		return self.subdomains
