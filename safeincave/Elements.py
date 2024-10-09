@@ -120,11 +120,11 @@ class Viscoelastic():
 			self.n_elems = self._E.shape[0]
 		except:
 			self.n_elems = 1
-		self._eps_ve_rate = to.zeros((self.n_elems, 3, 3))
-		self._eps_ve_rate_old = to.zeros((self.n_elems, 3, 3))
-		self._eps_ve_old = to.zeros((self.n_elems, 3, 3))
-		self._eps_ve = to.zeros((self.n_elems, 3, 3))
-		self._eps_bar = to.zeros((self.n_elems, 3, 3))
+		self._eps_ve_rate = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+		self._eps_ve_rate_old = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+		self._eps_ve_old = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+		self._eps_ve = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+		self._eps_bar = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 
 		self._B = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 		self._G = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
