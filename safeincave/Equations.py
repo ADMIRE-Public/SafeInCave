@@ -122,7 +122,7 @@ class LinearMomentum():
 		self.stress_vtk << (self.sigma, t)
 
 
-	def initialize(self):
+	def initialize(self, verbose=True):
 		# Apply Neumann boundary condition
 		self.apply_neumann_bc(self.t0)
 
@@ -156,15 +156,16 @@ class LinearMomentum():
 				# Compute initial hardening parameter (alpha_0) based on initial stresses
 				elem.compute_initial_hardening(self.stress_torch, Fvp_0=0.0)
 				
-				# Compute initial yield function values
+				# Compute initial yield function values (the computed values should be equal to Fvp_0)
 				I1, I2, I3, J2, J3, Sr, I1_star = elem.compute_stress_invariants(*elem.extract_stress_components(self.stress_torch))
 				_ = elem.compute_Fvp(elem.alpha, I1_star, J2, Sr)
 
-				print("Fvp: ", float(max(elem.Fvp)))
-				print("alpha_min: ", float(min(elem.alpha)))
-				print("alpha_max: ", float(max(elem.alpha)))
-				print("alpha_avg: ", float(np.average(elem.alpha)))
-				print()
+				if verbose:
+					print("Fvp: ", float(max(elem.Fvp)))
+					print("alpha_min: ", float(min(elem.alpha)))
+					print("alpha_max: ", float(max(elem.alpha)))
+					print("alpha_avg: ", float(np.average(elem.alpha)))
+					print()
 			except:
 				pass
 
@@ -177,8 +178,8 @@ class LinearMomentum():
 		# Assign stress
 		self.sigma.vector()[:] = self.stress_torch.flatten()
 
-		# Save solution
-		self.save_solution(self.t0)
+		# # Save solution
+		# self.save_solution(self.t0)
 
 
 	def solve(self, t, dt):
@@ -193,11 +194,11 @@ class LinearMomentum():
 
 		# Iterative loop settings
 		tol = 1e-7
-		error = 2*tol
-		ite = 0
-		maxiter = 2
+		self.error = 2*tol
+		self.ite = 0
+		maxiter = 10
 
-		while error > tol and ite < maxiter:
+		while self.error > tol and self.ite < maxiter:
 
 			# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
 			eps_tot_k = utils.numpy2torch(self.eps_tot.vector()[:])
@@ -227,7 +228,100 @@ class LinearMomentum():
 			[bc.apply(A, b) for bc in self.bcs]
 			self.solver.solve(A, self.u.vector(), b)
 
-			ite += 1
+			# Compute total strain
+			self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
+			eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+
+			# Compute stress
+			self.compute_stress(eps_tot_torch, dt)
+
+			# Increment internal variables
+			self.increment_internal_variables(dt)
+
+			# Compute strain rates
+			self.compute_eps_ie_rate()
+			self.compute_eps_ve_rate(dt)
+
+			# Compute error
+			if self.theta == 1.0:
+				self.error = 0.0
+			else:
+				eps_tot_k_flat = to.flatten(eps_tot_k)
+				eps_tot_flat = self.eps_tot.vector()[:]
+				self.error = np.linalg.norm(eps_tot_k_flat - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
+
+			self.ite += 1
+
+
+	def solve_equilibrium(self, t, dt):
+		# Apply Neumann boundary condition
+		self.apply_neumann_bc(t)
+
+		# Define Dirichlet boundary conditions
+		self.define_dirichlet_bc(t)
+
+		# Compute GT and BT matrix fields for viscoelastic elements
+		self.compute_GT_BT_ve(dt)
+
+		# Iterative loop settings
+		tol = 1e-7
+		self.error = 2*tol
+		self.ite = 0
+		maxiter = 10
+
+		while self.error > tol and self.ite < maxiter:
+
+			# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
+			eps_tot_k = utils.numpy2torch(self.eps_tot.vector()[:])
+
+			# Update stress of previous iteration (stress_k <-- stress)
+			self.update_stress()
+
+			# Compute GT and BT matrix fields for inelastic elements
+			self.compute_GT_BT_ie(dt)
+
+			# Compute CT
+			self.compute_CT(dt)
+
+			# Compute right-hand side
+			self.compute_eps_rhs(dt)
+
+			# Build rhs
+			b_rhs = do.inner(utils.dotdot(self.CT, self.eps_rhs), utils.epsilon(self.v))*self.dx
+			# b = do.assemble(sum(self.integral_neumann) + b_rhs)
+			b = do.assemble(self.b_body + sum(self.integral_neumann) + b_rhs)
+
+			# Build lhs
+			a_form = do.inner(utils.dotdot(self.CT, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
+			A = do.assemble(a_form)
+
+			# Solve linear system
+			[bc.apply(A, b) for bc in self.bcs]
+			self.solver.solve(A, self.u.vector(), b)
+
+			# Compute total strain
+			self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
+			eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+
+			# Compute stress
+			self.compute_stress(eps_tot_torch, dt)
+
+			# Increment internal variables
+			self.increment_internal_variables(dt)
+
+			# Compute strain rates
+			self.compute_eps_ie_rate()
+			self.compute_eps_ve_rate(dt)
+
+			# Compute error
+			if self.theta == 1.0:
+				self.error = 0.0
+			else:
+				eps_tot_k_flat = to.flatten(eps_tot_k)
+				eps_tot_flat = self.eps_tot.vector()[:]
+				self.error = np.linalg.norm(eps_tot_k_flat - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
+
+			self.ite += 1
 
 
 
@@ -501,7 +595,7 @@ class LinearMomentum():
 		self.compute_eps_bar(dt)
 		GT = self.GT_ie_torch + self.GT_ve_torch
 		BT = self.BT_ie_torch + self.BT_ve_torch
-		self.stress_torch = dotdot2(self.CT_torch, eps_tot - self.eps_bar + dt*(1-self.theta)*(BT + dotdot2(GT, self.stress_k_torch)))
+		self.stress_torch = utils.dotdot2(self.CT_torch, eps_tot - self.eps_bar_torch + dt*(1-self.theta)*(BT + utils.dotdot2(GT, self.stress_k_torch)))
 
 	def update_stress(self):
 		"""
