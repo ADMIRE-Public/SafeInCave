@@ -30,9 +30,14 @@ class Test1(unittest.TestCase):
 		self.true_data["eps_tot_1"] = np.array(self.true_data["eps_tot_1"])
 		self.true_data["u_1"] = np.array(self.true_data["u_1"])
 		self.true_data["alpha_1"] = np.array(self.true_data["alpha_1"])
+		self.true_data["u_equilibrium"] = np.array(self.true_data["u_equilibrium"])
+
+	def test_equilibrium(self):
+		self.eq.solve_equilibrium(verbose=False, save_results=True)
+		np.testing.assert_allclose(self.eq.u.vector()[:], np.array(self.true_data["u_equilibrium"]), rtol=1e-8, atol=1e-8)
 
 	def test_full(self):
-		self.eq.initialize()
+		self.eq.initialize(verbose=False)
 
 		self.assertEqual(len(self.eq.integral_neumann), 3)
 		self.assertEqual(len(self.eq.bcs), 3)
@@ -46,8 +51,6 @@ class Test1(unittest.TestCase):
 		np.testing.assert_allclose(self.eq.u.vector()[:], self.true_data["u_0"], rtol=1e-8, atol=1e-8)
 		np.testing.assert_allclose(self.eq.m.elems_ie[0].alpha.numpy(), self.true_data["alpha_0"], rtol=1e-8, atol=1e-8)
 		
-		print(self.eq.m.elems_ie[0].Fvp.numpy())
-		
 		t = 0
 		dt = 3600.
 		self.eq.solve(t, dt)
@@ -56,6 +59,3 @@ class Test1(unittest.TestCase):
 		np.testing.assert_allclose(self.eq.u.vector()[:], self.true_data["u_1"], rtol=1e-8, atol=1e-8)
 		np.testing.assert_allclose(self.eq.m.elems_ie[0].alpha.numpy(), self.true_data["alpha_1"], rtol=1e-8, atol=1e-8)
 
-		print(self.eq.m.elems_ie[0].Fvp.numpy())
-
-		# print(self.eq.u.vector()[:])
