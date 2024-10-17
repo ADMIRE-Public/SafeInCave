@@ -1,3 +1,22 @@
+"""
+It reads gmsh grids and gives access to relevant mesh information.
+"""
+# Copyright 2024 The safeincave community.
+#
+# This file is part of safeincave.
+#
+# Licensed under the GNU GENERAL PUBLIC LICENSE, Version 3 (the "License"); you may not
+# use this file except in compliance with the License.  You may obtain a copy
+# of the License at
+#
+#     https://spdx.org/licenses/GPL-3.0-or-later.html
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations under
+# the License.
+
 from fenics import Mesh, MeshFunction, SubDomain, near
 import numpy as np
 import meshio
@@ -296,9 +315,21 @@ class GridHandlerFEniCS(object):
 		else:
 			return self.dolfin_tags[self.boundary_dim][BOUNDARY_NAME]
 
-	def get_domain_tags(self, DOMAIN_NAME):
+	def get_boundary_names(self):
 		"""
-		Get domain tag (integer) corresponding to *DOMAIN_NAME*.
+		Provides the names of all the boundaries.
+
+		Returns
+		-------
+		boundary_names : dict_keys
+			List of strings containing the boundary names.
+		"""
+		boundary_names = self.dolfin_tags[self.boundary_dim].keys()
+		return boundary_names
+
+	def get_subdomain_tags(self, DOMAIN_NAME):
+		"""
+		Get subdomain tag (integer) corresponding to *DOMAIN_NAME*.
 
 		Parameters
 		----------
@@ -312,18 +343,6 @@ class GridHandlerFEniCS(object):
 		"""
 		return self.dolfin_tags[self.domain_dim][DOMAIN_NAME]
 
-	def get_boundary_names(self):
-		"""
-		Provides the names of all the boundaries.
-
-		Returns
-		-------
-		boundary_names : dict_keys
-			List of strings containing the boundary names.
-		"""
-		boundary_names = self.dolfin_tags[self.boundary_dim].keys()
-		return boundary_names
-
 	def get_subdomain_names(self):
 		"""
 		Provides the names of all the subdomains.
@@ -336,17 +355,13 @@ class GridHandlerFEniCS(object):
 		subdomain_names = self.dolfin_tags[self.domain_dim].keys()
 		return subdomain_names
 
+	def get_subdomains(self):
+		"""
+		Get mesh subdomains. It can be used for solving different models in different subdomains.
 
-if __name__ == '__main__':
-	geometry_name = "geom"
-	grid_folder = os.path.join("..", "grids", "cavern_0")
-	g = GridHandlerGMSH(geometry_name, grid_folder)
-
-	print(g.tags)
-	print()
-	print(g.dolfin_tags)
-
-	print()
-	print()
-	print(type(g.get_boundary_names()))
-	print(g.get_subdomain_names())
+		Returns
+		-------
+		subdomains : dolfin.cpp.mesh.MeshFunctionSizet
+			Mesh subdomains.
+		"""
+		return self.subdomains
