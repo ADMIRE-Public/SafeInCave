@@ -58,8 +58,12 @@ class Simulator(object):
 		# Linear momentum balance equation
 		self.eq_mom = LinearMomentum(self.grid, theta, self.input_file)
 
-		# Save input file
-		filename = os.path.join(os.path.join(input_file["output"]["path"], "input_file.json"))
+		# # Save input file
+		# filename = os.path.join(os.path.join(input_file["output"]["path"], "input_file.json"))
+		# os.makedirs(os.path.dirname(filename), exist_ok=True)
+		# utils.save_json(self.input_file_to_be_saved, filename)
+
+	def __save_input_file(self, filename):
 		os.makedirs(os.path.dirname(filename), exist_ok=True)
 		utils.save_json(self.input_file_to_be_saved, filename)
 
@@ -68,20 +72,29 @@ class Simulator(object):
 		"""
 		Runs transient simulation.
 		"""
-		if self.input_file["simulation_settings"]["equilibrium"]["active"] == True:
-			self.run_equilibrium()
-			utils.save_json(self.input_file_to_be_saved, os.path.join(self.output_folder, "equilibrium", "input_file.json"))
-			self.run_operation()
-		else:
-			self.run_simulation()
+		solve_equilibrium = self.input_file["simulation_settings"]["equilibrium"]["active"]
 
 		# Save input file
-		utils.save_json(self.input_file_to_be_saved, os.path.join(self.output_folder, "operation", "input_file.json"))
+		self.__save_input_file(os.path.join(self.output_folder, "operation", "input_file.json"))
+		if solve_equilibrium:
+			self.__save_input_file(os.path.join(self.output_folder, "equilibrium", "input_file.json"))
+
+		# Run simulation
+		self.run_simulation(solve_equilibrium=solve_equilibrium, verbose=True)
 
 
-	def run_simulation(self, verbose=True):
+	def run_simulation(self, solve_equilibrium=False, verbose=True):
 		"""
 		Runs simulation **without** solving the equilibrium condition.
+
+		Parameters
+		----------
+		solve_equilibrium : bool
+			If **True**, it calculates the equilibrium conditions considering the elastic and viscoelastic (if present) elements only. 
+			If **False**, then it skips the equilibrium condition.
+
+		verbose : bool
+			Shows real time simulation info on screen.
 		"""
 		# Pseudo time
 		t = self.time_list[0]
@@ -94,7 +107,7 @@ class Simulator(object):
 		n_skip = self.input_file["simulation_settings"]["operation"]["n_skip"]
 
 		# Perform initial computations
-		self.eq_mom.initialize(verbose)
+		self.eq_mom.initialize(solve_equilibrium=solve_equilibrium, verbose=verbose, save_results=True)
 
 		# Save initial solution
 		self.eq_mom.save_solution(t)
@@ -127,193 +140,4 @@ class Simulator(object):
 
 			n_step += 1
 
-
-	def run_equilibrium(self, verbose=True):
-		self.eq_mom.solve_equilibrium(verbose)
-
-	
-
-
-	def run_operation(self):
-		"""
-		Runs transient simulation **after** the equilibrium condition. 
-		"""
-		# Pseudo time
-		t = self.time_list[0]
-		t_final = self.time_list[-1]
-
-		# Get maximum time step size
-		dt = self.input_file["simulation_settings"]["operation"]["dt_max"]
-
-		# Read number of time steps to skip before saving results
-		n_skip = self.input_file["simulation_settings"]["operation"]["n_skip"]
-
-		# Output folder
-		operation_output_folder = os.path.join(self.input_file["output"]["path"], "operation")
-
-		# Define Dirichlet boundary conditions
-		bcs = self.define_dirichlet_bc(t)
-
-		# Apply Neumann boundary conditions
-		b_outer = self.apply_neumann_bc(t)
-
-		# Build RHS vector
-		b = do.assemble(self.b_body + b_outer)
-
-		# Compute initial hardening
-		for elem in self.eq.m.elems_ie:
-			try:
-				# Compute initial hardening parameter (alpha_0) based on initial stresses
-				elem.compute_initial_hardening(self.eq.stress, Fvp_0=0.0)
-				
-				# Compute initial yield function values
-				I1, I2, I3, J2, J3, Sr, I1_star = elem.compute_stress_invariants(*elem.extract_stress_components(self.eq.stress))
-				_ = elem.compute_Fvp(elem.alpha, I1_star, J2, Sr)
-				# Fvp.vector()[:] = elem.compute_Fvp(elem.alpha, I1_star, J2, Sr)
-
-				print("Fvp: ", float(max(elem.Fvp)))
-				print("alpha_min: ", float(min(elem.alpha)))
-				print("alpha_max: ", float(max(elem.alpha)))
-				print("alpha_avg: ", float(np.average(elem.alpha)))
-				print()
-			except:
-				pass
-
-		# Compute total strain
-		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-
-		# # Compute stress
-		# eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
-		# self.eq.compute_stress_C0(eps_tot_torch)
-
-		# Compute old ielastic strain rates
-		self.eq.compute_eps_ie_rate()
-		# m.compute_eps_ve_rate(0)
-
-		# Update inelastic strain rate (Warning! Do NOT update eps_ie here, because this is wrong!)
-		self.eq.update_eps_ie_rate_old()
-		# m.update_eps_ve_rate_old()
-
-		# Assign stress
-		self.sigma.vector()[:] = self.eq.stress.flatten()
-
-		# Create output file
-		u_vtk = do.File(os.path.join(operation_output_folder, "vtk", "displacement", "displacement.pvd"))
-		stress_vtk = do.File(os.path.join(operation_output_folder, "vtk", "stress", "stress.pvd"))
-
-		# Save output fields
-		u_vtk << (self.u, t)
-		stress_vtk << (self.sigma, t)
-
-		# Transient simulation
-		n_step = 1
-		while t < t_final:
-
-			# Increment time
-			t += dt
-
-			# Define Dirichlet boundary conditions
-			bcs = self.define_dirichlet_bc(t)
-
-			# Apply Neumann boundary conditions
-			b_outer = self.apply_neumann_bc(t)
-
-			# Compute GT and BT matrix fields for viscoelastic elements
-			self.eq.compute_GT_BT_ve(dt)
-
-			# Iterative loop settings
-			tol = 1e-7
-			error = 2*tol
-			ite = 0
-			maxiter = 40
-
-			while error > tol and ite < maxiter:
-
-				# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-				eps_tot_k = utils.numpy2torch(self.eps_tot.vector()[:])
-
-				# Update stress of previous iteration (stress_k <-- stress)
-				self.eq.update_stress()
-
-				# Compute GT and BT matrix fields for inelastic elements
-				self.eq.compute_GT_BT_ie(dt)
-
-				# Compute CT
-				self.eq.compute_CT(dt)
-				self.CT.vector()[:] = to.flatten(self.eq.CT)
-
-				# Compute right-hand side
-				self.eq.compute_eps_rhs(dt)
-
-				# Assign eps_rhs
-				self.eps_rhs.vector()[:] = self.eq.eps_rhs.flatten()
-
-				# Build rhs
-				b_rhs = do.inner(utils.dotdot(self.CT, self.eps_rhs), utils.epsilon(self.v))*self.dx
-				b = do.assemble(self.b_body + b_outer + b_rhs)
-
-				# Build lhs
-				a_form = do.inner(utils.dotdot(self.CT, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
-				A = do.assemble(a_form)
-
-				# Solve linear system
-				[bc.apply(A, b) for bc in bcs]
-				self.solver.solve(A, self.u.vector(), b)
-
-				# Compute total strain
-				self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-				eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
-
-				# Compute stress
-				self.eq.compute_stress(eps_tot_torch, dt)
-
-				# Increment internal variables
-				self.eq.increment_internal_variables(dt)
-
-				# Compute strain rates
-				self.eq.compute_eps_ie_rate()
-				self.eq.compute_eps_ve_rate(dt)
-
-				# Compute error
-				if self.eq.theta == 1.0:
-					error = 0.0
-				else:
-					eps_tot_k_flat = to.flatten(eps_tot_k)
-					eps_tot_flat = self.eps_tot.vector()[:]
-					error = np.linalg.norm(eps_tot_k_flat - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
-
-				# Increment iteration counter
-				ite += 1
-
-			# Update internal variables
-			self.eq.update_internal_variables()
-
-			# Compute strains
-			self.eq.compute_eps_ie(dt)
-			self.eq.compute_eps_ve(dt)
-
-			# Update old non-elastic strains
-			self.eq.update_eps_ie_old()
-			self.eq.update_eps_ve_old()
-
-			# Update old non-elastic strain rates
-			self.eq.update_eps_ie_rate_old()
-			self.eq.update_eps_ve_rate_old()
-
-			# Save displacement field
-			if n_step % n_skip == 0 or n_step == 1:
-				u_vtk << (self.u, t)
-				self.sigma.vector()[:] = self.eq.stress.flatten()
-				stress_vtk << (self.sigma, t)
-				print("Save step %i"%n_step)
-
-			# Print stuff
-			print(n_step, f"{t_final/utils.hour}", t/utils.hour, ite, error)
-			try:
-				print("Fvp: ", float(max(self.eq.m.elems_ie[0].Fvp)))
-				print("alpha: ", float(max(self.eq.m.elems_ie[0].alpha)))
-			except:
-				pass
-			print()
-			n_step += 1
 
