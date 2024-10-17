@@ -56,7 +56,7 @@ numfig = True
 project = 'SafeInCave'
 copyright = '2024, Herminio T. Honorio'
 author = 'Herminio T. Honorio'
-release = '1.0.0'
+release = '1.1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -108,7 +108,7 @@ latex_elements = {
             \vspace*{2cm}
             \Huge \textbf{{\fontfamily{phv}\selectfont Documentation}} \\
             \vspace{1cm}
-            \LARGE \textbf{{\fontfamily{phv}\selectfont Version 1.0.0}} \\
+            \LARGE \textbf{{\fontfamily{phv}\selectfont Version 1.1.0}} \\
             \vfill
             \includegraphics[width=0.5\textwidth]{logo_2.png}
             \vfill

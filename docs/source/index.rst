@@ -20,14 +20,25 @@ The **SafeInCave** simulator is developed to study the mechanical behavior/stabi
 This is a three-dimensional simulator developed in Python, in which the finite element implementation is based on
 `FEniCS 2019.1 <https://fenicsproject.org/download/archive/>`_.
 
-**Acknowledgements**:
+**Features**:
 
-This simulator was developed as a deliverable of a project also called **SafeInCave** and financially supported by Shell.
+- Fully open-source and documented.
+- Comprehensive constitutive model able to capture transient creep, steady-state (dislocation) creep, and reverse transient creep.
+- Robust numerical formulation for non-linear mechanics achieved by computing the consistent tangent matrix.
+- Different choices of time integration schemes: explicit, Crank-Nicolson and fully-implicit.
+- Interaction with the simulator happens through a single input file.
+- No lines of code are necessary, except for building the input file (if necessary).
+- Time-dependent and non-uniform boundary conditions can be assigned for the overburden, sideburden and gas pressure.
+- Tests are added for the main classes and functions, thus enhancing robustness and facilitating external contributions.
 
 **Current members**:
 
 - [Hermínio Tasinafo Honório] (H.TasinafoHonorio@tudelft.nl),  Maintainer, 2023-present
 - [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principal Investigator
+
+**Acknowledgements**:
+
+This simulator was developed as a deliverable of a project also called **SafeInCave** and financially supported by Shell.
 
 
 Getting started
