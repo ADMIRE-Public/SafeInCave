@@ -13,8 +13,8 @@ import ufl as ufl
 from Utils import numpy2torch
 
 class Test1(unittest.TestCase):
+
 	def setUp(self):
-		# self.grid = GridHandlerGMSH("geom", os.path.join("..", "grids", "cube"))
 		self.grid = GridHandlerGMSH("geom", os.path.join("files", "cube_coarse"))
 		self.n_elems = self.grid.mesh.num_cells()
 		self.input_file = read_json(os.path.join("files", "cube_coarse", "input_file.json"))
@@ -32,12 +32,16 @@ class Test1(unittest.TestCase):
 		self.true_data["alpha_1"] = np.array(self.true_data["alpha_1"])
 		self.true_data["u_equilibrium"] = np.array(self.true_data["u_equilibrium"])
 
-	def test_equilibrium(self):
-		self.eq.solve_equilibrium(verbose=False, save_results=True)
+	def test_equilibrium_0(self):
+		self.eq.solve_equilibrium(verbose=False, save_results=False)
+		np.testing.assert_allclose(self.eq.u.vector()[:], np.array(self.true_data["u_equilibrium"]), rtol=1e-8, atol=1e-8)
+
+	def test_equilibrium_1(self):
+		self.eq.initialize(solve_equilibrium=True, verbose=False)
 		np.testing.assert_allclose(self.eq.u.vector()[:], np.array(self.true_data["u_equilibrium"]), rtol=1e-8, atol=1e-8)
 
 	def test_full(self):
-		self.eq.initialize(verbose=False)
+		self.eq.initialize(solve_equilibrium=False, verbose=False)
 
 		self.assertEqual(len(self.eq.integral_neumann), 3)
 		self.assertEqual(len(self.eq.bcs), 3)
