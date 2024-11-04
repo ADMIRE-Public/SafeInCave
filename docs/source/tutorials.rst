@@ -93,7 +93,7 @@ The next subsection describes the creation of the input file for this particular
 Build input file
 ~~~~~~~~~~~~~~~~
 
-:numref:`Listing %s <tutorial-1-codeblock-1>` imports the necessary modules and defines some useful units to be used throughout this example. Notice the *dolfin* package is imported in line 6. The reason for this is because we want to loop over the mesh elements to identify to which region (:math:`\Omega_A` or :math:`\Omega_B`) each element belongs to. For this, we some tools from *dolfin* package.
+:numref:`Listing %s <tutorial-1-codeblock-1>` imports the necessary modules and defines some useful units to be used throughout this example. Notice the *dolfin* package is imported in line 6. The reason for this is because we want to loop over the mesh elements to identify to which region (:math:`\Omega_A` or :math:`\Omega_B`) each element belongs to. For this, we use some tools from *dolfin* package.
 
 .. _tutorial-1-codeblock-1:
 
@@ -269,7 +269,7 @@ Before creating the *constitutive_model* section, we first mark the element of t
     >>> print(region_marker_B)
     2
 
-As shown in :numref:`Listing %s <tutorial-1-tags>`, the tags corresponding to subdomains :math:`\Omega_A` and :math:`\Omega_B` are 1 and 2, respectively. This information is used in :numref:`Listing %s <tutorial-1-regions>` to store the element indices belonging to regions :math:`\Omega_A` and :math:`\Omega_B` in lists *index_A* and *index_B*, respectively. In line 6, the attribute *subdomains* is a dolfin *MeshFunction* object that retrieves the subdomain tag associated to element *cell*. This can be compared to the corresponding tags of each region to decide whether the element index is stored in *index_A* or *index_B*.
+As shown in :numref:`Listing %s <tutorial-1-tags>`, the tags corresponding to subdomains :math:`\Omega_A` and :math:`\Omega_B` are 1 and 2, respectively. This information is used in :numref:`Listing %s <tutorial-1-regions>` to store the element indices belonging to regions :math:`\Omega_A` and :math:`\Omega_B` in lists *index_A* and *index_B*, respectively. In line 6, the attribute *subdomains* is a dolfin *MeshFunction* object that retrieves the subdomain tag associated to element *cell*. This can be compared to the corresponding tags of each region to decide whether the element index should be stored in *index_A* or *index_B*.
 
 .. _tutorial-1-regions:
 
@@ -531,7 +531,7 @@ Build input file
 
 The following code-blocks show how to build the input file for the problem described above.
 
-In :numref:`Listing %s <tutorial-2-block-1>` the relevant modules are imported, useful units are defined and the *BuildInputFile* object (*bif*) is created. Notice in lines 20 and 21 how the boundary and subdomain (region) names can be retrieved
+In :numref:`Listing %s <tutorial-2-block-1>` the relevant modules are imported, useful units are defined and the *BuildInputFile* object (*bif*) is created. Notice in lines 20 and 21 how the boundary and subdomain (region) names can be retrieved.
 
 .. _tutorial-2-block-1:
 
