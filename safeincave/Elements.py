@@ -343,7 +343,8 @@ class DislocationCreep():
         - *T*: Temperature [:math:`\\text{K}`].
     """
 	def __init__(self, props):
-		self._Aexp = props["A"]*to.exp(-props["Q"]/props["R"]/props["T"])
+		R = 8.32
+		self._Aexp = props["A"]*to.exp(-props["Q"]/R/props["T"])
 		self._n = props["n"]
 		try:
 			self.n_elems = self._Aexp.shape[0]
