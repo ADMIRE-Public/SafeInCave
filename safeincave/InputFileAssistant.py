@@ -38,11 +38,8 @@ class BuildInputFile():
 		from Grid import GridHandlerGMSH
 		self.grid = GridHandlerGMSH(grid_name, path_to_grid)
 		self.list_of_boundary_names = list(self.grid.get_boundary_names())
-		self.list_of_subdomain_names = list(self.grid.get_subdomain_names())
-		self.n_elems = self.grid.mesh.num_cells()
-		self.__load_region_indices()
 
-		self.input_file["grid"]["regions"] = {value: key for key, value in self.tags_dict.items()}
+		self.input_file["grid"]["regions"] = {value: key for key, value in self.grid.tags_dict.items()}
 		self.input_file["grid"]["boundaries"] = self.list_of_boundary_names
 
 
@@ -107,8 +104,9 @@ class BuildInputFile():
 
 	def __correct_data_type(self, data):
 		if type(data)==np.ndarray or type(data)==to.Tensor:
-			data = data.tolist()
-		return data
+			return data.tolist()
+		else:
+			return data
 
 	def add_element(self, element_name, element_parameters, element_type="Elastic"):
 		self.input_file["constitutive_model"][element_type][element_name] = element_parameters
@@ -171,16 +169,16 @@ class BuildInputFile():
 	def add_inelastic_element(self, element_name, element_parameters):
 		self.add_element(element_name, element_parameters, element_type="Inelastic")
 
-	def __load_region_indices(self):
-		region_names = list(self.grid.get_subdomain_names())
-		self.region_indices = {}
-		self.tags_dict = {}
-		for i in range(len(region_names)):
-			self.region_indices[region_names[i]] = []
-			tag = self.grid.get_subdomain_tags(region_names[i])
-			self.tags_dict[tag] = region_names[i]
+	# def __load_region_indices(self):
+	# 	region_names = list(self.grid.get_subdomain_names())
+	# 	self.region_indices = {}
+	# 	self.tags_dict = {}
+	# 	for i in range(len(region_names)):
+	# 		self.region_indices[region_names[i]] = []
+	# 		tag = self.grid.get_subdomain_tags(region_names[i])
+	# 		self.tags_dict[tag] = region_names[i]
 
-		for cell in do.cells(self.grid.mesh):
-			region_marker = self.grid.subdomains[cell]
-			self.region_indices[self.tags_dict[region_marker]].append(cell.index())
+	# 	for cell in do.cells(self.grid.mesh):
+	# 		region_marker = self.grid.subdomains[cell]
+	# 		self.region_indices[self.tags_dict[region_marker]].append(cell.index())
 
