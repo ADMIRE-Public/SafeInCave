@@ -24,13 +24,54 @@ import dolfin as do
 
 class BuildInputFile():
 	def __init__(self):
-		self.input_file = {}
+		self.input_file = {
+			"grid": {
+				"path": None,
+				"name": None
+			},
+			"output": {
+				"path": None
+			},
+			"solver_settings": {
+				"type": "KrylovSolver",
+				"method": "cg",
+				"preconditioner": "ilu",
+				"relative_tolerance": 1e-12,
+			},
+			"simulation_settings": {
+				"equilibrium": {
+					"active": False,
+					"dt_max": None,
+					"time_tol": None
+				},
+					"operation": {
+					"active": False,
+					"dt_max": None,
+					"n_skip": None
+				}
+			},
+			"time_settings": {
+				"theta": None,
+				"time_list": None
+			},
+			"body_forces": {
+				"gravity": -9.81,
+				"density": None,
+				"direction": None
+			},
+			"boundary_conditions": {},
+			"constitutive_model": {
+				"elastic": {},
+				"viscoelastic": {},
+				"inelastic": {}
+			}
+		}
 
 	def save_input_file(self, input_file_name):
 		with open(input_file_name, "w") as f:
 		    json.dump(self.input_file, f, indent=4)
 
-	def section_input_grid(self, path_to_grid, grid_name="geom"):
+	def set_input_grid(self, path_to_grid, grid_name="geom"):
 		self.input_file["grid"] = {}
 		self.input_file["grid"]["path"] = path_to_grid
 		self.input_file["grid"]["name"] = grid_name
@@ -44,12 +85,41 @@ class BuildInputFile():
 
 
 
-	def section_output(self, output_folder):
+	def set_output_folder(self, output_folder):
 		self.input_file["output"] = {}
 		self.input_file["output"]["path"] = output_folder
 
-	def section_solver(self, solver_settings):
+	def set_krylov_solver(self, method, preconditioner, rel_tol):
+		self.input_file["solver_settings"] = {
+			"type": "KrylovSolver",
+			"method": method,
+			"preconditioner": preconditioner,
+			"relative_tolerance": rel_tol,
+		}
+
+	def set_direct_solver(self, method):
+		self.input_file["solver_settings"] = {
+			"type": "LU",
+			"method": method
+		}		
+
+	def set_solver(self, solver_settings):
 		self.input_file["solver_settings"] = solver_settings
+
+	def set_equilibrium_stage(self, active=False, dt=1, tol=1e-9):
+		self.input_file["simulation_settings"]["equilibrium"] = {
+			"active": active,
+			"dt_max": dt,
+			"time_tol": tol
+		}
+
+	def set_operation_stage(self, active=False, dt=1, n_skip=1):
+		self.input_file["simulation_settings"]["operation"] = {
+			"active": active,
+			"dt_max": dt,
+			"n_skip": n_skip
+		}
+
 
 	def section_simulation(self, simulation_settings):
 		self.input_file["simulation_settings"] = simulation_settings
@@ -88,10 +158,10 @@ class BuildInputFile():
 		}
 
 
-	def section_body_forces(self, value, direction):
+	def section_body_forces(self, density, direction):
 		self.input_file["body_force"] = {
 											"gravity": -9.81,
-											"density": value,
+											"density": density,
 											"direction": direction
 		}
 
@@ -112,7 +182,7 @@ class BuildInputFile():
 		self.input_file["constitutive_model"][element_type][element_name] = element_parameters
 
 	def add_elastic_element(self, name, E, nu, active=True):
-		self.input_file["constitutive_model"]["Elastic"][name] = {
+		self.input_file["constitutive_model"]["elastic"][name] = {
 			"type": "Spring",
 			"active": active,
 			"parameters": {
@@ -122,7 +192,7 @@ class BuildInputFile():
 		}
 
 	def add_viscoelastic_element(self, name, E, nu, eta, active=True):
-		self.input_file["constitutive_model"]["Viscoelastic"][name] = {
+		self.input_file["constitutive_model"]["viscoelastic"][name] = {
 			"type": "KelvinVoigt",
 			"active": active,
 			"parameters": {
@@ -133,7 +203,7 @@ class BuildInputFile():
 		}
 
 	def add_dislocation_creep_element(self, name, A, n, Q, T, active=True):
-		self.input_file["constitutive_model"]["Inelastic"][name] = {
+		self.input_file["constitutive_model"]["inelastic"][name] = {
 			"type": "DislocationCreep",
 			"active": active,
 			"parameters": {
@@ -145,7 +215,7 @@ class BuildInputFile():
 		}
 
 	def add_desai_element(self, name, mu_1, N_1, n, a_1, eta, beta_1, beta, m, gamma, alpha_0, sigma_t, active=True):
-		self.input_file["constitutive_model"]["Inelastic"][name] = {
+		self.input_file["constitutive_model"]["inelastic"][name] = {
 			"type": "ViscoplasticDesai",
 			"active": active,
 			"parameters": {
@@ -163,22 +233,7 @@ class BuildInputFile():
 			}
 		}
 
-	# def add_viscoelastic_element(self, element_name, element_parameters):
-	# 	self.add_element(element_name, element_parameters, element_type="Viscoelastic")
 
 	def add_inelastic_element(self, element_name, element_parameters):
 		self.add_element(element_name, element_parameters, element_type="Inelastic")
-
-	# def __load_region_indices(self):
-	# 	region_names = list(self.grid.get_subdomain_names())
-	# 	self.region_indices = {}
-	# 	self.tags_dict = {}
-	# 	for i in range(len(region_names)):
-	# 		self.region_indices[region_names[i]] = []
-	# 		tag = self.grid.get_subdomain_tags(region_names[i])
-	# 		self.tags_dict[tag] = region_names[i]
-
-	# 	for cell in do.cells(self.grid.mesh):
-	# 		region_marker = self.grid.subdomains[cell]
-	# 		self.region_indices[self.tags_dict[region_marker]].append(cell.index())
 
