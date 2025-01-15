@@ -45,15 +45,15 @@ class ConstitutiveModel():
 		self._C0 = to.zeros((self.grid.n_elems, 6, 6), dtype=to.float64)
 
 		# Add elastic elements
-		for elem_e in self.get_list_of_elements(element_class="Elastic"):
+		for elem_e in self.get_list_of_elements(element_class="elastic"):
 			self._elems_e.append(elem_e)
 
 		# Add viscoelastic elements
-		for elem_ve in self.get_list_of_elements(element_class="Viscoelastic"):
+		for elem_ve in self.get_list_of_elements(element_class="viscoelastic"):
 			self._elems_ve.append(elem_ve)
 
 		# Add inelastic elements
-		for elem_ie in self.get_list_of_elements(element_class="Inelastic"):
+		for elem_ie in self.get_list_of_elements(element_class="inelastic"):
 			self._elems_ie.append(elem_ie)
 
 		for elem_e in self._elems_e:
@@ -97,7 +97,7 @@ class ConstitutiveModel():
 		return self._C0_inv
 	
 
-	def get_list_of_elements(self, element_class="Elastic"):
+	def get_list_of_elements(self, element_class="elastic"):
 		"""
 		This is an internal function responsible to build a list of elements based on the input_constitutive_model dictionary.
 
@@ -126,7 +126,7 @@ class ConstitutiveModel():
 					element_parameters[param] = self.grid.get_parameter(element_parameters[param])
 				elem = ELEMENT_DICT[props[elem_name]["type"]](element_parameters)
 				list_of_elements.append(elem)
-		if element_class == "Elastic" and len(list_of_elements) == 0:
+		if element_class == "elastic" and len(list_of_elements) == 0:
 			raise Exception("Model must have at least 1 elastic element (Spring). None was given.")
 		return list_of_elements
 
