@@ -391,7 +391,7 @@ class LinearMomentum():
 		tol = 1e-7
 		self.error = 2*tol
 		self.ite = 0
-		maxiter = 10
+		maxiter = 40
 
 		while self.error > tol and self.ite < maxiter:
 
