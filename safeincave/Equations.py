@@ -44,10 +44,11 @@ class LinearMomentum():
 		self.operation_output_folder = os.path.join(self.input_file["output"]["path"], "operation")
 
 		# Get number of elements
-		self.n_elems = self.grid.mesh.num_cells()
+		self.n_elems = self.grid.n_elems
+		self.n_nodes = self.grid.n_nodes
 
 		# Define constitutive model
-		self.m = ConstitutiveModel(self.n_elems, self.input_file["constitutive_model"])
+		self.m = ConstitutiveModel(self.grid, self.input_file["constitutive_model"])
 
 		# Time integration method
 		self.theta = theta
@@ -68,8 +69,21 @@ class LinearMomentum():
 		self.CT = do.Function(self.DG_6x6)
 		self.eps_tot = do.Function(self.DG_3x3)
 		self.eps_rhs = do.Function(self.DG_3x3)
+
 		self.sigma = do.Function(self.DG_3x3)
 		self.sigma_0 = do.Function(self.DG_3x3)
+		self.sigma_smooth = do.Function(self.DG_3x3)
+		self.sigma_smooth.rename("Stress", "MPa")
+
+		self.sigma_v = do.Function(self.DG_1x1)
+		self.sigma_v.rename("Mean stress", "MPa")
+		self.sigma_v_smooth = do.Function(self.DG_1x1)
+		self.sigma_v_smooth.rename("Mean stress", "MPa")
+
+		self.von_mises = do.Function(self.DG_1x1)
+		self.von_mises.rename("Von Mises stress", "MPa")
+		self.von_mises_smooth = do.Function(self.DG_1x1)
+		self.von_mises_smooth.rename("Von Mises stress", "MPa")
 
 		# Define variational problem
 		self.du = do.TrialFunction(self.CG_3x1)
@@ -98,28 +112,80 @@ class LinearMomentum():
 		self.stress_k_torch = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 
 		# Define salt specific weight
-		self.gravity = self.input_file["body_force"]["gravity"]
-		self.density = self.input_file["body_force"]["density"]
 		self.direction = self.input_file["body_force"]["direction"]
+		self.density = do.Function(self.DG_1x1)
+		self.density.vector()[:] = self.grid.get_parameter(self.input_file["body_force"]["density"])
+		self.gravity = self.input_file["body_force"]["gravity"]
+
+		self.g = [0.0, 0.0, 0.0]
+		self.g[self.direction] = self.gravity
+		self.body_force = self.density*do.Constant(tuple(self.g))
+
+		# Build body forces on RHS vector
+		self.b_body = do.dot(self.body_force, self.v)*self.dx
 
 		# Define linear solver
 		self.solver = self.define_solver()
 
-		# Build body forces on RHS vector
-		f_form = [0, 0, 0]
-		f_form[self.direction] = self.gravity*self.density
-		f_form = tuple(f_form)
-		f = do.Constant(f_form)
-		self.b_body = do.dot(f, self.v)*self.dx
-
 		# Create output file
 		self.u_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "displacement", "displacement.pvd"))
 		self.stress_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "stress", "stress.pvd"))
+		self.stress_smooth_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "stress_smooth", "stress_smooth.pvd"))
+
+		self.q_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "q", "q.pvd"))
+		self.qs_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "q_smooth", "q_smooth.pvd"))
+		self.p_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "p", "p.pvd"))
+		self.ps_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "p_smooth", "p_smooth.pvd"))
+
 
 
 	def save_solution(self, t):
 		self.u_vtk << (self.u, t)
 		self.stress_vtk << (self.sigma, t)
+
+		stress_np = self.sigma.vector()[:].reshape((self.n_elems, 3, 3))
+		# self.sigma_smooth.vector()[:] = self.apply_smoother(stress_np)
+		self.sigma_smooth.vector()[:] = self.apply_smoother(self.stress_torch.numpy())
+		self.stress_smooth_vtk << (self.sigma_smooth, t)
+
+		MPa = 1e6
+		sxx = self.stress_torch[:,0,0]/MPa
+		syy = self.stress_torch[:,1,1]/MPa
+		szz = self.stress_torch[:,2,2]/MPa
+		sxy = self.stress_torch[:,0,1]/MPa
+		sxz = self.stress_torch[:,0,2]/MPa
+		syz = self.stress_torch[:,1,2]/MPa
+
+		I1 = sxx + syy + szz
+		I2 = sxx*syy + syy*szz + sxx*szz - sxy**2 - syz**2 - sxz**2
+		I3 = sxx*syy*szz + 2*sxy*syz*sxz - szz*sxy**2 - sxx*syz**2 - syy*sxz**2
+		J2 = (1/3)*I1**2 - I2
+		q = np.sqrt(3*J2)
+		p = I1/3
+
+		self.von_mises_smooth.vector()[:] = self.grid.smoother.dot(q.numpy())
+		self.qs_vtk << (self.von_mises_smooth, t)
+
+		self.von_mises.vector()[:] = q
+		self.q_vtk << (self.von_mises, t)
+
+		self.sigma_v_smooth.vector()[:] = self.grid.smoother.dot(p.numpy())
+		self.ps_vtk << (self.sigma_v_smooth, t)
+
+		self.sigma_v.vector()[:] = p
+		self.p_vtk << (self.sigma_v, t)
+
+
+
+	def apply_smoother(self, field_np):
+		field_copy = field_np.copy()
+		field_copy[:,0,0] = self.grid.smoother.dot(field_copy[:,0,0])
+		field_copy[:,1,1] = self.grid.smoother.dot(field_copy[:,1,1])
+		field_copy[:,2,2] = self.grid.smoother.dot(field_copy[:,2,2])
+		field_copy[:,0,1] = field_copy[:,1,0] = self.grid.smoother.dot(field_copy[:,0,1])
+		field_copy[:,0,2] = field_copy[:,2,0] = self.grid.smoother.dot(field_copy[:,0,2])
+		field_copy[:,1,2] = field_copy[:,2,1] = self.grid.smoother.dot(field_copy[:,1,2])
+		return field_copy.flatten()
 
 
 
@@ -325,7 +391,7 @@ class LinearMomentum():
 		tol = 1e-7
 		self.error = 2*tol
 		self.ite = 0
-		maxiter = 10
+		maxiter = 40
 
 		while self.error > tol and self.ite < maxiter:
 

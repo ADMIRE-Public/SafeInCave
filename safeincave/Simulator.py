@@ -17,13 +17,9 @@ The class implements the iterative process to solve the non-linear equilibrium e
 # License for the specific language governing permissions and limitations under
 # the License.
 
-from ConstitutiveModel import ConstitutiveModel
 from Equations import LinearMomentum
 from Grid import GridHandlerGMSH
 import Utils as utils
-import dolfin as do
-import torch as to
-import numpy as np
 import os
 import copy
 
