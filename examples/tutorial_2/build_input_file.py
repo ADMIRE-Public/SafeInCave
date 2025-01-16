@@ -65,15 +65,34 @@ ifa.add_neumann(name="Cavern", values=[10*MPa, 7*MPa, 7*MPa, 10*MPa, 10*MPa], di
 # Define constitutive model
 
 # Add elastic elements
-ifa.add_elastic_element(name="Spring_0", E=102*GPa, nu=0.3, active=True)
+ifa.add_elastic_element(
+						name="Spring_0",
+						E=102*GPa,
+						nu=0.3,
+						active=True
+)
 
 # Add viscoelastic elements
-ifa.add_viscoelastic_element(name="KelvinVoigt_0", E=10*GPa, nu=0.32, eta=105e11, active=True)
+ifa.add_viscoelastic_element(
+						name="KelvinVoigt_0",
+						E=10*GPa,
+						nu=0.32,
+						eta=105e11,
+						active=True
+)
 
 # Add inelastic elements
-ifa.add_dislocation_creep_element(name="disCreep", A=1.9e-20, n=3.0, Q=51600, T=298, active=True)
+ifa.add_dislocation_creep_element(
+						name="disCreep",
+						A=1.9e-20,
+						n=3.0,
+						Q=51600,
+						T=298,
+						active=True
+)
 
-ifa.add_desai_element(	name="desai",
+ifa.add_desai_element(
+						name="desai",
 						mu_1=5.3665857009859815e-11,
 						N_1=3.1,
 						n=3.0,
@@ -85,7 +104,8 @@ ifa.add_desai_element(	name="desai",
 						gamma=0.095,
 						alpha_0=0.0022,
 						sigma_t=5.0,
-						active=True )
+						active=True
+)
 
 
 # Save input_file.json
