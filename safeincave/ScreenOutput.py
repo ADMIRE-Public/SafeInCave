@@ -77,6 +77,7 @@ class ScreenPrinter():
 		cpu_time = self.final - self.start
 		formatted_time = time.strftime("%H:%M:%S", time.gmtime(cpu_time))
 		print(f"Total time: {formatted_time} ({cpu_time} seconds)")
+		print()
 
 
 	def format_cell(self, text, width, alignment, text_format=None):
