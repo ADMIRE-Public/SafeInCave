@@ -178,23 +178,22 @@ class BuildInputFile():
 		else:
 			return data
 
-	def add_element(self, element_name, element_parameters, element_type="Elastic"):
-		self.input_file["constitutive_model"][element_type][element_name] = element_parameters
-
-	def add_elastic_element(self, name, E, nu, active=True):
+	def add_elastic_element(self, name, E, nu, active=True, equilibrium=True):
 		self.input_file["constitutive_model"]["elastic"][name] = {
 			"type": "Spring",
 			"active": active,
+			"equilibrium": equilibrium,
 			"parameters": {
 				"E": self.__correct_data_type(E),
 				"nu": self.__correct_data_type(nu)
 			}
 		}
 
-	def add_viscoelastic_element(self, name, E, nu, eta, active=True):
+	def add_viscoelastic_element(self, name, E, nu, eta, active=True, equilibrium=False):
 		self.input_file["constitutive_model"]["viscoelastic"][name] = {
 			"type": "KelvinVoigt",
 			"active": active,
+			"equilibrium": equilibrium,
 			"parameters": {
 				"E": self.__correct_data_type(E),
 				"nu": self.__correct_data_type(nu),
@@ -202,10 +201,11 @@ class BuildInputFile():
 			}
 		}
 
-	def add_dislocation_creep_element(self, name, A, n, Q, T, active=True):
+	def add_dislocation_creep_element(self, name, A, n, Q, T, active=True, equilibrium=False):
 		self.input_file["constitutive_model"]["inelastic"][name] = {
 			"type": "DislocationCreep",
 			"active": active,
+			"equilibrium": equilibrium,
 			"parameters": {
 				"A": self.__correct_data_type(A),
 				"n": self.__correct_data_type(n),
@@ -214,10 +214,11 @@ class BuildInputFile():
 			}
 		}
 
-	def add_desai_element(self, name, mu_1, N_1, n, a_1, eta, beta_1, beta, m, gamma, alpha_0, sigma_t, active=True):
+	def add_desai_element(self, name, mu_1, N_1, n, a_1, eta, beta_1, beta, m, gamma, alpha_0, sigma_t, active=True, equilibrium=False):
 		self.input_file["constitutive_model"]["inelastic"][name] = {
 			"type": "ViscoplasticDesai",
 			"active": active,
+			"equilibrium": equilibrium,
 			"parameters": {
 				"mu_1": 	self.__correct_data_type(mu_1),
 				"N_1": 		self.__correct_data_type(N_1),
@@ -233,7 +234,4 @@ class BuildInputFile():
 			}
 		}
 
-
-	def add_inelastic_element(self, element_name, element_parameters):
-		self.add_element(element_name, element_parameters, element_type="Inelastic")
 

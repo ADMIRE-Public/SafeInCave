@@ -16,7 +16,7 @@
         ]
     },
     "output": {
-        "path": "output/case_0"
+        "path": "output/case_mod_e_ve_cr_vp"
     },
     "solver_settings": {
         "type": "KrylovSolver",
@@ -27,13 +27,13 @@
     "simulation_settings": {
         "equilibrium": {
             "active": true,
-            "dt_max": 1800.0,
-            "time_tol": 0.0001
+            "dt_max": 36.0,
+            "time_tol": 1e-09
         },
         "operation": {
             "active": true,
-            "dt_max": 360.0,
-            "n_skip": 2
+            "dt_max": 900.0,
+            "n_skip": 1
         }
     },
     "time_settings": {
@@ -130,6 +130,7 @@
             "Spring_0": {
                 "type": "Spring",
                 "active": true,
+                "equilibrium": true,
                 "parameters": {
                     "E": 102000000000.0,
                     "nu": 0.3
@@ -140,6 +141,7 @@
             "KelvinVoigt_0": {
                 "type": "KelvinVoigt",
                 "active": true,
+                "equilibrium": true,
                 "parameters": {
                     "E": 10000000000.0,
                     "nu": 0.32,
@@ -151,6 +153,7 @@
             "disCreep": {
                 "type": "DislocationCreep",
                 "active": true,
+                "equilibrium": true,
                 "parameters": {
                     "A": 1.9e-20,
                     "n": 3.0,
@@ -161,6 +164,7 @@
             "desai": {
                 "type": "ViscoplasticDesai",
                 "active": true,
+                "equilibrium": true,
                 "parameters": {
                     "mu_1": 5.366585700985981e-11,
                     "N_1": 3.1,

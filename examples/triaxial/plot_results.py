@@ -11,7 +11,7 @@ hour = 60*60
 MPa = 1e6
 
 # Read displacement results
-pvd_path = os.path.join("output", "case_0", "operation", "vtk", "displacement")
+pvd_path = os.path.join("output", "case_mod_e_ve_cr_vp", "operation", "vtk", "displacement")
 pvd_file = "displacement.pvd"
 df, u, v, w = read_vector_from_points(pvd_path, pvd_file)
 

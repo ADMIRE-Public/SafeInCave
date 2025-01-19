@@ -27,7 +27,7 @@
     "simulation_settings": {
         "equilibrium": {
             "active": true,
-            "dt_max": 1800.0,
+            "dt_max": 18.0,
             "time_tol": 0.0001
         },
         "operation": {
@@ -173,7 +173,7 @@
             },
             "desai": {
                 "type": "ViscoplasticDesai",
-                "active": true,
+                "active": false,
                 "parameters": {
                     "mu_1": 5.366585700985981e-11,
                     "N_1": 3.1,
