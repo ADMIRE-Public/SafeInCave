@@ -196,34 +196,6 @@ def plot_gas_pressure(ax, time_steps, time, pressure, index=0):
 	ax.set_ylabel("Gas pressure (MPa)", size=10, fontname="serif")
 
 def get_relevant_points():
-	# f = open(os.path.join("grid", "geom.geo"), "r")
-	# data = f.readlines()
-	# R = float(data[6][len("R = "):-2])
-	# ovb_width = float(data[8][len("ovb_width = "):-2])
-	# roof_width = float(data[10][len("roof_width = "):-2])
-	# cave_height = float(data[11][len("cave_height = "):-2])
-	# cave_wall = cave_height - 2*R
-	# z_surf = 0
-	# z_salt_top = -ovb_width
-	# z_cave_roof = z_salt_top - roof_width
-	# A = np.radians(60)
-	# cosA = np.cos(A)
-	# sinA = np.sin(A)
-
-	# x1, z1 = 0.0, z_cave_roof
-	# x2, z2 = R*sinA, z1 - R + R*cosA
-	# x3, z3 = R, z1 - R - cave_wall/4
-	# x4, z4 = R, z1 - cave_height + R + cave_wall/4
-	# x5, z5 = R*sinA, z1 - cave_height + R - R*cosA
-	# x6, z6 = 0.0, z1 - cave_height
-
-	# point_1 = (x1, 0.0, z1)
-	# point_2 = (x2, 0.0, z2)
-	# point_3 = (x3, 0.0, z3)
-	# point_4 = (x4, 0.0, z4)
-	# point_5 = (x5, 0.0, z5)
-	# point_6 = (x6, 0.0, z6)
-
 	x1, z1 = 0, 430
 	x2, z2 = 0, 205.1
 	x3, z3 = 74.63, 267.4
@@ -304,7 +276,7 @@ def plot_results_panel(results_folder):
 	apply_grey_theme(fig, [ax0, ax00, ax01, ax02, ax10, ax11, ax12, ax30, ax31, ax32], transparent=True)
 
 	plot_gas_pressure(ax30, time_steps, gas_time, gas_pressure)
-	# plot_subsidence(ax31, displacement_data)
+	plot_subsidence(ax31, displacement_data)
 	plot_cavern_shape(ax0, xi, zi, xf, zf)
 	plot_convergence(ax32, times, volumes)
 
@@ -378,7 +350,7 @@ def plot_results_panel(results_folder):
 	plt.show()
 
 def main():
-	results_folder = os.path.join("case_0", "operation")
+	results_folder = os.path.join("case_0", "equilibrium")
 	plot_results_panel(results_folder)
 
 if __name__ == '__main__':
