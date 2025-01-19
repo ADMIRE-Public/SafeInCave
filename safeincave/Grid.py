@@ -266,7 +266,10 @@ class GridHandlerGMSH(object):
 				param_to[self.region_indices[region]] = param[i]
 			return param_to
 		elif len(param) == self.n_elems:
-			return to.tensor(param)
+			if type(param) == to.Tensor:
+				return param
+			else:
+				return to.tensor(param)
 		else:
 			raise Exception("Size of parameter list does not match neither # of elements nor # of regions.")
 
