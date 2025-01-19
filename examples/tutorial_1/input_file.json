@@ -26,14 +26,14 @@
     },
     "simulation_settings": {
         "equilibrium": {
-            "active": false,
-            "dt_max": 1,
+            "active": true,
+            "dt_max": 180.0,
             "time_tol": 1e-09
         },
         "operation": {
             "active": true,
-            "dt_max": 18.0,
-            "n_skip": 2
+            "dt_max": 180.0,
+            "n_skip": 1
         }
     },
     "time_settings": {
@@ -109,6 +109,7 @@
             "Spring_0": {
                 "type": "Spring",
                 "active": true,
+                "equilibrium": true,
                 "parameters": {
                     "E": [
                         8000000000.0,
@@ -125,6 +126,7 @@
             "KelvinVoigt_0": {
                 "type": "KelvinVoigt",
                 "active": true,
+                "equilibrium": false,
                 "parameters": {
                     "E": [
                         8000000000.0,
