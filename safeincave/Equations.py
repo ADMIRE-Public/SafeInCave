@@ -24,6 +24,7 @@ import dolfin as do
 import numpy as np
 import Utils as utils
 from ConstitutiveModel import ConstitutiveModel
+from ScreenOutput import ScreenPrinter
 
 class LinearMomentum():
 	"""
@@ -243,6 +244,16 @@ class LinearMomentum():
 
 	def solve_equilibrium(self, verbose=True, save_results=False):
 
+		# Screen info
+		screen = ScreenPrinter(
+				header_columns = ["Time step", "Pseudo-time (h)", "Error time"],
+				header_align = "center",
+				row_formats = ["%i", "%.3f", "%.4e"],
+				row_align = ["center", "center", "center"],
+				comment = "Running equilibrium stage"
+		)
+		screen.print_header()
+
 		mod_input_file = copy.deepcopy(self.input_file["constitutive_model"])
 		for elem_type in mod_input_file.keys():
 			for elem in mod_input_file[elem_type].keys():
@@ -300,7 +311,8 @@ class LinearMomentum():
 
 			# Print stuff
 			if verbose:
-				print(n_step, t/utils.hour, error_time)
+				screen_output_row = [n_step, t/utils.hour, error_time]
+				screen.print_row(screen_output_row)
 			n_step += 1
 
 			if n_step > 20:
@@ -325,6 +337,8 @@ class LinearMomentum():
 
 		# Assign operation constitutive model to the internal object self.m
 		self.m = m_operation
+
+		screen.close()
 
 
 

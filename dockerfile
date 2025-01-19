@@ -28,7 +28,8 @@ RUN pip3 install matplotlib
 RUN pip3 install numpy==1.23.5
 RUN pip3 install --no-cache-dir meshio==3.3.1
 RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-RUN pip3 install pandas==1.4.3 
+RUN pip3 install pandas==1.4.3
+RUN pip3 install scipy
 RUN apt install -y gmsh
 
 # Add FEniCS 2019 PPA (Fenics 2019.1.0 example)

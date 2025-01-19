@@ -16,7 +16,7 @@
         ]
     },
     "output": {
-        "path": "output/case_mod_e_ve_cr_vp"
+        "path": "output/case_0"
     },
     "solver_settings": {
         "type": "KrylovSolver",
@@ -33,7 +33,7 @@
         "operation": {
             "active": true,
             "dt_max": 900.0,
-            "n_skip": 1
+            "n_skip": 4
         }
     },
     "time_settings": {
@@ -153,7 +153,7 @@
             "disCreep": {
                 "type": "DislocationCreep",
                 "active": true,
-                "equilibrium": true,
+                "equilibrium": false,
                 "parameters": {
                     "A": 1.9e-20,
                     "n": 3.0,
@@ -164,7 +164,7 @@
             "desai": {
                 "type": "ViscoplasticDesai",
                 "active": true,
-                "equilibrium": true,
+                "equilibrium": false,
                 "parameters": {
                     "mu_1": 5.366585700985981e-11,
                     "N_1": 3.1,

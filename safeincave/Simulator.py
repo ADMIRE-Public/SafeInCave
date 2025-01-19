@@ -20,6 +20,7 @@ The class implements the iterative process to solve the non-linear equilibrium e
 from Equations import LinearMomentum
 from Grid import GridHandlerGMSH
 import Utils as utils
+from ScreenOutput import ScreenPrinter
 import os
 import copy
 
@@ -108,6 +109,16 @@ class Simulator(object):
 		# Save initial solution
 		self.eq_mom.save_solution(t)
 
+		# Screen info
+		screen = ScreenPrinter(
+				header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
+				header_align = "center",
+				row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
+				row_align = ["center", "center", "center", "center", "center", "center"],
+				comment = "Running operation stage"
+		)
+		screen.print_header()
+
 		# Transient simulation
 		n_step = 1
 		while t < t_final:
@@ -118,22 +129,23 @@ class Simulator(object):
 			# Solve
 			self.eq_mom.solve(t, dt)
 
+
 			# Save displacement field
+			save_solution = False
 			if n_step % n_skip == 0 or n_step == 1:
 				self.eq_mom.save_solution(t)
-				if verbose:
-					print("Save step %i"%n_step)
+				save_solution = True
 
 			# Print stuff
 			if verbose:
-				print(n_step, f"{t_final/utils.hour}", t/utils.hour, self.eq_mom.ite, self.eq_mom.error)
-				try:
-					print("Fvp: ", float(max(self.eq_mom.m.elems_ie[0].Fvp)))
-					print("alpha: ", float(max(self.eq_mom.m.elems_ie[0].alpha)))
-				except:
-					pass
-				print()
+				if save_solution:
+					screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "Save"]
+				else:
+					screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "|"]
+				screen.print_row(screen_output_row)
 
 			n_step += 1
+
+		screen.close()
 
 
