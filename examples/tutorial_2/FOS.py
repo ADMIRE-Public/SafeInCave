@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append(os.path.join("..", "..", "safeincave"))
 from Grid import GridHandlerGMSH
-from ResultsHandler import read_tensor_from_cells
+from ResultsHandler import read_tensor_from_cells, read_tensor_from_cells_old
 from Utils import *
 from dolfin import *
 import dolfin as do
@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 
 def save_dfs(case_folder):
-	cells_coord, s_x, s_y, s_z, s_xy, s_xz, s_yz = read_tensor_from_cells(os.path.join(case_folder, "vtk", "stress"), "stress.pvd")
+	cells_coord, s_x, s_y, s_z, s_xy, s_xz, s_yz = read_tensor_from_cells_old(os.path.join(case_folder, "vtk", "stress"), "stress.pvd")
 
 	if not os.path.exists(os.path.join(case_folder, "pandas")):
 		os.makedirs(os.path.join(case_folder, "pandas"))
@@ -25,12 +25,12 @@ def save_dfs(case_folder):
 
 
 def exctract_material_props(input_model):
-	n = np.array(input_model["constitutive_model"]["Inelastic"]["desai"]["parameters"]["n"])[:,np.newaxis]
-	gamma = np.array(input_model["constitutive_model"]["Inelastic"]["desai"]["parameters"]["gamma"])[:,np.newaxis]
-	beta_1 = np.array(input_model["constitutive_model"]["Inelastic"]["desai"]["parameters"]["beta_1"])[:,np.newaxis]
-	beta = np.array(input_model["constitutive_model"]["Inelastic"]["desai"]["parameters"]["beta"])[:,np.newaxis]
-	m = np.array(input_model["constitutive_model"]["Inelastic"]["desai"]["parameters"]["m"])[:,np.newaxis]
-	sigma_t = np.array(input_model["constitutive_model"]["Inelastic"]["desai"]["parameters"]["sigma_t"])[:,np.newaxis]
+	n = np.array(input_model["constitutive_model"]["inelastic"]["desai"]["parameters"]["n"])[:,np.newaxis]
+	gamma = np.array(input_model["constitutive_model"]["inelastic"]["desai"]["parameters"]["gamma"])[:,np.newaxis]
+	beta_1 = np.array(input_model["constitutive_model"]["inelastic"]["desai"]["parameters"]["beta_1"])[:,np.newaxis]
+	beta = np.array(input_model["constitutive_model"]["inelastic"]["desai"]["parameters"]["beta"])[:,np.newaxis]
+	m = np.array(input_model["constitutive_model"]["inelastic"]["desai"]["parameters"]["m"])[:,np.newaxis]
+	sigma_t = np.array(input_model["constitutive_model"]["inelastic"]["desai"]["parameters"]["sigma_t"])[:,np.newaxis]
 	return n, gamma, beta_1, beta, m, sigma_t
 
 def read_stresses(case_folder):

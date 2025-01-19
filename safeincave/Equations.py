@@ -18,6 +18,7 @@ Everything related to the solution of the linear momentum balance equation.
 # the License.
 
 import os
+import copy
 import torch as to
 import dolfin as do
 import numpy as np
@@ -127,15 +128,18 @@ class LinearMomentum():
 		# Define linear solver
 		self.solver = self.define_solver()
 
-		# Create output file
-		self.u_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "displacement", "displacement.pvd"))
-		self.stress_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "stress", "stress.pvd"))
-		self.stress_smooth_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "stress_smooth", "stress_smooth.pvd"))
 
-		self.q_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "q", "q.pvd"))
-		self.qs_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "q_smooth", "q_smooth.pvd"))
-		self.p_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "p", "p.pvd"))
-		self.ps_vtk = do.File(os.path.join(self.operation_output_folder, "vtk", "p_smooth", "p_smooth.pvd"))
+
+	def initialize_ouput_files(self, output_folder):
+		# Create output file
+		self.u_vtk = do.File(os.path.join(output_folder, "vtk", "displacement", "displacement.pvd"))
+		self.stress_vtk = do.File(os.path.join(output_folder, "vtk", "stress", "stress.pvd"))
+		self.stress_smooth_vtk = do.File(os.path.join(output_folder, "vtk", "stress_smooth", "stress_smooth.pvd"))
+
+		self.q_vtk = do.File(os.path.join(output_folder, "vtk", "q", "q.pvd"))
+		self.qs_vtk = do.File(os.path.join(output_folder, "vtk", "q_smooth", "q_smooth.pvd"))
+		self.p_vtk = do.File(os.path.join(output_folder, "vtk", "p", "p.pvd"))
+		self.ps_vtk = do.File(os.path.join(output_folder, "vtk", "p_smooth", "p_smooth.pvd"))
 
 
 
@@ -229,41 +233,28 @@ class LinearMomentum():
 		# Update inelastic strain rate (Warning! Do NOT update eps_ie here, because this is wrong!)
 		self.update_eps_ie_rate_old()
 
+		# Re-initialize output files
+		self.initialize_ouput_files(self.operation_output_folder)
+
 		# Assign stress
 		self.sigma.vector()[:] = self.stress_torch.flatten()
 
 
+
 	def solve_equilibrium(self, verbose=True, save_results=False):
-		# Get maximum time step size
-		dt = self.input_file["simulation_settings"]["equilibrium"]["dt_max"]
-		t = self.t0
 
-		# Apply Neumann boundary condition
-		self.apply_neumann_bc(self.t0)
+		mod_input_file = copy.deepcopy(self.input_file["constitutive_model"])
+		for elem_type in mod_input_file.keys():
+			for elem in mod_input_file[elem_type].keys():
+				if mod_input_file[elem_type][elem]["equilibrium"] == False:
+					mod_input_file[elem_type][elem]["active"] = False
+				else:
+					mod_input_file[elem_type][elem]["active"] = True
 
-		# Define Dirichlet boundary conditions
-		self.define_dirichlet_bc(self.t0)
+		# Build constitutive model for equilibrium stage
+		self.m = ConstitutiveModel(self.grid, mod_input_file)
 
-		# Build RHS vector
-		b = do.assemble(self.b_body + sum(self.integral_neumann))
-
-		# Initialize elastic stiffness matrix, C0
-		self.C0.vector()[:] = to.flatten(self.m.C0)
-
-		# Build stiffness matrix
-		a_form = do.inner(utils.dotdot(self.C0, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
-		A = do.assemble(a_form)
-
-		# Solve linear system
-		[bc.apply(A, b) for bc in self.bcs]
-		self.solver.solve(A, self.u.vector(), b)
-
-		# Compute total strain
-		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-
-		# Compute stress
-		eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
-		self.compute_stress_C0(eps_tot_torch)
+		self.compute_eps_ie_rate()
 
 		# Compute old viscoelastic strain rates
 		self.compute_eps_ve_rate(0)
@@ -271,17 +262,19 @@ class LinearMomentum():
 		# Update viscoelastic strain rate (Warning! Do NOT update eps_ie here, because this is wrong!)
 		self.update_eps_ve_rate_old()
 
+		# Get maximum time step size
+		dt = self.input_file["simulation_settings"]["equilibrium"]["dt_max"]
+		t = self.t0
+
 		if save_results:
 			# Output folder
 			equilibrium_output_folder = os.path.join(self.input_file["output"]["path"], "equilibrium")
 
-			# Create output file
-			u_vtk = do.File(os.path.join(equilibrium_output_folder, "vtk", "displacement", "displacement.pvd"))
-			stress_vtk = do.File(os.path.join(equilibrium_output_folder, "vtk", "stress", "stress.pvd"))
+			# Initialize output files
+			self.initialize_ouput_files(equilibrium_output_folder)
 
 			# Save output fields
-			u_vtk << (self.u, t)
-			stress_vtk << (self.sigma, t)
+			self.save_solution(t)
 
 		# Initialize pseudo time control settings
 		n_step = 1
@@ -294,86 +287,44 @@ class LinearMomentum():
 			# Increment time
 			t += dt
 
-			# Compute GT matrix field for viscoelastic elements
-			self.compute_GT_BT_ve(dt)
-
-			# Iterative loop settings
-			tol = 1e-7
-			error = 2*tol
-			ite = 0
-			maxiter = 40
-
-			while error > tol and ite < maxiter:
-
-				# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-				eps_tot_k = utils.numpy2torch(self.eps_tot.vector()[:])
-
-				# Update stress of previous iteration (stress_k <-- stress)
-				self.update_stress()
-
-				# Compute CT
-				self.compute_CT(dt)
-
-				# Compute right-hand side
-				self.compute_eps_rhs(dt)
-
-				# Build rhs
-				b_rhs = do.inner(utils.dotdot(self.CT, self.eps_rhs), utils.epsilon(self.v))*self.dx
-				b = do.assemble(self.b_body + sum(self.integral_neumann) + b_rhs)
-
-				# Build lhs
-				a_form = do.inner(utils.dotdot(self.CT, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
-				A = do.assemble(a_form)
-
-				# Solve linear system
-				[bc.apply(A, b) for bc in self.bcs]
-				self.solver.solve(A, self.u.vector(), b)
-
-				# Compute total strain
-				self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-				eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
-
-				# Compute stress
-				self.compute_stress(eps_tot_torch, dt)
-
-				# Compute strain rates
-				self.compute_eps_ve_rate(dt)
-
-				# Compute error
-				if self.theta == 1.0:
-					error = 0.0
-				else:
-					eps_tot_k_flat = to.flatten(eps_tot_k)
-					eps_tot_flat = self.eps_tot.vector()[:]
-					error = np.linalg.norm(eps_tot_k_flat - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
-
-				# Increment iteration counter
-				ite += 1
-
-			# Compute strains
-			self.compute_eps_ve(dt)
-
-			# Update old viscoelastic strains
-			self.update_eps_ve_old()
-
-			# Update old viscoelastic strain rates
-			self.update_eps_ve_rate_old()
+			self.solve(0, dt)
 
 			# Compute time error (to check if steady state is achieved)
 			eps_tot_flat = self.eps_tot.vector()[:]
 			error_time = np.linalg.norm(eps_tot_old - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
 			eps_tot_old = utils.numpy2torch(self.eps_tot.vector()[:])
-			# self.sigma.vector()[:] = self.stress_torch.flatten()
+			self.sigma.vector()[:] = self.stress_torch.flatten()
 
 			if save_results:
-				u_vtk << (self.u, t)
-				stress_vtk << (self.sigma, t)
+				self.save_solution(t)
 
 			# Print stuff
 			if verbose:
-				print(n_step, t/utils.hour, ite, error, error_time)
-				# print()
+				print(n_step, t/utils.hour, error_time)
 			n_step += 1
+
+			if n_step > 20:
+				break
+
+		# Reinitialize original constitutive model
+		m_operation = ConstitutiveModel(self.grid, self.input_file["constitutive_model"])
+
+		# Copy elements active on the equilibrium stage to 
+		# the constitutive model of the operation stage
+		for i, elem in enumerate(self.input_file["constitutive_model"]["elastic"].keys()):
+			if self.input_file["constitutive_model"]["elastic"][elem]["equilibrium"] == True:
+				m_operation._elems_e[i] = self.m.elems_e[i]
+
+		for i, elem in enumerate(self.input_file["constitutive_model"]["viscoelastic"].keys()):
+			if self.input_file["constitutive_model"]["viscoelastic"][elem]["equilibrium"] == True:
+				m_operation._elems_ve[i] = self.m.elems_ve[i]
+
+		for i, elem in enumerate(self.input_file["constitutive_model"]["inelastic"].keys()):
+			if self.input_file["constitutive_model"]["inelastic"][elem]["equilibrium"] == True:
+				m_operation._elems_ie[i] = self.m.elems_ie[i]
+
+		# Assign operation constitutive model to the internal object self.m
+		self.m = m_operation
 
 
 

@@ -16,7 +16,7 @@
         ]
     },
     "output": {
-        "path": "output/case_1"
+        "path": "output/case_0"
     },
     "solver_settings": {
         "type": "KrylovSolver",
@@ -33,7 +33,7 @@
         "operation": {
             "active": true,
             "dt_max": 180.0,
-            "n_skip": 1
+            "n_skip": 4
         }
     },
     "time_settings": {
@@ -143,6 +143,7 @@
             "Spring_0": {
                 "type": "Spring",
                 "active": true,
+                "equilibrium": true,
                 "parameters": {
                     "E": 102000000000.0,
                     "nu": 0.3
@@ -153,6 +154,7 @@
             "KelvinVoigt_0": {
                 "type": "KelvinVoigt",
                 "active": true,
+                "equilibrium": true,
                 "parameters": {
                     "E": 10000000000.0,
                     "nu": 0.32,
@@ -164,6 +166,7 @@
             "disCreep": {
                 "type": "DislocationCreep",
                 "active": true,
+                "equilibrium": false,
                 "parameters": {
                     "A": 1.9e-20,
                     "n": 3.0,
@@ -174,6 +177,7 @@
             "desai": {
                 "type": "ViscoplasticDesai",
                 "active": true,
+                "equilibrium": false,
                 "parameters": {
                     "mu_1": 5.366585700985981e-11,
                     "N_1": 3.1,
