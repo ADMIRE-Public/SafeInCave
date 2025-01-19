@@ -1,0 +1,259 @@
+{
+    "grid": {
+        "path": "../../grids/cavern_overburden",
+        "name": "geom",
+        "regions": {
+            "Salt": 1,
+            "Overburden": 2
+        },
+        "boundaries": [
+            "South_salt",
+            "South_ovb",
+            "North_salt",
+            "North_ovb",
+            "West_salt",
+            "West_ovb",
+            "East_salt",
+            "East_ovb",
+            "Bottom",
+            "Top",
+            "Cavern"
+        ]
+    },
+    "output": {
+        "path": "output/case_0"
+    },
+    "solver_settings": {
+        "type": "KrylovSolver",
+        "method": "cg",
+        "preconditioner": "ilu",
+        "relative_tolerance": 1e-12
+    },
+    "simulation_settings": {
+        "equilibrium": {
+            "active": true,
+            "dt_max": 21600.0,
+            "time_tol": 0.0001
+        },
+        "operation": {
+            "active": true,
+            "dt_max": 7200,
+            "n_skip": 5
+        }
+    },
+    "time_settings": {
+        "theta": 0.5,
+        "time_list": [
+            0,
+            172800,
+            518400,
+            691200,
+            864000
+        ]
+    },
+    "body_forces": {
+        "gravity": -9.81,
+        "density": null,
+        "direction": null
+    },
+    "boundary_conditions": {
+        "West_salt": {
+            "type": "dirichlet",
+            "component": 0,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "West_ovb": {
+            "type": "dirichlet",
+            "component": 0,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "South_salt": {
+            "type": "dirichlet",
+            "component": 1,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "South_ovb": {
+            "type": "dirichlet",
+            "component": 1,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "Bottom": {
+            "type": "dirichlet",
+            "component": 2,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "East_salt": {
+            "type": "dirichlet",
+            "component": 0,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "East_ovb": {
+            "type": "dirichlet",
+            "component": 0,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "North_salt": {
+            "type": "dirichlet",
+            "component": 1,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "North_ovb": {
+            "type": "dirichlet",
+            "component": 1,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "Cavern": {
+            "type": "neumann",
+            "direction": 2,
+            "density": 10,
+            "reference_position": 800.0,
+            "values": [
+                13812480.0,
+                3453120.0,
+                3453120.0,
+                13812480.0,
+                13812480.0
+            ]
+        },
+        "Top": {
+            "type": "neumann",
+            "direction": 2,
+            "density": 0.0,
+            "reference_position": 0.0,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        }
+    },
+    "constitutive_model": {
+        "elastic": {
+            "Spring_0": {
+                "type": "Spring",
+                "active": true,
+                "equilibrium": true,
+                "parameters": {
+                    "E": [
+                        102000000000.0,
+                        180000000000.0
+                    ],
+                    "nu": 0.3
+                }
+            }
+        },
+        "viscoelastic": {
+            "KelvinVoigt_0": {
+                "type": "KelvinVoigt",
+                "active": false,
+                "equilibrium": false,
+                "parameters": {
+                    "E": 10000000000.0,
+                    "nu": 0.32,
+                    "eta": 10500000000000.0
+                }
+            }
+        },
+        "inelastic": {
+            "disCreep": {
+                "type": "DislocationCreep",
+                "active": true,
+                "equilibrium": true,
+                "parameters": {
+                    "A": [
+                        1.9e-20,
+                        0.0
+                    ],
+                    "n": 3.0,
+                    "Q": 51600,
+                    "T": 298
+                }
+            },
+            "desai": {
+                "type": "ViscoplasticDesai",
+                "active": false,
+                "equilibrium": false,
+                "parameters": {
+                    "mu_1": [
+                        5.366585700985981e-11,
+                        0.0
+                    ],
+                    "N_1": 3.1,
+                    "n": 3.0,
+                    "a_1": 1.965018496922832e-05,
+                    "eta": 0.8275682807874163,
+                    "beta_1": 0.0048,
+                    "beta": 0.995,
+                    "m": -0.5,
+                    "gamma": 0.095,
+                    "alpha_0": 0.0022,
+                    "sigma_t": 5.0
+                }
+            }
+        }
+    },
+    "body_force": {
+        "gravity": -9.81,
+        "density": [
+            2200,
+            2200
+        ],
+        "direction": 2
+    }
+}
