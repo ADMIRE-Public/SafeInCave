@@ -54,7 +54,7 @@ class BuildInputFile():
 				"theta": None,
 				"time_list": None
 			},
-			"body_forces": {
+			"body_force": {
 				"gravity": -9.81,
 				"density": None,
 				"direction": None
