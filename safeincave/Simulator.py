@@ -93,6 +93,18 @@ class Simulator(object):
 		verbose : bool
 			Shows real time simulation info on screen.
 		"""
+
+		# Screen info
+		screen = ScreenPrinter(
+				header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
+				header_align = "center",
+				row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
+				row_align = ["center", "center", "center", "center", "center", "center"],
+				comment = "Running operation stage"
+		)
+		screen.print_welcome()
+
+
 		# Pseudo time
 		t = self.time_list[0]
 		t_final = self.time_list[-1]
@@ -105,19 +117,11 @@ class Simulator(object):
 
 		# Perform initial computations
 		self.eq_mom.initialize(solve_equilibrium=solve_equilibrium, verbose=verbose, save_results=True)
+		
+		screen.print_header()
 
 		# Save initial solution
 		self.eq_mom.save_solution(t)
-
-		# Screen info
-		screen = ScreenPrinter(
-				header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
-				header_align = "center",
-				row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
-				row_align = ["center", "center", "center", "center", "center", "center"],
-				comment = "Running operation stage"
-		)
-		screen.print_header()
 
 		# Transient simulation
 		n_step = 1
