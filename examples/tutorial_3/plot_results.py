@@ -128,7 +128,7 @@ def plot_cavern_shape(ax, xi, zi, xf, zf):
 	ax.set_ylabel("z (m)", size=12, fontname="serif")
 	ax.legend(loc=1, shadow=True, fancybox=True)
 	ax.axis("equal")
-	ax.legend(bbox_to_anchor=(1.09, 1.11), ncol=2)
+	ax.legend(loc=0, ncol=1, prop={"size": 8})
 
 def plot_dilatancy_boundary(ax):
 	dilation_points = np.array([
@@ -148,12 +148,12 @@ def plot_dilatancy_boundary(ax):
 								[70.07874015748034, 19.606525911708257],
 								[75.27559055118112, 20.815738963531675],
 								[79.84251968503939, 21.679462571976973] ])
-	dilation_points[:,1] *= 1.7
+	# dilation_points[:,1] *= 1.7
 	# dilation_points[:,0] *= np.sqrt(3)
 	ax.plot(dilation_points[:,0], dilation_points[:,1], "-", color="black")
 
 
-def plot_paths(ax, stress_data, point_color, index=0, label_start=False):
+def plot_paths(ax, stress_data, point_color, index=0):
 	cells_coord, sigma_v, q = stress_data
 	sigma_v = -sigma_v
 
@@ -172,13 +172,18 @@ def plot_paths(ax, stress_data, point_color, index=0, label_start=False):
 	ax.scatter(sigma_v[cell_p][index], q[cell_p][index], c="white", edgecolors="black", zorder=10000)
 	ax.set_xlabel("Mean stress (MPa)", size=10, fontname="serif")
 	ax.set_ylabel("Von Mises stress (MPa)", size=10, fontname="serif")
-	if label_start:
-		ax.plot(sigma_v[cell_p][0], q[cell_p][0], "o", color="blue", label="Start")
-		ax.plot(sigma_v[cell_p][-1], q[cell_p][-1], "^", color="red", label="Finish")
-		ax.legend(bbox_to_anchor=(0.92, 1.25), ncol=2)
-	else:
-		ax.plot(sigma_v[cell_p][0], q[cell_p][0], "o", color="blue")
-		ax.plot(sigma_v[cell_p][-1], q[cell_p][-1], "^", color="red")
+
+	ax.plot(sigma_v[cell_p][0], q[cell_p][0], "o", color="blue", label="Start")
+	ax.plot(sigma_v[cell_p][-1], q[cell_p][-1], "^", color="red", label="Finish")
+	ax.legend(loc=2, ncol=2, prop={"size": 8})
+	# if label_start:
+	# 	ax.plot(sigma_v[cell_p][0], q[cell_p][0], "o", color="blue", label="Start")
+	# 	ax.plot(sigma_v[cell_p][-1], q[cell_p][-1], "^", color="red", label="Finish")
+	# 	ax.legend(loc=2, ncol=2, prop={"size": 8})
+	# 	# ax.legend(bbox_to_anchor=(0.92, 1.25), ncol=2)
+	# else:
+	# 	ax.plot(sigma_v[cell_p][0], q[cell_p][0], "o", color="blue")
+	# 	ax.plot(sigma_v[cell_p][-1], q[cell_p][-1], "^", color="red")
 
 def plot_probe_points(ax, points):
 	for point, color in points:
@@ -223,11 +228,14 @@ def get_relevant_points():
 	]
 	return points
 
+def get_constitutive_model(input_file):
+	model = ""
 
 
-def plot_results_panel(results_folder):
+
+def plot_results_panel(results_folder, stage="operation"):
 	# Define paths
-	output_path = os.path.join("output", results_folder, "vtk")
+	output_path = os.path.join("output", results_folder, stage, "vtk")
 
 	# Read displacement results
 	df_coord_nodes, df_ux, df_uy, df_uz = read_vector_from_points(os.path.join(output_path, "displacement"), "displacement.pvd")
@@ -238,7 +246,7 @@ def plot_results_panel(results_folder):
 	n_time = len(time_steps)
 
 	# Read input file
-	input_file = read_json(os.path.join("output", results_folder, "input_file.json"))
+	input_file = read_json(os.path.join("output", results_folder, stage, "input_file.json"))
 	grid_path = input_file["grid"]["path"]
 
 	# Get indices of wall profile
@@ -248,8 +256,6 @@ def plot_results_panel(results_folder):
 	# # Read stress results
 	df_coord_cells, df_sigma_v = read_scalar_from_cells(os.path.join(output_path, "p_smooth"), "p_smooth.pvd")
 	df_coord_cells, df_q = read_scalar_from_cells(os.path.join(output_path, "q_smooth"), "q_smooth.pvd")
-	# df_coord_cells, df_sigma_v = read_scalar_from_cells(os.path.join(output_path, "p"), "p.pvd")
-	# df_coord_cells, df_q = read_scalar_from_cells(os.path.join(output_path, "q"), "q.pvd")
 	stress_data = (df_coord_cells, df_sigma_v.values, df_q.values)
 
 	# Read gas pressure
@@ -260,23 +266,28 @@ def plot_results_panel(results_folder):
 	xi, zi, xf, zf, times, volumes = calculate_convergence_data(displacement_data, mesh)
 
 	# Plot pressure schedule
-	fig = plt.figure(figsize=(14, 8))
-	fig.subplots_adjust(top=0.930, bottom=0.120, left=0.050, right=0.967, hspace=0.44, wspace=0.64)
+	fig = plt.figure(figsize=(16, 9))
+	fig.subplots_adjust(top=1.0, bottom=0.120, left=0.060, right=0.986, hspace=0.44, wspace=0.64)
 
-	gs = GridSpec(14, 19, figure=fig)
-	ax0 = fig.add_subplot(gs[0:9,0:4])
+	gs = GridSpec(18, 19, figure=fig)
+	ax_logo = fig.add_subplot(gs[0:2,0:4])
+	ax_info_1 = fig.add_subplot(gs[0:2,5:9])
+	ax_info_2 = fig.add_subplot(gs[0:2,10:14])
+	ax_info_3 = fig.add_subplot(gs[0:2,15:])
 
-	ax00 = fig.add_subplot(gs[0:4,5:9])
-	ax01 = fig.add_subplot(gs[0:4,10:14])
-	ax02 = fig.add_subplot(gs[0:4,15:])
+	ax0 = fig.add_subplot(gs[3:12,0:4])
 
-	ax10 = fig.add_subplot(gs[5:9,5:9])
-	ax11 = fig.add_subplot(gs[5:9,10:14])
-	ax12 = fig.add_subplot(gs[5:9,15:])
+	ax00 = fig.add_subplot(gs[3:7,5:9])
+	ax01 = fig.add_subplot(gs[3:7,10:14])
+	ax02 = fig.add_subplot(gs[3:7,15:])
 
-	ax30 = fig.add_subplot(gs[10:,0:5])
-	ax31 = fig.add_subplot(gs[10:,6:12])
-	ax32 = fig.add_subplot(gs[10:,13:19])
+	ax10 = fig.add_subplot(gs[8:12,5:9])
+	ax11 = fig.add_subplot(gs[8:12,10:14])
+	ax12 = fig.add_subplot(gs[8:12,15:])
+
+	ax30 = fig.add_subplot(gs[14:,0:5])
+	ax31 = fig.add_subplot(gs[14:,6:12])
+	ax32 = fig.add_subplot(gs[14:,13:19])
 
 	apply_grey_theme(fig, [ax0, ax00, ax01, ax02, ax10, ax11, ax12, ax30, ax31, ax32], transparent=True)
 
@@ -285,12 +296,52 @@ def plot_results_panel(results_folder):
 	plot_cavern_shape(ax0, xi, zi, xf, zf)
 	plot_convergence(ax32, times, volumes)
 
+	img = plt.imread(os.path.join("..", "..", "docs", "source", "_static", "logo_2.png"))
+	ax_logo.imshow(img)
+	ax_logo.text(910, 295, "Version 1.2.0")
+	ax_logo.axis('off')
+
+	# Plot grid info
+	n_elems = len(mesh.cells["tetra"])
+	n_nodes = len(mesh.points)
+
+	region_names = ""
+	for region_name in input_file["grid"]["regions"].keys():
+		region_names += region_name + ", "
+	region_names = region_names[:-2]
+
+	ax_info_1.text(0, 0.8, "Mesh info:", size=12, fontname="serif")
+	ax_info_1.text(0, 0.5, f"- Location: {grid_path}", size=10, fontname="serif")
+	ax_info_1.text(0, 0.2, f"- Number of elems: {n_elems}", size=10, fontname="serif")
+	ax_info_1.text(0, -0.1, f"- Number of nodes: {n_nodes}", size=10, fontname="serif")
+	ax_info_1.text(0, -0.4, f"- Regions: {region_names}", size=10, fontname="serif")
+	ax_info_1.axis('off')
+
+	# Plot constitutive model info
+	elements = []
+	for elem_type in ["elastic", "viscoelastic", "inelastic"]:
+		for elem_name in input_file["constitutive_model"][elem_type].keys():
+			elements.append(elem_name)
+
+	dh = 0.3
+	h = 0.8
+	i = 1
+	ax_info_2.text(0, h, "Constitutive model: ", size=12, fontname="serif")
+	for element in elements:
+		ax_info_2.text(0, h-i*dh, f"- {element}", size=10, fontname="serif")
+		i += 1
+	ax_info_2.axis('off')
+
+	ax_info_3.text(0, 0.8, "Simulation info:", size=12, fontname="serif")
+	ax_info_3.text(0, 0.5, "- CPU time:", size=10, fontname="serif")
+	ax_info_3.axis('off')
+
 	points = get_relevant_points()
 
 	plot_paths(ax00, stress_data, points[0])
 	plot_paths(ax10, stress_data, points[5])
 	plot_paths(ax02, stress_data, points[2])
-	plot_paths(ax01, stress_data, points[1], label_start=True)
+	plot_paths(ax01, stress_data, points[1])
 	plot_paths(ax12, stress_data, points[3])
 	plot_paths(ax11, stress_data, points[4])
 
@@ -312,12 +363,12 @@ def plot_results_panel(results_folder):
 		ax30.set_xlim(xmin,xmax)
 		ax30.set_ylim(ymin,ymax)
 
-		stress_path_list = [(ax00, 0, False), (ax10, 5, False), (ax02, 2, False), (ax01, 1, True), (ax12, 3, False), (ax11, 4, False)]
-		for ax, i, label in stress_path_list:
+		stress_path_list = [(ax00, 0), (ax10, 5), (ax02, 2), (ax01, 1), (ax12, 3), (ax11, 4)]
+		for ax, i in stress_path_list:
 			xmin,xmax = ax.get_xlim()
 			ymin,ymax = ax.get_ylim()
 			ax.cla()
-			plot_paths(ax, stress_data, points[i], index, label_start=label)
+			plot_paths(ax, stress_data, points[i], index)
 			ax.set_xlim(xmin,xmax)
 			ax.set_ylim(ymin,ymax)
 
@@ -355,9 +406,7 @@ def plot_results_panel(results_folder):
 	plt.show()
 
 def main():
-	# results_folder = os.path.join("stress", "domain_2", "operation")
-	results_folder = os.path.join("case_0", "operation")
-	plot_results_panel(results_folder)
+	plot_results_panel("case_0", "operation")
 
 if __name__ == '__main__':
 	main()
