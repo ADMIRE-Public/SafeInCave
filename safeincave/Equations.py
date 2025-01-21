@@ -248,12 +248,13 @@ class LinearMomentum():
 		screen = ScreenPrinter(
 				header_columns = ["Time step", "Pseudo-time (h)", "Error time"],
 				header_align = "center",
-				row_formats = ["%i", "%.3f", "%.4e"],
+				row_formats = ["%s", "%.3f", "%.4e"],
 				row_align = ["center", "center", "center"],
 				comment = "Running equilibrium stage"
 		)
 		screen.print_header()
 
+		# Build constitutive model for equilibrium stage
 		mod_input_file = copy.deepcopy(self.input_file["constitutive_model"])
 		for elem_type in mod_input_file.keys():
 			for elem in mod_input_file[elem_type].keys():
@@ -261,8 +262,6 @@ class LinearMomentum():
 					mod_input_file[elem_type][elem]["active"] = False
 				else:
 					mod_input_file[elem_type][elem]["active"] = True
-
-		# Build constitutive model for equilibrium stage
 		self.m = ConstitutiveModel(self.grid, mod_input_file)
 
 		self.compute_eps_ie_rate()
@@ -290,6 +289,7 @@ class LinearMomentum():
 		# Initialize pseudo time control settings
 		n_step = 1
 		tol_time = self.input_file["simulation_settings"]["equilibrium"]["time_tol"]
+		ite_max = self.input_file["simulation_settings"]["equilibrium"]["ite_max"]
 		error_time = 2*tol_time
 		eps_tot_old = utils.numpy2torch(self.eps_tot.vector()[:])
 
@@ -311,11 +311,11 @@ class LinearMomentum():
 
 			# Print stuff
 			if verbose:
-				screen_output_row = [n_step, t/utils.hour, error_time]
+				screen_output_row = [f"{n_step}/{ite_max}", t/utils.hour, error_time]
 				screen.print_row(screen_output_row)
 			n_step += 1
 
-			if n_step > 20:
+			if n_step > ite_max:
 				break
 
 		# Reinitialize original constitutive model
@@ -441,7 +441,8 @@ class LinearMomentum():
 				I1, I2, I3, J2, J3, Sr, I1_star = elem.compute_stress_invariants(*elem.extract_stress_components(self.stress_torch))
 				_ = elem.compute_Fvp(elem.alpha, I1_star, J2, Sr)
 
-				if verbose:
+				if float(min(elem.alpha)) < 0:
+					print("Warning! Negative hardening parameter for Desai's model.")
 					print("Fvp: ", float(max(elem.Fvp)))
 					print("alpha_min: ", float(min(elem.alpha)))
 					print("alpha_max: ", float(max(elem.alpha)))

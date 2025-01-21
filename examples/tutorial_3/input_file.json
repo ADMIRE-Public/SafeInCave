@@ -51,10 +51,13 @@
             864000
         ]
     },
-    "body_forces": {
+    "body_force": {
         "gravity": -9.81,
-        "density": null,
-        "direction": null
+        "density": [
+            2200,
+            2800
+        ],
+        "direction": 2
     },
     "boundary_conditions": {
         "West_salt": {
@@ -162,11 +165,11 @@
             "density": 10,
             "reference_position": 800.0,
             "values": [
-                13812480.0,
-                3453120.0,
-                3453120.0,
-                13812480.0,
-                13812480.0
+                15696000.0,
+                3924000.0,
+                3924000.0,
+                15696000.0,
+                15696000.0
             ]
         },
         "Top": {
@@ -247,13 +250,5 @@
                 }
             }
         }
-    },
-    "body_force": {
-        "gravity": -9.81,
-        "density": [
-            2200,
-            2200
-        ],
-        "direction": 2
     }
 }

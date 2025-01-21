@@ -27,14 +27,43 @@ class ScreenPrinter():
 		self.row_formats = row_formats
 		self.row_align = row_align
 		self.comment = comment
+		self.master_division = "+-----------------------------------------------------------------------------------------------+"
+
+		self.set_welcome()
 
 		self.widths = []
 		for header_column in self.header_columns:
 			self.widths.append(len(header_column))
 
-		self.divider = self.make_divider(self.widths)
+		self.divider = self.make_divider(self.widths, "+")
 
-		self.print_comment()
+
+	def set_welcome(self):
+		self.max_width = len(self.master_division)
+		self.welcome_text =  "+-----------------------------------------------------------------------------------------------+\n"
+		self.welcome_text += "|   ____    _    _____ _____   ___ _   _    ____    ___     _______         _   ____    ___     |\n"
+		self.welcome_text += "|  / ___|  / \  |  ___| ____| |_ _| \ | |  / ___|  / \ \   / / ____| __   _/ | |___ \  / _ \    |\n"
+		self.welcome_text += "|  \___ \ / _ \ | |_  |  _|    | ||  \| | | |     / _ \ \ / /|  _|   \ \ / / |   __) || | | |   |\n"
+		self.welcome_text += "|   ___) / ___ \|  _| | |___   | || |\  | | |___ / ___ \ V / | |___   \ V /| |_ / __/ | |_| |   |\n"
+		self.welcome_text += "|  |____/_/   \_\_|   |_____| |___|_| \_|  \____/_/   \_\_/  |_____|   \_/ |_(_)_____(_)___/    |\n"
+		self.welcome_text += "|                                                                                               |\n"
+		self.welcome_text += "+-----------------------------------------------------------------------------------------------+\n"
+
+	def print_welcome(self):
+		print(self.welcome_text)
+
+
+	def close(self):
+		print(self.divider)
+		self.final = time.time()
+		cpu_time = self.final - self.start
+		formatted_time = time.strftime("%H:%M:%S", time.gmtime(cpu_time))
+		full_width = len(self.divider)
+		# print(f"Total time: {formatted_time} ({cpu_time} seconds)")
+		message = f"Total time: {formatted_time} ({cpu_time} seconds)"
+		print("|" + self.format_cell(message, full_width-2, "right") + "|")
+		print(self.master_division)
+		print()
 
 
 	def print_comment(self):
@@ -49,13 +78,22 @@ class ScreenPrinter():
 		"""
 		Print the top divider, a header row (using alignments), and a divider beneath.
 		"""
+
+		self.print_comment()
 		print(self.divider)
 
 		# Print header row
 		header_line = "| " + " | ".join(
 		    self.format_cell(col, w, align)
 		    for col, w, align in zip(self.header_columns, self.widths, self.header_align)
-		) + " |"
+		) #+ " |"
+		if self.max_width - len(header_line) - 1 > 1:
+			header_line += " |"
+			header_line += " " * (self.max_width - len(header_line) - 1)
+			header_line += "|"
+		else:
+			header_line += " " * (self.max_width - len(header_line) - 1)
+			header_line += "|"
 		print(header_line)
 		print(self.divider)
 
@@ -67,17 +105,30 @@ class ScreenPrinter():
 		row_line = "| " + " | ".join(
 			self.format_cell(val, w, align, text_format) 
 			for val, w, align, text_format in zip(values, self.widths, self.row_align, self.row_formats)
-		) + " |"
+		) #+ " |"
+		if self.max_width - len(row_line) - 1 > 1:
+			row_line += " |"
+			row_line += " " * (self.max_width - len(row_line) - 1)
+			row_line += "|"
+		else:
+			row_line += " " * (self.max_width - len(row_line) - 1)
+			row_line += "|"
 		print(row_line)
 
-
-	def close(self):
-		print(self.divider)
-		self.final = time.time()
-		cpu_time = self.final - self.start
-		formatted_time = time.strftime("%H:%M:%S", time.gmtime(cpu_time))
-		print(f"Total time: {formatted_time} ({cpu_time} seconds)")
-		print()
+	def make_divider(self, widths, middle="+"):
+		"""
+		Return a string for the horizontal divider line.
+		Example: +--------+--------+
+		"""
+		segments = [ "-" * (w + 2) for w in widths ]
+		# segments = [ "-" * 95 ]
+		divider = "+" + middle.join(segments) + "+"
+		if self.max_width - len(divider) - 1 > -1:
+			divider += "-" * (self.max_width - len(divider) - 1)
+			divider += "+"
+		else:
+			divider += "-" * (self.max_width - len(divider) - 2)
+		return divider
 
 
 	def format_cell(self, text, width, alignment, text_format=None):
@@ -98,14 +149,6 @@ class ScreenPrinter():
 		    if text_format != None: 
 		        text = text_format%text
 		    return f"{text:>{width}}"
-
-	def make_divider(self, widths, middle="+"):
-		"""
-		Return a string for the horizontal divider line.
-		Example: +--------+--------+
-		"""
-		segments = [ "-" * (w + 2) for w in widths ]
-		return "+" + middle.join(segments) + "+"
 
 
 if __name__ == '__main__':

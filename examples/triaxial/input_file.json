@@ -28,6 +28,7 @@
         "equilibrium": {
             "active": true,
             "dt_max": 36.0,
+            "ite_max": 10,
             "time_tol": 1e-09
         },
         "operation": {
@@ -46,10 +47,10 @@
             86400
         ]
     },
-    "body_forces": {
+    "body_force": {
         "gravity": -9.81,
-        "density": null,
-        "direction": null
+        "density": 0.0,
+        "direction": 2
     },
     "boundary_conditions": {
         "WEST": {
@@ -180,10 +181,5 @@
                 }
             }
         }
-    },
-    "body_force": {
-        "gravity": -9.81,
-        "density": 0.0,
-        "direction": 2
     }
 }
