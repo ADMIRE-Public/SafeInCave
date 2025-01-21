@@ -71,7 +71,6 @@ def calculate_convergence_data(displacement_data, mesh):
 
 	# Get indices of wall profile
 	wall_ind = np.unique(mesh.cells["line"].flatten())
-	print(df_coord)
 
 	# Get reordered data over cavern wall
 	x0, y0, z0, u, v, w = reorder_data(df_coord, u, v, w, wall_ind)
@@ -98,8 +97,6 @@ def calculate_convergence_data(displacement_data, mesh):
 	xf = x0 + expansion_factor*u[t_final]
 	yf = y0 + expansion_factor*v[t_final]
 	zf = z0 + expansion_factor*w[t_final]
-
-	print(zi)
 
 	return xi, zi, xf, zf, times, volumes
 

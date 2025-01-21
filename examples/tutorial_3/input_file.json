@@ -33,6 +33,7 @@
         "equilibrium": {
             "active": true,
             "dt_max": 21600.0,
+            "ite_max": 20,
             "time_tol": 0.0001
         },
         "operation": {
