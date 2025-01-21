@@ -42,6 +42,7 @@ class BuildInputFile():
 				"equilibrium": {
 					"active": False,
 					"dt_max": None,
+					"ite_max": None,
 					"time_tol": None
 				},
 					"operation": {
@@ -106,10 +107,11 @@ class BuildInputFile():
 	def set_solver(self, solver_settings):
 		self.input_file["solver_settings"] = solver_settings
 
-	def set_equilibrium_stage(self, active=False, dt=1, tol=1e-9):
+	def set_equilibrium_stage(self, active=False, dt=1, ite_max=20, tol=1e-9):
 		self.input_file["simulation_settings"]["equilibrium"] = {
 			"active": active,
 			"dt_max": dt,
+			"ite_max": ite_max,
 			"time_tol": tol
 		}
 

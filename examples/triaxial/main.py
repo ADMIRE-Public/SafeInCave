@@ -26,7 +26,7 @@ ifa.set_krylov_solver(method="cg", preconditioner="petsc_amg", rel_tol=1e-12)
 # ifa.set_direct_solver(method="petsc")
 
 # Create simulation_settings section
-ifa.set_equilibrium_stage(active=True, dt=0.01*hour, tol=1e-9)
+ifa.set_equilibrium_stage(active=True, dt=0.01*hour, tol=1e-9, ite_max=10)
 ifa.set_operation_stage(active=True, dt=0.25*hour, n_skip=4)
 
 
