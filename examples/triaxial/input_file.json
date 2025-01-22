@@ -26,15 +26,16 @@
     },
     "simulation_settings": {
         "equilibrium": {
-            "active": true,
+            "active": false,
             "dt_max": 36.0,
             "ite_max": 10,
             "time_tol": 1e-09
         },
         "operation": {
             "active": true,
-            "dt_max": 900.0,
-            "n_skip": 4
+            "dt_max": 360.0,
+            "n_skip": 4,
+            "hardening": false
         }
     },
     "time_settings": {
@@ -119,8 +120,8 @@
             "reference_position": 0.0,
             "values": [
                 4099999.9999999995,
-                12000000.0,
-                12000000.0,
+                16000000.0,
+                16000000.0,
                 6000000.0,
                 6000000.0
             ]

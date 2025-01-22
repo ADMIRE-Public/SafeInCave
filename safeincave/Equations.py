@@ -194,7 +194,7 @@ class LinearMomentum():
 
 
 
-	def initialize(self, solve_equilibrium=False, verbose=True, save_results=False):
+	def initialize(self, solve_equilibrium=False, verbose=True, save_results=False, calculate_hardening=True):
 		# Apply Neumann boundary condition
 		self.apply_neumann_bc(self.t0)
 
@@ -226,7 +226,8 @@ class LinearMomentum():
 			self.solve_equilibrium(verbose, save_results)
 
 		# Compute initial hardening
-		self.compute_initial_hardening(verbose)
+		if calculate_hardening:
+			self.compute_initial_hardening(verbose)
 
 		# Compute old ielastic strain rates
 		self.compute_eps_ie_rate()
