@@ -168,7 +168,7 @@
             "disCreep": {
                 "type": "DislocationCreep",
                 "active": true,
-                "equilibrium": false,
+                "equilibrium": true,
                 "parameters": {
                     "A": 1.9e-20,
                     "n": 3.0,
