@@ -321,7 +321,8 @@ def plot_results_panel(results_folder, stage="operation"):
 	elements = []
 	for elem_type in ["elastic", "viscoelastic", "inelastic"]:
 		for elem_name in input_file["constitutive_model"][elem_type].keys():
-			elements.append(elem_name)
+			if input_file["constitutive_model"][elem_type][elem_name]["active"] == True:
+				elements.append(elem_name)
 
 	dh = 0.3
 	h = 0.8

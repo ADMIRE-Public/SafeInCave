@@ -264,7 +264,7 @@ def plot_results_panel(results_folder, stage="operation"):
 
 	# Plot pressure schedule
 	fig = plt.figure(figsize=(16, 9))
-	fig.subplots_adjust(top=1.0, bottom=0.120, left=0.060, right=0.986, hspace=0.44, wspace=0.64)
+	fig.subplots_adjust(top=0.975, bottom=0.120, left=0.060, right=0.986, hspace=0.44, wspace=0.64)
 
 	gs = GridSpec(18, 19, figure=fig)
 	ax_logo = fig.add_subplot(gs[0:2,0:4])
@@ -318,7 +318,8 @@ def plot_results_panel(results_folder, stage="operation"):
 	elements = []
 	for elem_type in ["elastic", "viscoelastic", "inelastic"]:
 		for elem_name in input_file["constitutive_model"][elem_type].keys():
-			elements.append(elem_name)
+			if input_file["constitutive_model"][elem_type][elem_name]["active"] == True:
+				elements.append(elem_name)
 
 	dh = 0.3
 	h = 0.8
@@ -403,7 +404,7 @@ def plot_results_panel(results_folder, stage="operation"):
 	plt.show()
 
 def main():
-	plot_results_panel("case_0", "operation")
+	plot_results_panel("case_e_cr_vp", "operation")
 
 if __name__ == '__main__':
 	main()
