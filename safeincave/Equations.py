@@ -249,11 +249,12 @@ class LinearMomentum():
 		elem_names = []
 		for elem_type in mod_input_file.keys():
 			for elem_name in mod_input_file[elem_type].keys():
-				if mod_input_file[elem_type][elem_name]["equilibrium"] == False:
-					mod_input_file[elem_type][elem_name]["active"] = False
-				else:
-					elem_names.append(elem_name)
-					mod_input_file[elem_type][elem_name]["active"] = True
+				if mod_input_file[elem_type][elem_name]["active"] == True:
+					if mod_input_file[elem_type][elem_name]["equilibrium"] == False:
+						mod_input_file[elem_type][elem_name]["active"] = False
+					else:
+						elem_names.append(elem_name)
+						mod_input_file[elem_type][elem_name]["active"] = True
 		self.m = ConstitutiveModel(self.grid, mod_input_file)
 
 
@@ -335,16 +336,19 @@ class LinearMomentum():
 		# Copy elements active on the equilibrium stage to 
 		# the constitutive model of the operation stage
 		for i, elem in enumerate(self.input_file["constitutive_model"]["elastic"].keys()):
-			if self.input_file["constitutive_model"]["elastic"][elem]["equilibrium"] == True:
-				m_operation._elems_e[i] = self.m.elems_e[i]
+			if self.input_file["constitutive_model"]["elastic"][elem]["active"] == True:
+				if self.input_file["constitutive_model"]["elastic"][elem]["equilibrium"] == True:
+					m_operation._elems_e[i] = self.m.elems_e[i]
 
 		for i, elem in enumerate(self.input_file["constitutive_model"]["viscoelastic"].keys()):
-			if self.input_file["constitutive_model"]["viscoelastic"][elem]["equilibrium"] == True:
-				m_operation._elems_ve[i] = self.m.elems_ve[i]
+			if self.input_file["constitutive_model"]["viscoelastic"][elem]["active"] == True:
+				if self.input_file["constitutive_model"]["viscoelastic"][elem]["equilibrium"] == True:
+					m_operation._elems_ve[i] = self.m.elems_ve[i]
 
 		for i, elem in enumerate(self.input_file["constitutive_model"]["inelastic"].keys()):
-			if self.input_file["constitutive_model"]["inelastic"][elem]["equilibrium"] == True:
-				m_operation._elems_ie[i] = self.m.elems_ie[i]
+			if self.input_file["constitutive_model"]["inelastic"][elem]["active"] == True:
+				if self.input_file["constitutive_model"]["inelastic"][elem]["equilibrium"] == True:
+					m_operation._elems_ie[i] = self.m.elems_ie[i]
 
 		# Assign operation constitutive model to the internal object self.m
 		self.m = m_operation
