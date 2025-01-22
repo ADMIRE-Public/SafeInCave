@@ -244,26 +244,36 @@ class LinearMomentum():
 
 
 	def solve_equilibrium(self, verbose=True, save_results=False):
-
-		# Screen info
-		screen = ScreenPrinter(
-				header_columns = ["Time step", "Pseudo-time (h)", "Error time"],
-				header_align = "center",
-				row_formats = ["%s", "%.3f", "%.4e"],
-				row_align = ["center", "center", "center"],
-				comment = "Running equilibrium stage"
-		)
-		screen.print_header()
-
 		# Build constitutive model for equilibrium stage
 		mod_input_file = copy.deepcopy(self.input_file["constitutive_model"])
+		elem_names = []
 		for elem_type in mod_input_file.keys():
-			for elem in mod_input_file[elem_type].keys():
-				if mod_input_file[elem_type][elem]["equilibrium"] == False:
-					mod_input_file[elem_type][elem]["active"] = False
+			for elem_name in mod_input_file[elem_type].keys():
+				if mod_input_file[elem_type][elem_name]["equilibrium"] == False:
+					mod_input_file[elem_type][elem_name]["active"] = False
 				else:
-					mod_input_file[elem_type][elem]["active"] = True
+					elem_names.append(elem_name)
+					mod_input_file[elem_type][elem_name]["active"] = True
 		self.m = ConstitutiveModel(self.grid, mod_input_file)
+
+
+		# Screen info
+		screen = ScreenPrinter()
+		screen.set_header_columns(["Time step", "Pseudo-time (h)", "Error time"], "center")
+		screen.set_row_formats(["%s", "%.3f", "%.4e"], ["center", "center", "center"])
+		screen.start_timer()
+		screen.print_on_screen(screen.master_division_plus)
+		screen.print_on_screen(" ")
+		screen.print_on_screen(screen.master_division_plus)
+		screen.print_comment(" Equilibrium Stage", "center")
+		screen.print_on_screen(screen.master_division_plus)
+		screen.print_comment(" ")
+		screen.print_comment(" Constitutive model:")
+		for elem_name in elem_names:
+			screen.print_comment(f"          {elem_name}")
+		screen.print_comment(" ")
+		screen.print_header()
+		# screen.print(screen.divider)
 
 		self.compute_eps_ie_rate()
 
@@ -340,6 +350,7 @@ class LinearMomentum():
 		self.m = m_operation
 
 		screen.close()
+		# screen.save_log(equilibrium_output_folder)
 
 
 

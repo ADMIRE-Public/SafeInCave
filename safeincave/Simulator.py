@@ -60,6 +60,17 @@ class Simulator(object):
 		# os.makedirs(os.path.dirname(filename), exist_ok=True)
 		# utils.save_json(self.input_file_to_be_saved, filename)
 
+		# Screen info
+		ScreenPrinter.reset_instance()
+		self.screen = ScreenPrinter()
+		self.screen.print_welcome()
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Finite element (FE) simulator.")
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Results folder:")
+		self.screen.print_comment(f"          {self.output_folder}")
+		self.screen.print_comment(" ")
+
 	def __save_input_file(self, filename):
 		os.makedirs(os.path.dirname(filename), exist_ok=True)
 		utils.save_json(self.input_file_to_be_saved, filename)
@@ -114,17 +125,31 @@ class Simulator(object):
 		
 		if solve_operation:
 
-			# Screen info
-			screen = ScreenPrinter(
-					header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
-					header_align = "center",
-					row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
-					row_align = ["center", "center", "center", "center", "center", "center"],
-					comment = "Running operation stage"
-			)
-			screen.print_welcome()
+			# header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
+			# header_align = "center",
+			# row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
+			# row_align = ["center", "center", "center", "center", "center", "center"],
 
-			screen.print_header()
+			self.screen.start_timer()
+			self.screen.set_header_columns(["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"], "center")
+			self.screen.set_row_formats(["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"], ["center" for i in range(6)])
+
+			elem_names = []
+			for elem_type in self.input_file["constitutive_model"].keys():
+				for elem_name in self.input_file["constitutive_model"][elem_type].keys():
+					if self.input_file["constitutive_model"][elem_type][elem_name]["active"] == True:
+						elem_names.append(elem_name)
+
+			self.screen.print_on_screen(" ")
+			self.screen.print_on_screen(self.screen.master_division_plus)
+			self.screen.print_comment(" Operation Stage", "center")
+			self.screen.print_on_screen(self.screen.master_division_plus)
+			self.screen.print_comment(" ")
+			self.screen.print_comment(" Constitutive model:")
+			for elem_name in elem_names:
+				self.screen.print_comment(f"          {elem_name}")
+			self.screen.print_comment(" ")
+			self.screen.print_header()
 
 			# Save initial solution
 			self.eq_mom.save_solution(t)
@@ -152,10 +177,11 @@ class Simulator(object):
 						screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "Save"]
 					else:
 						screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "|"]
-					screen.print_row(screen_output_row)
+					self.screen.print_row(screen_output_row)
 
 				n_step += 1
 
-			screen.close()
+			self.screen.close()
+			self.screen.save_log(self.output_folder)
 
 

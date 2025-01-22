@@ -39,7 +39,8 @@
         "operation": {
             "active": true,
             "dt_max": 7200,
-            "n_skip": 5
+            "n_skip": 5,
+            "hardening": true
         }
     },
     "time_settings": {

@@ -26,7 +26,7 @@
     },
     "simulation_settings": {
         "equilibrium": {
-            "active": false,
+            "active": true,
             "dt_max": 36.0,
             "ite_max": 10,
             "time_tol": 1e-09
@@ -155,7 +155,7 @@
             "disCreep": {
                 "type": "DislocationCreep",
                 "active": true,
-                "equilibrium": false,
+                "equilibrium": true,
                 "parameters": {
                     "A": 1.9e-20,
                     "n": 3.0,
