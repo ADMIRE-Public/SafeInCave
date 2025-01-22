@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 from Utils import save_json
+from ScreenOutput import ScreenPrinter
+import time
 import os
 
 sec = 1.
@@ -399,12 +401,31 @@ model_elem_dict = {
 
 class MaterialPointModel:
 	def __init__(self, input_file, bName_sxx, bName_syy, bName_szz):
-		self.load_time_list(input_file)
-		self.build_sigmas(input_file, bName_sxx, bName_syy, bName_szz)
-		self.build_model(input_file, bName_sxx, bName_syy, bName_szz)
 
 		self.results_folder = os.path.join(input_file["output"]["path"], "material_point")
 		os.makedirs(self.results_folder, exist_ok=True)
+
+		# Screen info
+		ScreenPrinter.reset_instance()
+		self.screen = ScreenPrinter()
+		self.screen.start_timer()
+		self.screen.set_header_columns(["Running model", "Simulation time (s)"], "center")
+		self.screen.set_row_formats(["%s", "%.5f"], ["center", "center"])
+		self.screen.print_welcome()
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Material point (MP) model for triaxial test.")
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Results folder:")
+		self.screen.print_comment(f"          {self.results_folder}")
+		self.screen.print_comment(" ")
+
+		self.load_time_list(input_file)
+		self.build_sigmas(input_file, bName_sxx, bName_syy, bName_szz)
+
+		self.screen.print_comment(" Constitutive model:")
+		self.build_model(input_file, bName_sxx, bName_syy, bName_szz)
+
+		self.screen.print_header()
 
 	def build_model(self, input_file, bName_sxx, bName_syy, bName_szz):
 		self.model_element_names = []
@@ -416,18 +437,23 @@ class MaterialPointModel:
 					model_object = model_elem_dict[element_type]
 					self.model_elements.append(model_object(input_file, element_name, self.time_list, self.sigmas))
 					self.model_element_names.append(element_name)
+					self.screen.print_comment(f"          {element_name}")
+		self.screen.print_comment(" ")
 
 	def run(self):
 		# Compute total strain
 		self.eps_tot = 0
 		self.results = {}
 		for name, model_element in zip(self.model_element_names, self.model_elements):
+			start = time.time()
 			model_element.compute_strains()
 			self.results[name] = {
 				"epsilon_3": list(model_element.eps[:,0,0].copy()),
 				"epsilon_1": list(model_element.eps[:,2,2].copy())
 			}
 			self.eps_tot += model_element.eps.copy()
+			final = time.time()
+			self.screen.print_row([name, final-start])
 		self.results["total"] = {
 			"epsilon_3": list(self.eps_tot[:,0,0]),
 			"epsilon_1": list(self.eps_tot[:,2,2])
@@ -438,6 +464,10 @@ class MaterialPointModel:
 		}
 		self.results["time"] = list(self.time_list)
 		self.save_solution()
+
+		self.screen.close()
+
+		self.screen.save_log(self.results_folder)
 
 	def save_solution(self):
 		file_name = os.path.join(self.results_folder, "results.json")

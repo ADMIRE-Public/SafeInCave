@@ -28,12 +28,14 @@
         "equilibrium": {
             "active": true,
             "dt_max": 1800.0,
+            "ite_max": 20,
             "time_tol": 0.0001
         },
         "operation": {
             "active": true,
             "dt_max": 180.0,
-            "n_skip": 4
+            "n_skip": 4,
+            "hardening": true
         }
     },
     "time_settings": {
@@ -46,10 +48,10 @@
             86400
         ]
     },
-    "body_forces": {
+    "body_force": {
         "gravity": -9.81,
-        "density": null,
-        "direction": null
+        "density": 2000,
+        "direction": 2
     },
     "boundary_conditions": {
         "West": {
@@ -193,10 +195,5 @@
                 }
             }
         }
-    },
-    "body_force": {
-        "gravity": -9.81,
-        "density": 2000,
-        "direction": 2
     }
 }

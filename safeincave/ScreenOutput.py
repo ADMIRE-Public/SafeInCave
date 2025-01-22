@@ -18,28 +18,31 @@ Useful to read vtk files and post-process results.
 # the License.
 
 import time
+import os
 
+def singleton(cls):
+	instances = {}
+	def get_instance(*args, **kwargs):
+		if cls not in instances:
+			instances[cls] = cls(*args, **kwargs)
+		return instances[cls]
+	def reset_instance():
+		instances.pop(cls, None)
+	get_instance.reset_instance = reset_instance
+	return get_instance
+
+@singleton
 class ScreenPrinter():
-	def __init__(self, header_columns, header_align, row_formats, row_align, comment=None):
-		self.start = time.time()
-		self.header_columns = header_columns
-		self.header_align = [header_align for i in range(len(header_columns))]
-		self.row_formats = row_formats
-		self.row_align = row_align
-		self.comment = comment
-		self.master_division = "+-----------------------------------------------------------------------------------------------+"
+	def __init__(self):
+		self.master_division_plus = "+-----------------------------------------------------------------------------------------------+"
+		self.master_division = "-----------------------------------------------------------------------------------------------"
+
+		self.log = ""
 
 		self.set_welcome()
 
-		self.widths = []
-		for header_column in self.header_columns:
-			self.widths.append(len(header_column))
-
-		self.divider = self.make_divider(self.widths, "+")
-
-
 	def set_welcome(self):
-		self.max_width = len(self.master_division)
+		self.max_width = len(self.master_division_plus)
 		self.welcome_text =  "+-----------------------------------------------------------------------------------------------+\n"
 		self.welcome_text += "|   ____    _    _____ _____   ___ _   _    ____    ___     _______         _   ____    ___     |\n"
 		self.welcome_text += "|  / ___|  / \  |  ___| ____| |_ _| \ | |  / ___|  / \ \   / / ____| __   _/ | |___ \  / _ \    |\n"
@@ -47,42 +50,58 @@ class ScreenPrinter():
 		self.welcome_text += "|   ___) / ___ \|  _| | |___   | || |\  | | |___ / ___ \ V / | |___   \ V /| |_ / __/ | |_| |   |\n"
 		self.welcome_text += "|  |____/_/   \_\_|   |_____| |___|_| \_|  \____/_/   \_\_/  |_____|   \_/ |_(_)_____(_)___/    |\n"
 		self.welcome_text += "|                                                                                               |\n"
-		self.welcome_text += "+-----------------------------------------------------------------------------------------------+\n"
+		self.welcome_text += "+-----------------------------------------------------------------------------------------------+"
+
+	def set_header_columns(self, header_columns, align):
+		self.header_columns = header_columns
+		self.header_align = [align for i in range(len(header_columns))]
+		self.widths = []
+		for header_column in self.header_columns:
+			self.widths.append(len(header_column))
+		self.divider = self.make_divider(self.widths, "+")
+
+	def set_row_formats(self, row_formats, row_align):
+		self.row_formats = row_formats
+		self.row_align = row_align
+
+	def start_timer(self):
+		self.start = time.time()
+
+	def add_to_log(self, message):
+		self.log += "\n" + message
 
 	def print_welcome(self):
-		print(self.welcome_text)
-
+		self.print_on_screen(self.welcome_text)
 
 	def close(self):
-		print(self.divider)
+		self.print_on_screen(self.divider)
 		self.final = time.time()
 		cpu_time = self.final - self.start
 		formatted_time = time.strftime("%H:%M:%S", time.gmtime(cpu_time))
-		full_width = len(self.divider)
-		# print(f"Total time: {formatted_time} ({cpu_time} seconds)")
-		message = f"Total time: {formatted_time} ({cpu_time} seconds)"
-		print("|" + self.format_cell(message, full_width-2, "right") + "|")
-		print(self.master_division)
-		print()
+		full_width = len(self.master_division_plus)
+		message = self.format_cell(f"Total time: {formatted_time} ({cpu_time} seconds)", full_width, "right")
+		self.print_on_screen(message)
 
+	def save_log(self, output_folder):
+		with open(os.path.join(output_folder, "log.txt"), 'w') as output:
+			output.write(self.log)
 
-	def print_comment(self):
-		if self.comment != None:
-			full_width = len(self.divider)
-			print(self.make_divider(self.widths, "-"))
-			print("|" + self.format_cell(self.comment, full_width-2, "left") + "|")
-			# print(self.comment)
+	def print_comment(self, comment, align="left"):
+		if comment != None:
+			full_width = len(self.master_division_plus)
+			message = "|" + self.format_cell(comment, full_width-2, align) + "|"
+			self.print_on_screen(message)
 
+	def print_on_screen(self, raw_comment):
+		print(raw_comment)
+		self.add_to_log(raw_comment)
 
 	def print_header(self):
 		"""
 		Print the top divider, a header row (using alignments), and a divider beneath.
 		"""
-
-		self.print_comment()
-		print(self.divider)
-
 		# Print header row
+		self.print_on_screen(self.divider)
 		header_line = "| " + " | ".join(
 		    self.format_cell(col, w, align)
 		    for col, w, align in zip(self.header_columns, self.widths, self.header_align)
@@ -94,8 +113,8 @@ class ScreenPrinter():
 		else:
 			header_line += " " * (self.max_width - len(header_line) - 1)
 			header_line += "|"
-		print(header_line)
-		print(self.divider)
+		self.print_on_screen(header_line)
+		self.print_on_screen(self.divider)
 
 
 	def print_row(self, values):
@@ -113,7 +132,7 @@ class ScreenPrinter():
 		else:
 			row_line += " " * (self.max_width - len(row_line) - 1)
 			row_line += "|"
-		print(row_line)
+		self.print_on_screen(row_line)
 
 	def make_divider(self, widths, middle="+"):
 		"""
@@ -121,7 +140,6 @@ class ScreenPrinter():
 		Example: +--------+--------+
 		"""
 		segments = [ "-" * (w + 2) for w in widths ]
-		# segments = [ "-" * 95 ]
 		divider = "+" + middle.join(segments) + "+"
 		if self.max_width - len(divider) - 1 > -1:
 			divider += "-" * (self.max_width - len(divider) - 1)

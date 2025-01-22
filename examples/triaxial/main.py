@@ -27,7 +27,7 @@ ifa.set_krylov_solver(method="cg", preconditioner="petsc_amg", rel_tol=1e-12)
 # ifa.set_direct_solver(method="petsc")
 
 # Create simulation_settings section
-ifa.set_equilibrium_stage(active=False, dt=0.01*hour, tol=1e-9, ite_max=10)
+ifa.set_equilibrium_stage(active=True, dt=0.01*hour, tol=1e-9, ite_max=10)
 ifa.set_operation_stage(active=True, dt=0.1*hour, n_skip=4, hardening=False)
 
 
@@ -60,7 +60,7 @@ ifa.add_elastic_element(name="Spring_0", E=102*GPa, nu=0.3, active=True, equilib
 ifa.add_viscoelastic_element(name="KelvinVoigt_0", E=10*GPa, nu=0.32, eta=105e11, active=True, equilibrium=True)
 
 # Add inelastic elements
-ifa.add_dislocation_creep_element(name="disCreep", A=1.9e-20, n=3.0, Q=51600, T=298, active=True, equilibrium=False)
+ifa.add_dislocation_creep_element(name="disCreep", A=1.9e-20, n=3.0, Q=51600, T=298, active=True, equilibrium=True)
 
 ifa.add_desai_element(	name="desai",
 						mu_1=5.3665857009859815e-11,
@@ -90,3 +90,5 @@ sim.run()
 # Build and run material point model
 model = MaterialPointModel(ifa.input_file, "EAST", "NORTH", "TOP")
 model.run()
+
+

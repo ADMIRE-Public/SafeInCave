@@ -75,7 +75,6 @@ def create_input_file():
 	ovb_thickness, salt_thickness, hanging_wall = get_geometry_parameters(path_to_grid)
 	cavern_roof = ovb_thickness + hanging_wall
 	p_roof = 0 + salt_density*g*hanging_wall + ovb_density*g*ovb_thickness
-	print(p_roof/MPa, 0.2*p_roof/MPa, 0.8*p_roof/MPa)
 
 	# Pressure at the top of the salt layer (bottom of overburden)
 	p_top = ovb_density*g*ovb_thickness
