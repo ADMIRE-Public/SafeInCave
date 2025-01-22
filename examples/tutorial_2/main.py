@@ -90,7 +90,7 @@ ifa.add_dislocation_creep_element(
 						Q=51600,
 						T=298,
 						active=True,
-						equilibrium=False
+						equilibrium=True
 )
 
 ifa.add_desai_element(
