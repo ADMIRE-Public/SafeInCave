@@ -37,7 +37,7 @@ class Simulator(object):
 		Dictionary extracted from the JSON file.
 	"""
 	def __init__(self, input_file):
-		self.input_file = input_file
+		self.input_file = copy.deepcopy(input_file)
 
 		# This is input_file to be saved
 		self.input_file_to_be_saved = copy.deepcopy(input_file)
@@ -70,6 +70,7 @@ class Simulator(object):
 		Runs transient simulation.
 		"""
 		solve_equilibrium = self.input_file["simulation_settings"]["equilibrium"]["active"]
+		solve_operation = self.input_file["simulation_settings"]["operation"]["active"]
 
 		# Save input file
 		self.__save_input_file(os.path.join(self.output_folder, "operation", "input_file.json"))
@@ -77,10 +78,10 @@ class Simulator(object):
 			self.__save_input_file(os.path.join(self.output_folder, "equilibrium", "input_file.json"))
 
 		# Run simulation
-		self.run_simulation(solve_equilibrium=solve_equilibrium, verbose=True)
+		self.run_simulation(solve_operation, solve_equilibrium, verbose=True)
 
 
-	def run_simulation(self, solve_equilibrium=False, verbose=True):
+	def run_simulation(self, solve_operation=True, solve_equilibrium=False, verbose=True):
 		"""
 		Runs simulation **without** solving the equilibrium condition.
 
@@ -94,16 +95,6 @@ class Simulator(object):
 			Shows real time simulation info on screen.
 		"""
 
-		# Screen info
-		screen = ScreenPrinter(
-				header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
-				header_align = "center",
-				row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
-				row_align = ["center", "center", "center", "center", "center", "center"],
-				comment = "Running operation stage"
-		)
-		screen.print_welcome()
-
 
 		# Pseudo time
 		t = self.time_list[0]
@@ -115,41 +106,56 @@ class Simulator(object):
 		# Read number of time steps to skip before saving results
 		n_skip = self.input_file["simulation_settings"]["operation"]["n_skip"]
 
+		# Shoud calculate initial hardening such that Fvp=0 everywhere?
+		hardening = self.input_file["simulation_settings"]["operation"]["hardening"]
+
 		# Perform initial computations
-		self.eq_mom.initialize(solve_equilibrium=solve_equilibrium, verbose=verbose, save_results=True)
+		self.eq_mom.initialize(solve_equilibrium=solve_equilibrium, verbose=verbose, save_results=True, calculate_hardening=hardening)
 		
-		screen.print_header()
+		if solve_operation:
 
-		# Save initial solution
-		self.eq_mom.save_solution(t)
+			# Screen info
+			screen = ScreenPrinter(
+					header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
+					header_align = "center",
+					row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
+					row_align = ["center", "center", "center", "center", "center", "center"],
+					comment = "Running operation stage"
+			)
+			screen.print_welcome()
 
-		# Transient simulation
-		n_step = 1
-		while t < t_final:
+			screen.print_header()
 
-			# Increment time
-			t += dt
+			# Save initial solution
+			self.eq_mom.save_solution(t)
 
-			# Solve
-			self.eq_mom.solve(t, dt)
+			# Transient simulation
+			n_step = 1
+			while t < t_final:
+
+				# Increment time
+				t += dt
+
+				# Solve
+				self.eq_mom.solve(t, dt)
 
 
-			# Save displacement field
-			save_solution = False
-			if n_step % n_skip == 0 or n_step == 1:
-				self.eq_mom.save_solution(t)
-				save_solution = True
+				# Save displacement field
+				save_solution = False
+				if n_step % n_skip == 0 or n_step == 1:
+					self.eq_mom.save_solution(t)
+					save_solution = True
 
-			# Print stuff
-			if verbose:
-				if save_solution:
-					screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "Save"]
-				else:
-					screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "|"]
-				screen.print_row(screen_output_row)
+				# Print stuff
+				if verbose:
+					if save_solution:
+						screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "Save"]
+					else:
+						screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "|"]
+					screen.print_row(screen_output_row)
 
-			n_step += 1
+				n_step += 1
 
-		screen.close()
+			screen.close()
 
 

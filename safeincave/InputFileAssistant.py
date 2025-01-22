@@ -48,7 +48,8 @@ class BuildInputFile():
 					"operation": {
 					"active": False,
 					"dt_max": None,
-					"n_skip": None
+					"n_skip": None,
+					"hardening": True
 				}
 			},
 			"time_settings": {
@@ -115,11 +116,12 @@ class BuildInputFile():
 			"time_tol": tol
 		}
 
-	def set_operation_stage(self, active=False, dt=1, n_skip=1):
+	def set_operation_stage(self, active=False, dt=1, n_skip=1, hardening=True):
 		self.input_file["simulation_settings"]["operation"] = {
 			"active": active,
 			"dt_max": dt,
-			"n_skip": n_skip
+			"n_skip": n_skip,
+			"hardening": hardening
 		}
 
 

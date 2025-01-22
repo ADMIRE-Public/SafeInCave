@@ -4,6 +4,7 @@ import numpy as np
 sys.path.append(os.path.join("..", "..", "safeincave"))
 from InputFileAssistant import BuildInputFile
 from Simulator import Simulator
+from TriaxialSolution import MaterialPointModel
 
 # Useful units
 hour = 60*60
@@ -26,8 +27,8 @@ ifa.set_krylov_solver(method="cg", preconditioner="petsc_amg", rel_tol=1e-12)
 # ifa.set_direct_solver(method="petsc")
 
 # Create simulation_settings section
-ifa.set_equilibrium_stage(active=True, dt=0.01*hour, tol=1e-9, ite_max=10)
-ifa.set_operation_stage(active=True, dt=0.25*hour, n_skip=4)
+ifa.set_equilibrium_stage(active=False, dt=0.01*hour, tol=1e-9, ite_max=10)
+ifa.set_operation_stage(active=True, dt=0.1*hour, n_skip=4, hardening=False)
 
 
 # Create body_forces section
@@ -48,11 +49,10 @@ ifa.add_dirichlet(name="BOTTOM", values=list(np.zeros(len(time_list))), componen
 # Add Neumann boundary condition
 ifa.add_neumann(name="EAST", values=[4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa])
 ifa.add_neumann(name="NORTH", values=[4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa])
-ifa.add_neumann(name="TOP", values=[4.1*MPa, 12*MPa, 12*MPa, 6*MPa, 6*MPa])
+ifa.add_neumann(name="TOP", values=[4.1*MPa, 16*MPa, 16*MPa, 6*MPa, 6*MPa])
 
 
 # Define constitutive model
-
 # Add elastic elements
 ifa.add_elastic_element(name="Spring_0", E=102*GPa, nu=0.3, active=True, equilibrium=True)
 
@@ -81,10 +81,12 @@ ifa.add_desai_element(	name="desai",
 # Save input_file.json
 ifa.save_input_file("input_file.json")
 
-# Build simulator
-sim = Simulator(ifa.input_file)
 
-# Run simulation
+# Build and run FEM simulator
+sim = Simulator(ifa.input_file)
 sim.run()
 
 
+# Build and run material point model
+model = MaterialPointModel(ifa.input_file, "EAST", "NORTH", "TOP")
+model.run()

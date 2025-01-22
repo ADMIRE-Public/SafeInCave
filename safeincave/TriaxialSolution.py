@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from Utils import save_json
 import os
 
 sec = 1.
@@ -231,7 +232,7 @@ class ViscoplasticDesai(BaseSolution):
 				self.Fvp_list.append(self.Fvp)
 				self.qsi_list.append(self.qsi)
 
-			# print(self.alpha, self.Fvp, ite, strain_rate.flatten()[[0,4,8]])
+			# print(self.alpha, self.Fvp, ite)
 
 		self.eps = np.array(self.eps)
 		self.alphas = np.array(self.alphas)
@@ -402,12 +403,14 @@ class MaterialPointModel:
 		self.build_sigmas(input_file, bName_sxx, bName_syy, bName_szz)
 		self.build_model(input_file, bName_sxx, bName_syy, bName_szz)
 
+		self.results_folder = os.path.join(input_file["output"]["path"], "material_point")
+		os.makedirs(self.results_folder, exist_ok=True)
+
 	def build_model(self, input_file, bName_sxx, bName_syy, bName_szz):
 		self.model_element_names = []
 		self.model_elements = []
 		for element_group in input_file["constitutive_model"].keys():
 			for element_name in input_file["constitutive_model"][element_group].keys():
-				print(element_name)
 				if input_file["constitutive_model"][element_group][element_name]["active"] == True:
 					element_type = input_file["constitutive_model"][element_group][element_name]["type"]
 					model_object = model_elem_dict[element_type]
@@ -417,20 +420,28 @@ class MaterialPointModel:
 	def run(self):
 		# Compute total strain
 		self.eps_tot = 0
-		self.epsilon = {}
+		self.results = {}
 		for name, model_element in zip(self.model_element_names, self.model_elements):
 			model_element.compute_strains()
-			self.epsilon[name] = {
-				"radial": list(model_element.eps[:,0,0].copy()),
-				"axial": list(model_element.eps[:,2,2].copy())
+			self.results[name] = {
+				"epsilon_3": list(model_element.eps[:,0,0].copy()),
+				"epsilon_1": list(model_element.eps[:,2,2].copy())
 			}
 			self.eps_tot += model_element.eps.copy()
-		self.epsilon["Total"] = {
-			"radial": list(self.eps_tot[:,0,0]),
-			"axial": list(self.eps_tot[:,2,2])
+		self.results["total"] = {
+			"epsilon_3": list(self.eps_tot[:,0,0]),
+			"epsilon_1": list(self.eps_tot[:,2,2])
 		}
+		self.results["stress"] = {
+			"sigma_3": list(self.sigmas[:,0]),
+			"sigma_1": list(self.sigmas[:,2])
+		}
+		self.results["time"] = list(self.time_list)
+		self.save_solution()
 
-	# def gather_solution(self):
+	def save_solution(self):
+		file_name = os.path.join(self.results_folder, "results.json")
+		save_json(self.results, file_name)
 
 	def load_time_list(self, input_file):
 		t_final = input_file["time_settings"]["time_list"][-1]
