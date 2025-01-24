@@ -238,4 +238,18 @@ class BuildInputFile():
 			}
 		}
 
+	def build_custom_field(self, fun):
+		"""
+		fun = fun(x, y, z)
+		"""
+		n_elems = self.grid.mesh.num_cells()
+		field = np.zeros(n_elems)
+		for cell in do.cells(self.grid.mesh):
+			centroid = cell.midpoint()
+			x = centroid.x()
+			y = centroid.y()
+			z = centroid.z()
+			field[cell.index()] = fun(x, y, z)
+		return field
+
 
