@@ -16,7 +16,7 @@
         ]
     },
     "output": {
-        "path": "output/case_0"
+        "path": "output/case_T57"
     },
     "solver_settings": {
         "type": "KrylovSolver",
@@ -160,7 +160,7 @@
                     "A": 1.9e-20,
                     "n": 3.0,
                     "Q": 51600,
-                    "T": 298
+                    "T": 330
                 }
             },
             "desai": {
