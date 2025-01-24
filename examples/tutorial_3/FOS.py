@@ -40,10 +40,8 @@ dilation_points = np.array([
 				[72.50688705234158, 29.289580514208392],
 				[76.03305785123966, 30.202976995940464],
 				[79.33884297520659, 30.994587280108256] ])
-I1 = dilation_points[:,0]
-J2_sqrt = dilation_points[:,1]
-p_points = I1/3
-q_points = J2_sqrt*np.sqrt(3)
+p_points = dilation_points[:,0]/3
+q_points = dilation_points[:,1]*np.sqrt(3)
 
 
 def save_dfs(case_folder):
@@ -113,7 +111,7 @@ def main():
 	case_folder = os.path.join("output", "case_0", "operation")
 
 	# Load mesh
-	mesh_folder = os.path.join("..", "..", "grids", "cavern_irregular")
+	mesh_folder = os.path.join("..", "..", "grids", "cavern_overburden")
 	g = GridHandlerGMSH("geom", mesh_folder)
 
 	P0 = do.FunctionSpace(g.mesh, "DG", 0)
