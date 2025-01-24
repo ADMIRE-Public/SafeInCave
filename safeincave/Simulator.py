@@ -50,7 +50,8 @@ class Simulator(object):
 		theta = input_file["time_settings"]["theta"]
 	
 		# Create mesh
-		self.grid = GridHandlerGMSH(input_file["grid"]["name"], input_file["grid"]["path"])
+		grid_path = input_file["grid"]["path"]
+		self.grid = GridHandlerGMSH(input_file["grid"]["name"], grid_path)
 
 		# Linear momentum balance equation
 		self.eq_mom = LinearMomentum(self.grid, theta, self.input_file)
@@ -66,9 +67,29 @@ class Simulator(object):
 		self.screen.print_welcome()
 		self.screen.print_comment(" ")
 		self.screen.print_comment(" Finite element (FE) simulator.")
+
 		self.screen.print_comment(" ")
 		self.screen.print_comment(" Results folder:")
 		self.screen.print_comment(f"          {self.output_folder}")
+
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Mesh info:")
+		self.screen.print_comment(f"          Location: {grid_path}")
+		self.screen.print_comment(f"          Number of elements: {self.grid.mesh.num_cells()}")
+		self.screen.print_comment(f"          Number of nodes: {self.grid.mesh.num_vertices()}")
+
+		solver_type = input_file["solver_settings"]["type"]
+		solver_method = input_file["solver_settings"]["method"]
+
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Solver info:")
+		self.screen.print_comment(f"          Type: {solver_type}")
+		self.screen.print_comment(f"          Method: {solver_method}")
+		if solver_type == "KrylovSolver":
+			solver_prec = input_file["solver_settings"]["preconditioner"]
+			solver_tol = input_file["solver_settings"]["relative_tolerance"]
+			self.screen.print_comment(f"          Preconditioner: {solver_prec}")
+			self.screen.print_comment(f"          Tolerance: {solver_tol}")
 		self.screen.print_comment(" ")
 
 	def __save_input_file(self, filename):
