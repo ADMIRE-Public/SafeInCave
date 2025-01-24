@@ -60,7 +60,8 @@ ifa.add_elastic_element(name="Spring_0", E=102*GPa, nu=0.3, active=True, equilib
 ifa.add_viscoelastic_element(name="KelvinVoigt_0", E=10*GPa, nu=0.32, eta=105e11, active=True, equilibrium=True)
 
 # Add inelastic elements
-ifa.add_dislocation_creep_element(name="disCreep", A=1.9e-20, n=3.0, Q=51600, T=298, active=True, equilibrium=True)
+T_sample = 25+273
+ifa.add_dislocation_creep_element(name="disCreep", A=1.9e-20, n=3.0, Q=51600, T=T_sample, active=True, equilibrium=True)
 
 ifa.add_desai_element(	name="desai",
 						mu_1=5.3665857009859815e-11,

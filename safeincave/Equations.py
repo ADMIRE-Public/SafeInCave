@@ -74,18 +74,13 @@ class LinearMomentum():
 
 		self.sigma = do.Function(self.DG_3x3)
 		self.sigma_0 = do.Function(self.DG_3x3)
-		self.sigma_smooth = do.Function(self.DG_3x3)
-		self.sigma_smooth.rename("Stress", "MPa")
+		self.sigma.rename("Stress", "MPa")
 
 		self.sigma_v = do.Function(self.DG_1x1)
 		self.sigma_v.rename("Mean stress", "MPa")
-		self.sigma_v_smooth = do.Function(self.DG_1x1)
-		self.sigma_v_smooth.rename("Mean stress", "MPa")
 
 		self.von_mises = do.Function(self.DG_1x1)
 		self.von_mises.rename("Von Mises stress", "MPa")
-		self.von_mises_smooth = do.Function(self.DG_1x1)
-		self.von_mises_smooth.rename("Von Mises stress", "MPa")
 
 		# Define variational problem
 		self.du = do.TrialFunction(self.CG_3x1)
@@ -135,23 +130,13 @@ class LinearMomentum():
 		# Create output file
 		self.u_vtk = do.File(os.path.join(output_folder, "vtk", "displacement", "displacement.pvd"))
 		self.stress_vtk = do.File(os.path.join(output_folder, "vtk", "stress", "stress.pvd"))
-		self.stress_smooth_vtk = do.File(os.path.join(output_folder, "vtk", "stress_smooth", "stress_smooth.pvd"))
 
 		self.q_vtk = do.File(os.path.join(output_folder, "vtk", "q", "q.pvd"))
-		self.qs_vtk = do.File(os.path.join(output_folder, "vtk", "q_smooth", "q_smooth.pvd"))
 		self.p_vtk = do.File(os.path.join(output_folder, "vtk", "p", "p.pvd"))
-		self.ps_vtk = do.File(os.path.join(output_folder, "vtk", "p_smooth", "p_smooth.pvd"))
 
 
 
 	def save_solution(self, t):
-		self.u_vtk << (self.u, t)
-		self.stress_vtk << (self.sigma, t)
-
-		stress_np = self.sigma.vector()[:].reshape((self.n_elems, 3, 3))
-		# self.sigma_smooth.vector()[:] = self.apply_smoother(stress_np)
-		self.sigma_smooth.vector()[:] = self.apply_smoother(self.stress_torch.numpy())
-		self.stress_smooth_vtk << (self.sigma_smooth, t)
 
 		MPa = 1e6
 		sxx = self.stress_torch[:,0,0]/MPa
@@ -168,18 +153,16 @@ class LinearMomentum():
 		q = np.sqrt(3*J2)
 		p = I1/3
 
-		self.von_mises_smooth.vector()[:] = self.grid.smoother.dot(q.numpy())
-		self.qs_vtk << (self.von_mises_smooth, t)
-
-		self.von_mises.vector()[:] = q
+		self.von_mises.vector()[:] = self.grid.smoother.dot(q.numpy())
 		self.q_vtk << (self.von_mises, t)
 
-		self.sigma_v_smooth.vector()[:] = self.grid.smoother.dot(p.numpy())
-		self.ps_vtk << (self.sigma_v_smooth, t)
-
-		self.sigma_v.vector()[:] = p
+		self.sigma_v.vector()[:] = self.grid.smoother.dot(p.numpy())
 		self.p_vtk << (self.sigma_v, t)
 
+		self.sigma.vector()[:] = self.apply_smoother(self.stress_torch.numpy())
+		self.stress_vtk << (self.sigma, t)
+
+		self.u_vtk << (self.u, t)
 
 
 	def apply_smoother(self, field_np):

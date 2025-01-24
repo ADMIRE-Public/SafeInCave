@@ -24,7 +24,7 @@ def create_input_file():
 	ifa = BuildInputFile()
 
 	# Create input_grid section
-	path_to_grid = os.path.join("..", "..", "grids", "cavern_overburden")
+	path_to_grid = os.path.join("..", "..", "grids", "cavern_overburden_coarse")
 	ifa.set_input_grid(path_to_grid, "geom")
 
 	# Create output section
@@ -33,10 +33,12 @@ def create_input_file():
 	# Create solver settings section
 	# ifa.set_krylov_solver(method="cg", preconditioner="petsc_amg", rel_tol=1e-12)
 	ifa.set_krylov_solver(method="cg", preconditioner="ilu", rel_tol=1e-12)
+	# ifa.set_krylov_solver(method="bicgstab", preconditioner="ilu", rel_tol=1e-12)
+	# ifa.set_krylov_solver(method="bicgstab", preconditioner="petsc_amg", rel_tol=1e-12)
 	# ifa.set_direct_solver(method="petsc")
 
 	# Create simulation_settings section
-	ifa.set_equilibrium_stage(active=True, dt=0.25*day, tol=1e-4)
+	ifa.set_equilibrium_stage(active=True, dt=0.1*day, tol=1e-4, ite_max=50)
 	ifa.set_operation_stage(active=True, dt=2*hour, n_skip=5)
 
 	# Define densities
@@ -104,13 +106,21 @@ def create_input_file():
 							equilibrium=False
 	)
 
+	# Build geothermal profile
+	def geothermal_grad(x, y, z):
+		km = 1000
+		dTdZ = 27/km
+		T_surface = 20 + 273
+		return T_surface - dTdZ*z
+	T_profile = ifa.build_custom_field(geothermal_grad)
+
 	# Add inelastic elements
 	ifa.add_dislocation_creep_element(
 							name="disCreep",
 							A=[1.9e-20, 0.0],
 							n=3.0,
 							Q=51600,
-							T=298,
+							T=T_profile,
 							active=True,
 							equilibrium=True
 	)
