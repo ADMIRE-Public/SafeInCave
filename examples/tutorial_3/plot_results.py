@@ -90,7 +90,7 @@ def calculate_convergence_data(displacement_data, mesh):
 		volumes.append(100*abs(vol_0 - vol)/vol_0)
 
 	# Plot cavern shape
-	expansion_factor = 50
+	expansion_factor = 20
 	xi = x0 + 0*expansion_factor*u[t_initial]
 	yi = y0 + 0*expansion_factor*v[t_initial]
 	zi = z0 + 0*expansion_factor*w[t_initial]
