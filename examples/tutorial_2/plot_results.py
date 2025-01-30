@@ -4,6 +4,7 @@ sys.path.append(os.path.join("..", "..", "safeincave"))
 import numpy as np
 import pandas as pd
 import meshio
+import time
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.widgets import Button, Slider
@@ -237,14 +238,31 @@ def get_relevant_points():
 	]
 	return points
 
-def get_constitutive_model(input_file):
-	model = ""
+def get_simulation_times(log_file):
+	lines = log_file.split("\n")
+	times = []
+	for line in lines:
+		if "seconds)" in line:
+			i1 = line.find("(") + 1
+			i2 = line.find(" seconds)")
+			time = float(line[i1:i2])
+			times.append(time)
+	return sum(times)
 
 
 
 def plot_results_panel(results_folder, stage="operation"):
 	# Define paths
 	output_path = os.path.join("output", results_folder, stage, "vtk")
+
+	# Read log file
+	with open(os.path.join("output", results_folder, "log.txt"), "r") as file:
+	    # Read the entire content of the file
+	    log_file = file.read()
+
+	# Read CPU time
+	cpu_time = get_simulation_times(log_file)
+	cpu_gmtime = time.strftime("%H:%M:%S", time.gmtime(cpu_time))
 
 	# Read displacement results
 	df_coord_nodes, df_ux, df_uy, df_uz = read_vector_from_points(os.path.join(output_path, "displacement"), "displacement.pvd")
@@ -343,7 +361,7 @@ def plot_results_panel(results_folder, stage="operation"):
 	ax_info_2.axis('off')
 
 	ax_info_3.text(0, 0.8, "Simulation info:", size=12, fontname="serif")
-	ax_info_3.text(0, 0.5, "- CPU time:", size=10, fontname="serif")
+	ax_info_3.text(0, 0.5, f"- CPU time: {cpu_gmtime}", size=10, fontname="serif")
 	ax_info_3.axis('off')
 
 	points = get_relevant_points()
