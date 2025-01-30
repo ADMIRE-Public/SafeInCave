@@ -27,46 +27,39 @@ class ConstitutiveModel():
 
     Parameters
     ----------
-    n_elems : int
-        Number of grid elements. This is used to create arrays of C0 and C0_inv.
+    grid : safeincave.Grid
+        Grid object.
 
     input_constitutive_model : dict
         This is a dictionary that defines the constitutive model.
     """
-	def __init__(self, n_elems, input_constitutive_model):
+	def __init__(self, grid, input_constitutive_model):
+		self.grid = grid
 		self.input_model = input_constitutive_model
 
 		self._elems_ie = []
 		self._elems_ve = []
 		self._elems_e = []
-		self._n_elems = n_elems
 
-		self._C0_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
-		self._C0 = to.zeros((n_elems, 6, 6), dtype=to.float64)
+		self._C0_inv = to.zeros((self.grid.n_elems, 6, 6), dtype=to.float64)
+		self._C0 = to.zeros((self.grid.n_elems, 6, 6), dtype=to.float64)
 
 		# Add elastic elements
-		for elem_e in self.get_list_of_elements(element_class="Elastic"):
+		for elem_e in self.get_list_of_elements(element_class="elastic"):
 			self._elems_e.append(elem_e)
 
 		# Add viscoelastic elements
-		for elem_ve in self.get_list_of_elements(element_class="Viscoelastic"):
+		for elem_ve in self.get_list_of_elements(element_class="viscoelastic"):
 			self._elems_ve.append(elem_ve)
 
 		# Add inelastic elements
-		for elem_ie in self.get_list_of_elements(element_class="Inelastic"):
+		for elem_ie in self.get_list_of_elements(element_class="inelastic"):
 			self._elems_ie.append(elem_ie)
 
 		for elem_e in self._elems_e:
 			elem_e.initialize()
 			self._C0_inv += elem_e.C0_inv
 			self._C0 += elem_e.C0
-
-	@property
-	def n_elems(self):
-		"""
-		int : Number of grid elements.
-		"""
-		return self._n_elems
 
 	@property
 	def elems_e(self):
@@ -104,9 +97,7 @@ class ConstitutiveModel():
 		return self._C0_inv
 	
 
-
-
-	def get_list_of_elements(self, element_class="Elastic"):
+	def get_list_of_elements(self, element_class="elastic"):
 		"""
 		This is an internal function responsible to build a list of elements based on the input_constitutive_model dictionary.
 
@@ -132,12 +123,28 @@ class ConstitutiveModel():
 			if props[elem_name]["active"] == True:
 				element_parameters = props[elem_name]["parameters"]
 				for param in element_parameters:
-					element_parameters[param] = to.tensor(element_parameters[param])
+					element_parameters[param] = self.grid.get_parameter(element_parameters[param])
 				elem = ELEMENT_DICT[props[elem_name]["type"]](element_parameters)
 				list_of_elements.append(elem)
-		if element_class == "Elastic" and len(list_of_elements) == 0:
+		if element_class == "elastic" and len(list_of_elements) == 0:
 			raise Exception("Model must have at least 1 elastic element (Spring). None was given.")
 		return list_of_elements
+
+	# def get_parameter(self, param):
+	# 	if type(param) == int or type(param) == float:
+	# 		return to.tensor([param for i in range(self.grid.n_elems)])
+	# 	elif len(param) == self.grid.n_regions:
+	# 		param_to = to.zeros(self.grid.n_elems)
+	# 		for i, region in enumerate(self.grid.region_indices.keys()):
+	# 			param_to[self.grid.region_indices[region]] = param[i]
+	# 		return param_to
+	# 	elif len(param) == self.grid.n_elems:
+	# 		return to.tensor(param)
+	# 	else:
+	# 		raise Exception("Size of parameter list does not match neither # of elements nor # of regions.")
+
+
+
 
 
 

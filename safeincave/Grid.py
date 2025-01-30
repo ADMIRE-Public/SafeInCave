@@ -19,6 +19,9 @@ It reads gmsh grids and gives access to relevant mesh information.
 
 from fenics import Mesh, MeshFunction, SubDomain, near
 import numpy as np
+import dolfin as do
+import torch as to
+from scipy.sparse import csr_matrix
 import meshio
 import os
 
@@ -44,6 +47,58 @@ class GridHandlerGMSH(object):
 		self.load_subdomains()
 		self.load_boundaries()
 		self.build_box_dimensions()
+		self.__extract_grid_data()
+		self.build_smoother()
+
+	def __tetrahedron_volume(self, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4):
+	    volume = abs((1/6) * ((x2 - x1) * ((y3 - y1)*(z4 - z1) - (z3 - z1)*(y4 - y1)) + 
+	                 (y2 - y1) * ((z3 - z1)*(x4 - x1) - (x3 - x1)*(z4 - z1)) + 
+	                 (z2 - z1) * ((x3 - x1)*(y4 - y1) - (y3 - y1)*(x4 - x1))))
+	    return volume
+
+	def __compute_volumes(self):
+		conn = self.mesh.cells()
+		coord = self.mesh.coordinates()
+		self.volumes = np.zeros(self.mesh.num_cells())
+		for i in range(self.mesh.num_cells()):
+			nodes = conn[i]
+			x1, y1, z1 = coord[nodes[0], 0], coord[nodes[0], 1], coord[nodes[0], 2]
+			x2, y2, z2 = coord[nodes[1], 0], coord[nodes[1], 1], coord[nodes[1], 2]
+			x3, y3, z3 = coord[nodes[2], 0], coord[nodes[2], 1], coord[nodes[2], 2]
+			x4, y4, z4 = coord[nodes[3], 0], coord[nodes[3], 1], coord[nodes[3], 2]
+			self.volumes[i] = self.__tetrahedron_volume(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4)
+
+	def __build_node_elem_stencil(self):
+		conn = self.mesh.cells()
+		coord = self.mesh.coordinates()
+		n_nodes = coord.shape[0]
+		self.stencil = [[] for i in range(n_nodes)]
+		for elem, elem_conn in enumerate(conn):
+			for node in elem_conn:
+				if elem not in self.stencil[node]:
+					self.stencil[node].append(elem)
+
+	def build_smoother(self):
+		self.__compute_volumes()
+		self.__build_node_elem_stencil()
+		n_nodes = self.mesh.num_vertices()
+		n_elems = self.mesh.num_cells()
+		A_row, A_col, A_data = [], [], []
+		for node in range(n_nodes):
+			vol = self.volumes[self.stencil[node]].sum()
+			for elem in self.stencil[node]:
+				A_row.append(node)
+				A_col.append(elem)
+				A_data.append(self.volumes[elem]/vol)
+		self.A_csr = csr_matrix((A_data, (A_row, A_col)), shape=(n_nodes, n_elems))
+		B_row, B_col, B_data = [], [], []
+		for elem, nodes in enumerate(self.mesh.cells()):
+			for node in nodes:
+				B_row.append(elem)
+				B_col.append(node)
+				B_data.append(1/len(nodes))
+		self.B_csr = csr_matrix((B_data, (B_row, B_col)), shape=(n_elems, n_nodes))
+		self.smoother = self.B_csr.dot(self.A_csr)
 
 	def load_mesh(self):
 		"""
@@ -186,6 +241,38 @@ class GridHandlerGMSH(object):
 		subdomain_names = self.dolfin_tags[self.domain_dim].keys()
 		return subdomain_names
 
+	def __extract_grid_data(self):
+		self.region_names = list(self.get_subdomain_names())
+		self.n_regions = len(self.region_names)
+		self.n_elems = self.mesh.num_cells()
+		self.n_nodes = self.mesh.num_vertices()
+		self.region_indices = {}
+		self.tags_dict = {}
+		for i in range(len(self.region_names)):
+			self.region_indices[self.region_names[i]] = []
+			tag = self.get_subdomain_tags(self.region_names[i])
+			self.tags_dict[tag] = self.region_names[i]
+
+		for cell in do.cells(self.mesh):
+			region_marker = self.subdomains[cell]
+			self.region_indices[self.tags_dict[region_marker]].append(cell.index())
+
+	def get_parameter(self, param):
+		if type(param) == int or type(param) == float:
+			return to.tensor([param for i in range(self.n_elems)])
+		elif len(param) == self.n_regions:
+			param_to = to.zeros(self.n_elems)
+			for i, region in enumerate(self.region_indices.keys()):
+				param_to[self.region_indices[region]] = param[i]
+			return param_to
+		elif len(param) == self.n_elems:
+			if type(param) == to.Tensor:
+				return param
+			else:
+				return to.tensor(param)
+		else:
+			raise Exception("Size of parameter list does not match neither # of elements nor # of regions.")
+
 
 
 class GridHandlerFEniCS(object):
@@ -210,6 +297,58 @@ class GridHandlerFEniCS(object):
 		self.build_boundaries()
 		self.build_dolfin_tags()
 		self.build_subdomains()
+		self.__extract_grid_data()
+		self.build_smoother()
+
+	def __tetrahedron_volume(self, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4):
+	    volume = abs((1/6) * ((x2 - x1) * ((y3 - y1)*(z4 - z1) - (z3 - z1)*(y4 - y1)) + 
+	                 (y2 - y1) * ((z3 - z1)*(x4 - x1) - (x3 - x1)*(z4 - z1)) + 
+	                 (z2 - z1) * ((x3 - x1)*(y4 - y1) - (y3 - y1)*(x4 - x1))))
+	    return volume
+
+	def __compute_volumes(self):
+		conn = self.mesh.cells()
+		coord = self.mesh.coordinates()
+		self.volumes = np.zeros(self.mesh.num_cells())
+		for i in range(self.mesh.num_cells()):
+			nodes = conn[i]
+			x1, y1, z1 = coord[nodes[0], 0], coord[nodes[0], 1], coord[nodes[0], 2]
+			x2, y2, z2 = coord[nodes[1], 0], coord[nodes[1], 1], coord[nodes[1], 2]
+			x3, y3, z3 = coord[nodes[2], 0], coord[nodes[2], 1], coord[nodes[2], 2]
+			x4, y4, z4 = coord[nodes[3], 0], coord[nodes[3], 1], coord[nodes[3], 2]
+			self.volumes[i] = self.__tetrahedron_volume(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4)
+
+	def __build_node_elem_stencil(self):
+		conn = self.mesh.cells()
+		coord = self.mesh.coordinates()
+		n_nodes = coord.shape[0]
+		self.stencil = [[] for i in range(n_nodes)]
+		for elem, elem_conn in enumerate(conn):
+			for node in elem_conn:
+				if elem not in self.stencil[node]:
+					self.stencil[node].append(elem)
+
+	def build_smoother(self):
+		self.__compute_volumes()
+		self.__build_node_elem_stencil()
+		n_nodes = self.mesh.num_vertices()
+		n_elems = self.mesh.num_cells()
+		A_row, A_col, A_data = [], [], []
+		for node in range(n_nodes):
+			vol = self.volumes[self.stencil[node]].sum()
+			for elem in self.stencil[node]:
+				A_row.append(node)
+				A_col.append(elem)
+				A_data.append(self.volumes[elem]/vol)
+		self.A_csr = csr_matrix((A_data, (A_row, A_col)), shape=(n_nodes, n_elems))
+		B_row, B_col, B_data = [], [], []
+		for elem, nodes in enumerate(self.mesh.cells()):
+			for node in nodes:
+				B_row.append(elem)
+				B_col.append(node)
+				B_data.append(1/len(nodes))
+		self.B_csr = csr_matrix((B_data, (B_row, B_col)), shape=(n_elems, n_nodes))
+		self.smoother = self.B_csr.dot(self.A_csr)
 
 	def build_grid_dimensions(self):
 		"""
@@ -365,3 +504,32 @@ class GridHandlerFEniCS(object):
 			Mesh subdomains.
 		"""
 		return self.subdomains
+
+	def __extract_grid_data(self):
+		self.region_names = list(self.get_subdomain_names())
+		self.n_regions = len(self.region_names)
+		self.n_elems = self.mesh.num_cells()
+		self.n_nodes = self.mesh.num_vertices()
+		self.region_indices = {}
+		self.tags_dict = {}
+		for i in range(len(self.region_names)):
+			self.region_indices[self.region_names[i]] = []
+			tag = self.get_subdomain_tags(self.region_names[i])
+			self.tags_dict[tag] = self.region_names[i]
+
+		for cell in do.cells(self.mesh):
+			region_marker = self.subdomains[cell]
+			self.region_indices[self.tags_dict[region_marker]].append(cell.index())
+
+	def get_parameter(self, param):
+		if type(param) == int or type(param) == float:
+			return to.tensor([param for i in range(self.n_elems)])
+		elif len(param) == self.n_regions:
+			param_to = to.zeros(self.n_elems)
+			for i, region in enumerate(self.region_indices.keys()):
+				param_to[self.region_indices[region]] = param[i]
+			return param_to
+		elif len(param) == self.n_elems:
+			return to.tensor(param)
+		else:
+			raise Exception("Size of parameter list does not match neither # of elements nor # of regions.")

@@ -107,6 +107,16 @@ Pandas is another useful package for manipulating data during post-processing. T
     user@computer:~$ pip3 install pandas==1.4.3
 
 
+Scipy
+~~~~~~
+
+To install Scipy, run the following command:
+
+.. code-block:: console
+
+    user@computer:~$ pip3 install scipy
+
+
 
 Gmsh
 ~~~~

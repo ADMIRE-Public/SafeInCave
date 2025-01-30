@@ -20,6 +20,7 @@ The class implements the iterative process to solve the non-linear equilibrium e
 from Equations import LinearMomentum
 from Grid import GridHandlerGMSH
 import Utils as utils
+from ScreenOutput import ScreenPrinter
 import os
 import copy
 
@@ -36,7 +37,7 @@ class Simulator(object):
 		Dictionary extracted from the JSON file.
 	"""
 	def __init__(self, input_file):
-		self.input_file = input_file
+		self.input_file = copy.deepcopy(input_file)
 
 		# This is input_file to be saved
 		self.input_file_to_be_saved = copy.deepcopy(input_file)
@@ -49,7 +50,8 @@ class Simulator(object):
 		theta = input_file["time_settings"]["theta"]
 	
 		# Create mesh
-		self.grid = GridHandlerGMSH(input_file["grid"]["name"], input_file["grid"]["path"])
+		grid_path = input_file["grid"]["path"]
+		self.grid = GridHandlerGMSH(input_file["grid"]["name"], grid_path)
 
 		# Linear momentum balance equation
 		self.eq_mom = LinearMomentum(self.grid, theta, self.input_file)
@@ -58,6 +60,37 @@ class Simulator(object):
 		# filename = os.path.join(os.path.join(input_file["output"]["path"], "input_file.json"))
 		# os.makedirs(os.path.dirname(filename), exist_ok=True)
 		# utils.save_json(self.input_file_to_be_saved, filename)
+
+		# Screen info
+		ScreenPrinter.reset_instance()
+		self.screen = ScreenPrinter()
+		self.screen.print_welcome()
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Finite element (FE) simulator.")
+
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Results folder:")
+		self.screen.print_comment(f"          {self.output_folder}")
+
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Mesh info:")
+		self.screen.print_comment(f"          Location: {grid_path}")
+		self.screen.print_comment(f"          Number of elements: {self.grid.mesh.num_cells()}")
+		self.screen.print_comment(f"          Number of nodes: {self.grid.mesh.num_vertices()}")
+
+		solver_type = input_file["solver_settings"]["type"]
+		solver_method = input_file["solver_settings"]["method"]
+
+		self.screen.print_comment(" ")
+		self.screen.print_comment(" Solver info:")
+		self.screen.print_comment(f"          Type: {solver_type}")
+		self.screen.print_comment(f"          Method: {solver_method}")
+		if solver_type == "KrylovSolver":
+			solver_prec = input_file["solver_settings"]["preconditioner"]
+			solver_tol = input_file["solver_settings"]["relative_tolerance"]
+			self.screen.print_comment(f"          Preconditioner: {solver_prec}")
+			self.screen.print_comment(f"          Tolerance: {solver_tol}")
+		self.screen.print_comment(" ")
 
 	def __save_input_file(self, filename):
 		os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -69,6 +102,7 @@ class Simulator(object):
 		Runs transient simulation.
 		"""
 		solve_equilibrium = self.input_file["simulation_settings"]["equilibrium"]["active"]
+		solve_operation = self.input_file["simulation_settings"]["operation"]["active"]
 
 		# Save input file
 		self.__save_input_file(os.path.join(self.output_folder, "operation", "input_file.json"))
@@ -76,10 +110,10 @@ class Simulator(object):
 			self.__save_input_file(os.path.join(self.output_folder, "equilibrium", "input_file.json"))
 
 		# Run simulation
-		self.run_simulation(solve_equilibrium=solve_equilibrium, verbose=True)
+		self.run_simulation(solve_operation, solve_equilibrium, verbose=True)
 
 
-	def run_simulation(self, solve_equilibrium=False, verbose=True):
+	def run_simulation(self, solve_operation=True, solve_equilibrium=False, verbose=True):
 		"""
 		Runs simulation **without** solving the equilibrium condition.
 
@@ -92,6 +126,8 @@ class Simulator(object):
 		verbose : bool
 			Shows real time simulation info on screen.
 		"""
+
+
 		# Pseudo time
 		t = self.time_list[0]
 		t_final = self.time_list[-1]
@@ -102,38 +138,71 @@ class Simulator(object):
 		# Read number of time steps to skip before saving results
 		n_skip = self.input_file["simulation_settings"]["operation"]["n_skip"]
 
+		# Shoud calculate initial hardening such that Fvp=0 everywhere?
+		hardening = self.input_file["simulation_settings"]["operation"]["hardening"]
+
 		# Perform initial computations
-		self.eq_mom.initialize(solve_equilibrium=solve_equilibrium, verbose=verbose, save_results=True)
+		self.eq_mom.initialize(solve_equilibrium=solve_equilibrium, verbose=verbose, save_results=True, calculate_hardening=hardening)
+		
+		if solve_operation:
 
-		# Save initial solution
-		self.eq_mom.save_solution(t)
+			# header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
+			# header_align = "center",
+			# row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
+			# row_align = ["center", "center", "center", "center", "center", "center"],
 
-		# Transient simulation
-		n_step = 1
-		while t < t_final:
+			self.screen.start_timer()
+			self.screen.set_header_columns(["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"], "center")
+			self.screen.set_row_formats(["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"], ["center" for i in range(6)])
 
-			# Increment time
-			t += dt
+			elem_names = []
+			for elem_type in self.input_file["constitutive_model"].keys():
+				for elem_name in self.input_file["constitutive_model"][elem_type].keys():
+					if self.input_file["constitutive_model"][elem_type][elem_name]["active"] == True:
+						elem_names.append(elem_name)
 
-			# Solve
-			self.eq_mom.solve(t, dt)
+			self.screen.print_on_screen(" ")
+			self.screen.print_on_screen(self.screen.master_division_plus)
+			self.screen.print_comment(" Operation Stage", "center")
+			self.screen.print_on_screen(self.screen.master_division_plus)
+			self.screen.print_comment(" ")
+			self.screen.print_comment(" Constitutive model:")
+			for elem_name in elem_names:
+				self.screen.print_comment(f"          {elem_name}")
+			self.screen.print_comment(" ")
+			self.screen.print_header()
 
-			# Save displacement field
-			if n_step % n_skip == 0 or n_step == 1:
-				self.eq_mom.save_solution(t)
+			# Save initial solution
+			self.eq_mom.save_solution(t)
+
+			# Transient simulation
+			n_step = 1
+			while t < t_final:
+
+				# Increment time
+				t += dt
+
+				# Solve
+				self.eq_mom.solve(t, dt)
+
+
+				# Save displacement field
+				save_solution = False
+				if n_step % n_skip == 0 or n_step == 1:
+					self.eq_mom.save_solution(t)
+					save_solution = True
+
+				# Print stuff
 				if verbose:
-					print("Save step %i"%n_step)
+					if save_solution:
+						screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "Save"]
+					else:
+						screen_output_row = [str(n_step), t_final/utils.hour, t/utils.hour, self.eq_mom.ite, self.eq_mom.error, "|"]
+					self.screen.print_row(screen_output_row)
 
-			# Print stuff
-			if verbose:
-				print(n_step, f"{t_final/utils.hour}", t/utils.hour, self.eq_mom.ite, self.eq_mom.error)
-				try:
-					print("Fvp: ", float(max(self.eq_mom.m.elems_ie[0].Fvp)))
-					print("alpha: ", float(max(self.eq_mom.m.elems_ie[0].alpha)))
-				except:
-					pass
-				print()
+				n_step += 1
 
-			n_step += 1
+			self.screen.close()
+			self.screen.save_log(self.output_folder)
 
 
