@@ -87,7 +87,7 @@ def plot_MP(ax1, ax2, ax3, output_folder):
 	ax3.set_facecolor("0.85")
 
 def main():
-	results_folder = os.path.join("output", "case_T57")
+	results_folder = os.path.join("output", "case_0")
 
 	# Plot loading schedule
 	fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 3))

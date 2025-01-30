@@ -21,7 +21,7 @@
         ]
     },
     "output": {
-        "path": "output/case_gradT_27_v2"
+        "path": "output/case_0"
     },
     "solver_settings": {
         "type": "KrylovSolver",
