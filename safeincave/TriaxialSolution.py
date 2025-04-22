@@ -479,7 +479,7 @@ class MaterialPointModel:
 		self.time_list = []
 		t = dt
 		while t < t_final:
-			self.time_list.append(t)
+			self.time_list.append(float(t))
 			t += dt
 		self.time_list = np.array(self.time_list)
 
