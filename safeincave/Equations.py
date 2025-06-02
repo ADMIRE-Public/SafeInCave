@@ -20,7 +20,7 @@ Everything related to the solution of the linear momentum balance equation.
 import os
 import copy
 import torch as to
-import dolfin as do
+import dolfinx as do
 import numpy as np
 import Utils as utils
 from ConstitutiveModel import ConstitutiveModel

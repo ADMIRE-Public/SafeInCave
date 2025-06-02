@@ -18,7 +18,9 @@ Useful functions used in safeincave.
 # the License.
 
 import torch as to
-from dolfin import *
+import dolfinx as do
+from dolfinx.fem.petsc import LinearProblem
+import ufl
 import json
 
 MPa = 1e6
@@ -62,15 +64,14 @@ def save_json(data, file_name):
 	with open(file_name, "w") as f:
 	    json.dump(data, f, indent=4)
 
-def local_projection(tensor, V):
-    dv = TrialFunction(V)
-    v_ = TestFunction(V)
-    a_proj = inner(dv, v_)*dx
-    b_proj = inner(tensor, v_)*dx
-    solver = LocalSolver(a_proj, b_proj)
-    solver.factorize()
-    u = Function(V)
-    solver.solve_local_rhs(u)
+def local_projection_old(tensor, V):
+    u = do.fem.Function(V)
+    dv = ufl.TrialFunction(V)
+    v_ = ufl.TestFunction(V)
+    a_proj = ufl.inner(dv, v_)*ufl.dx
+    b_proj = ufl.inner(tensor, v_)*ufl.dx
+    problem = LinearProblem(a_proj, b_proj, u=u)
+    problem.solve()
     return u
 
 def epsilon(u):
@@ -91,7 +92,7 @@ def epsilon(u):
 		Symmetric gradient of **u**.
 
 	"""
-	grad_u = sym(grad(u))
+	grad_u = ufl.sym(ufl.grad(u))
 	return grad_u
 
 def dotdot(C, eps):
@@ -115,7 +116,7 @@ def dotdot(C, eps):
 		Double dot product between **C** and **eps**.
 
 	"""
-	tensor = voigt2tensor(dot(C, tensor2voigt(eps)))
+	tensor = voigt2tensor(ufl.dot(C, tensor2voigt(eps)))
 	return tensor
 
 def tensor2voigt(e):
@@ -132,7 +133,7 @@ def tensor2voigt(e):
 	e_voigt : ufl.tensors.ListTensor
 		A 2nd-order tensor in Voigt notation.
 	"""
-	e_voigt = as_vector([e[0,0], e[1,1], e[2,2], e[0,1], e[0,2], e[1,2]])
+	e_voigt = ufl.as_vector([e[0,0], e[1,1], e[2,2], e[0,1], e[0,2], e[1,2]])
 	return e_voigt
 
 def voigt2tensor(s):
@@ -149,9 +150,9 @@ def voigt2tensor(s):
 	s_tensor : ufl.tensors.ListTensor
 		A 2nd-order tensor in tensor notation.
 	"""
-	s_tensor = as_matrix([[s[0], s[3], s[4]],
-						  [s[3], s[1], s[5]],
-						  [s[4], s[5], s[2]]])
+	s_tensor = ufl.as_matrix([[s[0], s[3], s[4]],
+							  [s[3], s[1], s[5]],
+							  [s[4], s[5], s[2]]])
 	return s_tensor
 
 def numpy2torch(numpy_array):

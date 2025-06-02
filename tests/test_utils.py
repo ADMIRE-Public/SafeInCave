@@ -5,7 +5,8 @@ sys.path.append(os.path.join("..", "safeincave"))
 import torch as to
 import numpy as np
 from Utils import dotdot2, compute_C, dotdot, tensor2voigt
-import dolfin as do
+import dolfinx as do
+from mpi4py import MPI
 from ufl.tensors import ListTensor
 
 class Test1(unittest.TestCase):
@@ -49,17 +50,24 @@ class Test1(unittest.TestCase):
 
 class Test2(unittest.TestCase):
 	def setUp(self):
-		self.mesh = do.UnitCubeMesh(1, 1, 1)
-		self.DG_6x6 = do.TensorFunctionSpace(self.mesh, "DG", 0, shape=(6, 6))
-		self.DG_3x3 = do.TensorFunctionSpace(self.mesh, "DG", 0)
-		self.C = do.Function(self.DG_6x6)
-		self.eps = do.Function(self.DG_3x3)
+		# self.mesh = do.UnitCubeMesh(1, 1, 1)
+		self.mesh = do.mesh.create_box(	MPI.COMM_WORLD,
+										[np.array([0., 0., 0.]), np.array([1., 1., 1.])],
+										[1, 1, 1],
+										cell_type = do.mesh.CellType.tetrahedron)
+		self.n_elems = self.mesh.topology.index_map(3).size_local
+
+		self.DG_6x6 = do.fem.functionspace(self.mesh, ("DG", 0, (6, 6)))
+		self.DG_3x3 = do.fem.functionspace(self.mesh, ("DG", 0, (3, 3)))
+
+		self.C = do.fem.Function(self.DG_6x6)
+		self.eps = do.fem.Function(self.DG_3x3)
 
 		eps_template = np.array([  	[1., 4., 5.],
 									[4., 2., 6.],
 									[5., 6., 3.] ])
-		epsilon_vec = np.tile(eps_template, (self.mesh.num_cells(), 1, 1))
-		self.eps.vector()[:] = epsilon_vec.flatten()
+		epsilon_vec = np.tile(eps_template, (self.n_elems, 1, 1))
+		self.eps.x.array[:] = epsilon_vec.flatten()
 
 		C_template = np.array([	[1.1111e+09, 2.7778e+08, 2.7778e+08, 0.0000e+00, 0.0000e+00,0.0000e+00],
 								[2.7778e+08, 1.1111e+09, 2.7778e+08, 0.0000e+00, 0.0000e+00,0.0000e+00],
@@ -67,8 +75,8 @@ class Test2(unittest.TestCase):
 								[0.0000e+00, 0.0000e+00, 0.0000e+00, 8.3333e+08, 0.0000e+00,0.0000e+00],
 								[0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00, 8.3333e+08,0.0000e+00],
 								[0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00,8.3333e+08] ])
-		C_vec = np.tile(C_template, (self.mesh.num_cells(), 1, 1))
-		self.C.vector()[:] = C_vec.flatten()
+		C_vec = np.tile(C_template, (self.n_elems, 1, 1))
+		self.C.x.array[:] = C_vec.flatten()
 		# self.epsilon = to.from_numpy(np.tile(A, (self.mesh.num_cells(), 1, 1)))
 
 	def test_dotdot(self):

@@ -2,21 +2,15 @@ import unittest
 import os
 import sys
 sys.path.append(os.path.join("..", "safeincave"))
-import torch as to
 import numpy as np
 from Equations import LinearMomentum
-from ConstitutiveModel import ConstitutiveModel
-from Grid import GridHandlerGMSH
+from Gridx import GridHandlerGMSH
 from Utils import read_json
-import dolfin as do
-import ufl as ufl
-from Utils import numpy2torch
 
 class Test1(unittest.TestCase):
 
 	def setUp(self):
 		self.grid = GridHandlerGMSH("geom", os.path.join("files", "cube_coarse"))
-		self.n_elems = self.grid.mesh.num_cells()
 		self.input_file = read_json(os.path.join("files", "cube_coarse", "input_file.json"))
 		self.theta = self.input_file["time_settings"]["theta"]
 		self.eq = LinearMomentum(self.grid, self.theta, self.input_file)
