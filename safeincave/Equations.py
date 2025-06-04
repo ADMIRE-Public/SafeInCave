@@ -43,6 +43,7 @@ class LinearMomentum():
 	def __init__(self, grid, theta, input_file):
 		self.grid = grid
 		self.input_file = input_file
+		self.x = ufl.SpatialCoordinate(self.grid.mesh)
 
 		# Output folder
 		self.operation_output_folder = os.path.join(self.input_file["output"]["path"], "operation")
@@ -291,7 +292,7 @@ class LinearMomentum():
 		tol_time = self.input_file["simulation_settings"]["equilibrium"]["time_tol"]
 		ite_max = self.input_file["simulation_settings"]["equilibrium"]["ite_max"]
 		error_time = 2*tol_time
-		eps_tot_old = utils.numpy2torch(self.eps_tot.vector()[:])
+		eps_tot_old = utils.numpy2torch(self.eps_tot.x.array[:])
 
 		while error_time > tol_time or n_step <= 2:
 
@@ -365,7 +366,7 @@ class LinearMomentum():
 		while self.error > tol and self.ite < maxiter:
 
 			# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-			eps_tot_k = utils.numpy2torch(self.eps_tot.vector()[:])
+			eps_tot_k = utils.numpy2torch(self.eps_tot.x.array[:])
 
 			# Update stress of previous iteration (stress_k <-- stress)
 			self.update_stress()
@@ -380,7 +381,7 @@ class LinearMomentum():
 			self.compute_eps_rhs(dt)
 
 			# Build rhs
-			b_rhs = do.inner(utils.dotdot(self.CT, self.eps_rhs), utils.epsilon(self.v))*self.dx
+			b_rhs = ufl.inner(utils.dotdot(self.CT, self.eps_rhs), utils.epsilon(self.v))*self.dx
 			# b = do.assemble(sum(self.integral_neumann) + b_rhs)
 			b = do.assemble(self.b_body + sum(self.integral_neumann) + b_rhs)
 
@@ -543,7 +544,7 @@ class LinearMomentum():
 		"""
 		GT = self.GT_ie_torch + self.GT_ve_torch
 		self.CT_torch = to.linalg.inv(self.m.C0_inv + dt*(1-self.theta)*GT)
-		self.CT.vector()[:] = to.flatten(self.CT_torch)
+		self.CT.x.array[:] = to.flatten(self.CT_torch)
 
 	def compute_eps_ve(self, dt):
 		"""
@@ -673,7 +674,7 @@ class LinearMomentum():
 		BT = self.BT_ie_torch + self.BT_ve_torch
 		GT = self.GT_ie_torch + self.GT_ve_torch
 		self.eps_rhs_torch = self.eps_bar_torch - dt*(1-self.theta)*(BT + utils.dotdot2(GT, self.stress_k_torch))
-		self.eps_rhs.vector()[:] = self.eps_rhs_torch.flatten()
+		self.eps_rhs.x.array[:] = self.eps_rhs_torch.flatten()
 
 	def compute_stress_C0(self, eps_e):
 		"""
@@ -719,7 +720,7 @@ class LinearMomentum():
 		GT = self.GT_ie_torch + self.GT_ve_torch
 		BT = self.BT_ie_torch + self.BT_ve_torch
 		self.stress_torch = utils.dotdot2(self.CT_torch, eps_tot - self.eps_bar_torch + dt*(1-self.theta)*(BT + utils.dotdot2(GT, self.stress_k_torch)))
-		self.sigma.vector()[:] = self.stress_torch.flatten()
+		self.sigma.x.array[:] = self.stress_torch.flatten()
 
 	def update_stress(self):
 		"""
@@ -811,17 +812,16 @@ class LinearMomentum():
 			Time level.
 		"""
 		self.integral_neumann = []
-		i = 0
 		bc_neumann_list = []
 		for boundary in self.input_file["boundary_conditions"]:
 			if self.input_file["boundary_conditions"][boundary]["type"] == "neumann":
-				bc_direction = self.input_file["boundary_conditions"][boundary]["direction"]
-				bc_density = self.input_file["boundary_conditions"][boundary]["density"]
-				ref_position = self.input_file["boundary_conditions"][boundary]["reference_position"]
+				i = self.input_file["boundary_conditions"][boundary]["direction"]
+				rho = self.input_file["boundary_conditions"][boundary]["density"]
+				H = self.input_file["boundary_conditions"][boundary]["reference_position"]
 				values = self.input_file["boundary_conditions"][boundary]["values"]
-				ref_load = -np.interp(t, self.time_list, values)
-				value_neumann = do.Expression(f"load_ref + rho*g*(H - x[{bc_direction}])", load_ref=ref_load, rho=bc_density, g=self.gravity, H=ref_position, degree=1)
-				self.integral_neumann.append(value_neumann*self.normal*self.ds(self.grid.get_boundary_tags(boundary)))
+				p = -np.interp(t, self.time_list, values)
+				value_neumann = p + rho*self.gravity*(H - self.x[i])
+				self.integral_neumann.append(value_neumann*self.normal*self.ds(self.grid.get_boundary_tag(boundary)))
 
 
 
@@ -844,36 +844,21 @@ class LinearMomentum():
 		bc_dirichlet_list = []
 		for boundary in self.input_file["boundary_conditions"]:
 			if self.input_file["boundary_conditions"][boundary]["type"] == "dirichlet":
+				component = self.input_file["boundary_conditions"][boundary]["component"]
 				values = self.input_file["boundary_conditions"][boundary]["values"]
 				value = np.interp(t, self.time_list, values)
-				value_dirichlet = do.Expression("value", value=value, degree=1)
-				component = self.input_file["boundary_conditions"][boundary]["component"]
-				self.bcs.append(do.DirichletBC(self.CG_3x1.sub(component), value_dirichlet, self.grid.get_boundaries(), self.grid.get_boundary_tags(boundary)))
-
-
-	# def define_solver(self):
-	# 	"""
-	# 	Defines the solver for solving the linear system according to the specifications
-	# 	in the input_file.json.
-
-	# 	Returns
-	# 	-------
-	# 	solver : dolfin.cpp.la.KrylovSolver or dolfin.cpp.la.LUSolver
-	# 		The solver can be either an iterative solver (KrylovSolver) or a direct solver
-	# 		(LUSolver).
-	# 	"""
-	# 	solver_type = self.input_file["solver_settings"]["type"]
-	# 	if solver_type == "KrylovSolver":
-	# 		solver = do.KrylovSolver(
-	# 		                      	method = self.input_file["solver_settings"]["method"],
-	# 		                      	preconditioner = self.input_file["solver_settings"]["preconditioner"]
-	# 		                      )
-	# 		solver.parameters["relative_tolerance"] = self.input_file["solver_settings"]["relative_tolerance"]
-	# 	elif solver_type == "LU":
-	# 		solver = do.LUSolver(self.input_file["solver_settings"]["method"])
-	# 	else:
-	# 		raise Exception(f"Solver type {solver_type} not supported. Choose between KrylovSolver and LU.")
-	# 	return solver
+				dofs = do.fem.locate_dofs_topological(
+					self.CG_3x1.sub(component),
+					self.grid.boundary_dim,
+					self.grid.get_boundary_tags(boundary)
+				)
+				self.bcs.append(
+					do.fem.dirichletbc(
+						do.default_scalar_type(value),
+						dofs,
+						self.CG_3x1.sub(component)
+					)
+				)
 
 	def define_solver(self):
 		"""
