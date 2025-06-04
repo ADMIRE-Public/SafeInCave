@@ -188,16 +188,24 @@ class GridHandlerGMSH(object):
 		"""
 		return self.boundaries
 
-	def get_boundary_tags(self):
+	def get_boundary_tags(self, BOUNDARY_NAME):
 		"""
-		Get mesh boundaries. It is used when applying Dirichlet boundary conditions.
+		Get boundary tag (integer) corresponding to *BOUNDARY_NAME*.
+
+		Parameters
+		----------
+		BOUNDARY_NAME : str
+			Name of the boundary.
 
 		Returns
 		-------
-		boundaries : dolfin.cpp.mesh.MeshFunctionSizet
-			Mesh boundaries.
+		tag_number : int
+			Integer representing BOUNDARY_NAME
 		"""
-		return self.boundaries.values
+		if BOUNDARY_NAME == None:
+			return None
+		else:
+			return self.boundary_tags[BOUNDARY_NAME]
 
 	def get_boundary_tag(self, BOUNDARY_NAME):
 		"""
