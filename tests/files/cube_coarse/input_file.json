@@ -132,7 +132,7 @@
             "Spring_0": {
                 "type": "Spring",
                 "active": true,
-                "equilibrium": false,
+                "equilibrium": true,
                 "parameters": {
                     "E": 102000000000.0,
                     "nu": 0.3

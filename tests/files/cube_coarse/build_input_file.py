@@ -55,7 +55,7 @@ bif.add_elastic_element(
 						E=102e9,
 						nu=0.3,
 						active=True,
-						equilibrium=False
+						equilibrium=True
 )
 
 bif.add_viscoelastic_element(
