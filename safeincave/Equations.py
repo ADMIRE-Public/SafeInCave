@@ -21,6 +21,8 @@ import os
 import copy
 import torch as to
 import dolfinx as do
+from petsc4py import PETSc
+import ufl
 import numpy as np
 import Utils as utils
 from ConstitutiveModel import ConstitutiveModel
@@ -60,39 +62,42 @@ class LinearMomentum():
 		self.t0 = self.time_list[0]
 
 		# Create function spaces
-		self.CG_3x1 = do.VectorFunctionSpace(self.grid.mesh, "CG", 1)
-		self.DG_1x1 = do.FunctionSpace(self.grid.mesh, "DG", 0)
-		self.DG_3x3 = do.TensorFunctionSpace(self.grid.mesh, "DG", 0)
-		self.DG_6x6 = do.TensorFunctionSpace(self.grid.mesh, "DG", 0, shape=(6, 6))
+		self.CG_3x1 = do.fem.functionspace(self.grid.mesh, ("Lagrange", 1, (grid.domain_dim, )))
+		self.DG_1 = do.fem.functionspace(self.grid.mesh, ("DG", 0))
+		self.DG_3x3 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (3, 3)))
+		self.DG_6x6 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (6, 6)))
+
 
 		# Create tensor fields
-		self.C0 = do.Function(self.DG_6x6)
-		self.C1 = do.Function(self.DG_6x6)
-		self.CT = do.Function(self.DG_6x6)
-		self.eps_tot = do.Function(self.DG_3x3)
-		self.eps_rhs = do.Function(self.DG_3x3)
+		self.C0 = do.fem.Function(self.DG_6x6)
+		self.C1 = do.fem.Function(self.DG_6x6)
+		self.CT = do.fem.Function(self.DG_6x6)
+		self.eps_tot = do.fem.Function(self.DG_3x3)
+		self.eps_rhs = do.fem.Function(self.DG_3x3)
 
-		self.sigma = do.Function(self.DG_3x3)
-		self.sigma_0 = do.Function(self.DG_3x3)
-		self.sigma.rename("Stress", "MPa")
+		self.sigma = do.fem.Function(self.DG_3x3)
+		self.sigma_0 = do.fem.Function(self.DG_3x3)
+		self.sigma.name = "Stress"
 
-		self.sigma_v = do.Function(self.DG_1x1)
-		self.sigma_v.rename("Mean stress", "MPa")
+		self.sigma_v = do.fem.Function(self.DG_1)
+		self.sigma_v.name = "Mean stress"
 
-		self.von_mises = do.Function(self.DG_1x1)
-		self.von_mises.rename("Von Mises stress", "MPa")
+		self.von_mises = do.fem.Function(self.DG_1)
+		self.von_mises.name = "Von Mises stress"
 
 		# Define variational problem
-		self.du = do.TrialFunction(self.CG_3x1)
-		self.v = do.TestFunction(self.CG_3x1)
-		self.ds = do.Measure("ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries())
-		self.dx = do.Measure("dx", domain=self.grid.mesh, subdomain_data=self.grid.get_subdomains())
-		self.normal = do.dot(self.v, do.FacetNormal(self.grid.mesh))
-		self.n = do.FacetNormal(self.grid.mesh)
+		self.du = ufl.TrialFunction(self.CG_3x1)
+		self.v = ufl.TestFunction(self.CG_3x1)
+		self.ds = ufl.Measure("ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries())
+		self.dx = ufl.Measure("dx", domain=self.grid.mesh, subdomain_data=self.grid.get_subdomains())
+
+		# Define outward normal vectors
+		self.n = ufl.FacetNormal(self.grid.mesh)
+		self.normal = ufl.dot(self.n, self.v)
 
 		# Create displacement vector
-		self.u = do.Function(self.CG_3x1)
-		self.u.rename("Displacement", "m")
+		self.u = do.fem.Function(self.CG_3x1)
+		self.u.name = "Displacement"
 
 		# Define pytorch tensor quantities
 		self.eps_e_torch = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
@@ -110,16 +115,16 @@ class LinearMomentum():
 
 		# Define salt specific weight
 		self.direction = self.input_file["body_force"]["direction"]
-		self.density = do.Function(self.DG_1x1)
-		self.density.vector()[:] = self.grid.get_parameter(self.input_file["body_force"]["density"])
+		self.density = do.fem.Function(self.DG_1)
+		self.density.x.array[:] = self.grid.get_parameter(self.input_file["body_force"]["density"])
 		self.gravity = self.input_file["body_force"]["gravity"]
 
 		self.g = [0.0, 0.0, 0.0]
 		self.g[self.direction] = self.gravity
-		self.body_force = self.density*do.Constant(tuple(self.g))
+		self.body_force = self.density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(self.g)))
 
 		# Build body forces on RHS vector
-		self.b_body = do.dot(self.body_force, self.v)*self.dx
+		self.b_body = ufl.dot(self.body_force, self.v)*self.dx
 
 		# Define linear solver
 		self.solver = self.define_solver()
@@ -846,28 +851,44 @@ class LinearMomentum():
 				self.bcs.append(do.DirichletBC(self.CG_3x1.sub(component), value_dirichlet, self.grid.get_boundaries(), self.grid.get_boundary_tags(boundary)))
 
 
+	# def define_solver(self):
+	# 	"""
+	# 	Defines the solver for solving the linear system according to the specifications
+	# 	in the input_file.json.
+
+	# 	Returns
+	# 	-------
+	# 	solver : dolfin.cpp.la.KrylovSolver or dolfin.cpp.la.LUSolver
+	# 		The solver can be either an iterative solver (KrylovSolver) or a direct solver
+	# 		(LUSolver).
+	# 	"""
+	# 	solver_type = self.input_file["solver_settings"]["type"]
+	# 	if solver_type == "KrylovSolver":
+	# 		solver = do.KrylovSolver(
+	# 		                      	method = self.input_file["solver_settings"]["method"],
+	# 		                      	preconditioner = self.input_file["solver_settings"]["preconditioner"]
+	# 		                      )
+	# 		solver.parameters["relative_tolerance"] = self.input_file["solver_settings"]["relative_tolerance"]
+	# 	elif solver_type == "LU":
+	# 		solver = do.LUSolver(self.input_file["solver_settings"]["method"])
+	# 	else:
+	# 		raise Exception(f"Solver type {solver_type} not supported. Choose between KrylovSolver and LU.")
+	# 	return solver
+
 	def define_solver(self):
 		"""
-		Defines the solver for solving the linear system according to the specifications
+		Defines the solver for the linear system according to the specifications
 		in the input_file.json.
 
 		Returns
 		-------
-		solver : dolfin.cpp.la.KrylovSolver or dolfin.cpp.la.LUSolver
-			The solver can be either an iterative solver (KrylovSolver) or a direct solver
-			(LUSolver).
+		solver : 
 		"""
-		solver_type = self.input_file["solver_settings"]["type"]
-		if solver_type == "KrylovSolver":
-			solver = do.KrylovSolver(
-			                      	method = self.input_file["solver_settings"]["method"],
-			                      	preconditioner = self.input_file["solver_settings"]["preconditioner"]
-			                      )
-			solver.parameters["relative_tolerance"] = self.input_file["solver_settings"]["relative_tolerance"]
-		elif solver_type == "LU":
-			solver = do.LUSolver(self.input_file["solver_settings"]["method"])
-		else:
-			raise Exception(f"Solver type {solver_type} not supported. Choose between KrylovSolver and LU.")
+		solver = PETSc.KSP().create(self.grid.mesh.comm)
+		solver.setType(self.input_file["solver_settings"]["solver_type"])
+		solver.getPC().setType(self.input_file["solver_settings"]["solver_PC"])
+		solver.setTolerances(rtol=self.input_file["solver_settings"]["rtol"], 
+							 max_it=self.input_file["solver_settings"]["maxite"])
 		return solver
 
 
