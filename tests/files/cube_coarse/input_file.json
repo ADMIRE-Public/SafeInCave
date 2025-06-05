@@ -19,8 +19,8 @@
         "path": "output/case_0"
     },
     "solver_settings": {
-        "solver_type": "cg",
-        "solver_PC": "gamg",
+        "solver_type": "preonly",
+        "solver_PC": "lu",
         "rtol": 1e-12,
         "maxite": 100
     },

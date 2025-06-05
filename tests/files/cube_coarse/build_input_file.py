@@ -49,6 +49,15 @@ bif.add_neumann(name="NORTH", values=[4*MPa, 4*MPa, 4*MPa, 4*MPa, 4*MPa], direct
 bif.add_neumann(name="TOP", values=[4.1*MPa, 12*MPa, 12*MPa, 6*MPa, 6*MPa], direction=2, density=0.0, reference_position=1.0)
 
 
+# # Add Dirichlet boundary conditions
+# bif.add_dirichlet(name="WEST", values=list(np.zeros(len(time_list))), component=0)
+# bif.add_dirichlet(name="SOUTH", values=list(np.zeros(len(time_list))), component=1)
+# bif.add_dirichlet(name="BOTTOM", values=list(np.zeros(len(time_list))), component=2)
+# bif.add_dirichlet(name="TOP", values=[-1e-4 for i in range(len(time_list))], component=2)
+# bif.add_dirichlet(name="EAST", values=[-1e-4 for i in range(len(time_list))], component=0)
+# bif.add_dirichlet(name="NORTH", values=[-1e-4 for i in range(len(time_list))], component=1)
+
+
 # Build constitutive model
 bif.add_elastic_element(
 						name="Spring_0",

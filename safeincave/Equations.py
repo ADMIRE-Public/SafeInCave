@@ -302,10 +302,10 @@ class LinearMomentum():
 			self.solve(0, dt)
 
 			# Compute time error (to check if steady state is achieved)
-			eps_tot_flat = self.eps_tot.vector()[:]
+			eps_tot_flat = self.eps_tot.x.array
 			error_time = np.linalg.norm(eps_tot_old - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
-			eps_tot_old = utils.numpy2torch(self.eps_tot.vector()[:])
-			self.sigma.vector()[:] = self.stress_torch.flatten()
+			eps_tot_old = utils.numpy2torch(self.eps_tot.x.array)
+			self.sigma.x.array[:] = self.stress_torch.flatten()
 
 			if save_results:
 				self.save_solution(t)
@@ -379,23 +379,30 @@ class LinearMomentum():
 
 			# Compute right-hand side
 			self.compute_eps_rhs(dt)
+			
+
+			# Build lhs
+			a = ufl.inner(utils.dotdot(self.CT, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
+			bilinear_form = do.fem.form(a)
+			A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bcs)
+			A.assemble()
 
 			# Build rhs
 			b_rhs = ufl.inner(utils.dotdot(self.CT, self.eps_rhs), utils.epsilon(self.v))*self.dx
-			# b = do.assemble(sum(self.integral_neumann) + b_rhs)
-			b = do.assemble(self.b_body + sum(self.integral_neumann) + b_rhs)
-
-			# Build lhs
-			a_form = do.inner(utils.dotdot(self.CT, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
-			A = do.assemble(a_form)
+			linear_form = do.fem.form(self.b_body + sum(self.integral_neumann) + b_rhs)
+			b = do.fem.petsc.assemble_vector(linear_form)
+			do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bcs])
+			do.fem.petsc.set_bc(b, self.bcs)
 
 			# Solve linear system
-			[bc.apply(A, b) for bc in self.bcs]
-			self.solver.solve(A, self.u.vector(), b)
+			self.solver.setOperators(A)
+			self.solver.solve(b, self.u.x.petsc_vec)
 
 			# Compute total strain
-			self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-			eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+			self.eps_tot = utils.project(utils.epsilon(self.u), self.DG_3x3)
+
+			# self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
+			eps_tot_torch = utils.numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
 
 			# Compute stress
 			self.compute_stress(eps_tot_torch, dt)
@@ -412,7 +419,7 @@ class LinearMomentum():
 				self.error = 0.0
 			else:
 				eps_tot_k_flat = to.flatten(eps_tot_k)
-				eps_tot_flat = self.eps_tot.vector()[:]
+				eps_tot_flat = self.eps_tot.x.array
 				self.error = np.linalg.norm(eps_tot_k_flat - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
 
 			self.ite += 1

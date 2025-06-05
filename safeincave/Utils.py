@@ -74,6 +74,12 @@ def local_projection_old(tensor, V):
     problem.solve()
     return u
 
+def project(tensor_ufl, V):
+	tensor_expr = do.fem.Expression(tensor_ufl, V.element.interpolation_points())
+	tensor = do.fem.Function(V)
+	tensor.interpolate(tensor_expr)
+	return tensor
+
 def epsilon(u):
 	"""
 	It computes the strain tensor based on the displacement field **u**, that is,
