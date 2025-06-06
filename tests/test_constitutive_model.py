@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.join("..", "safeincave"))
 import torch as to
 import numpy as np
-from Gridx import GridHandlerFEniCS
+from Grid import GridHandlerFEniCS
 from ConstitutiveModel import ConstitutiveModel
 from Elements import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
 import dolfinx as do

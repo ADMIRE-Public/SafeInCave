@@ -6,7 +6,7 @@ import numpy as np
 import ufl
 import dolfinx as do
 from Equations import LinearMomentum
-from Gridx import GridHandlerGMSH
+from Grid import GridHandlerGMSH
 from Utils import read_json
 
 class Test1(unittest.TestCase):

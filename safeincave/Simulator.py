@@ -18,7 +18,7 @@ The class implements the iterative process to solve the non-linear equilibrium e
 # the License.
 
 from Equations import LinearMomentum
-from Gridx import GridHandlerGMSH
+from Grid import GridHandlerGMSH
 import Utils as utils
 from ScreenOutput import ScreenPrinter
 import os
@@ -145,8 +145,6 @@ class Simulator(object):
 
 		# Perform initial computations
 		self.eq_mom.initialize(solve_equilibrium=solve_equilibrium, verbose=verbose, save_results=True, calculate_hardening=hardening)
-
-		print("check")
 		
 		if solve_operation:
 

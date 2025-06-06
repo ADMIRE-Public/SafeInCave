@@ -8,8 +8,6 @@ from Simulator import Simulator
 import Simulator as s1
 from Utils import read_json
 
-from Gridx import GridHandlerGMSH
-
 class Test1(unittest.TestCase):
 
 	def setUp(self):
@@ -29,12 +27,6 @@ class Test1(unittest.TestCase):
 		self.true_data["u_equilibrium"] = np.array(self.true_data["u_equilibrium"])
 
 	def test_0(self):
-		self.sim.run_simulation(solve_equilibrium=False, verbose=True)
-
-		# print()
-		# print(self.sim.eq_mom.m.elems_ie[0].alpha.numpy())
-		# print()
-		# print(self.sim.eq_mom.u.x.array)
-		# print()
+		self.sim.run_simulation(solve_equilibrium=False, verbose=False)
 		np.testing.assert_allclose(self.sim.eq_mom.m.elems_ie[0].alpha.numpy(), np.array(self.true_data["alpha_2"]), rtol=1e-8, atol=1e-8)
 		np.testing.assert_allclose(self.sim.eq_mom.u.x.array, np.array(self.true_data["u_operation"]), rtol=1e-8, atol=1e-8)

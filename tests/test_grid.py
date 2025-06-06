@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.join("..", "safeincave"))
 import torch as to
 import numpy as np
-from Gridx import GridHandlerGMSH, GridHandlerFEniCS
+from Grid import GridHandlerGMSH, GridHandlerFEniCS
 import dolfinx as do
 from mpi4py import MPI
 
