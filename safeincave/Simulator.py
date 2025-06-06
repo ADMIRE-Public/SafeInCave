@@ -18,7 +18,7 @@ The class implements the iterative process to solve the non-linear equilibrium e
 # the License.
 
 from Equations import LinearMomentum
-from Grid import GridHandlerGMSH
+from Gridx import GridHandlerGMSH
 import Utils as utils
 from ScreenOutput import ScreenPrinter
 import os
@@ -75,21 +75,23 @@ class Simulator(object):
 		self.screen.print_comment(" ")
 		self.screen.print_comment(" Mesh info:")
 		self.screen.print_comment(f"          Location: {grid_path}")
-		self.screen.print_comment(f"          Number of elements: {self.grid.mesh.num_cells()}")
-		self.screen.print_comment(f"          Number of nodes: {self.grid.mesh.num_vertices()}")
+		self.screen.print_comment(f"          Number of elements: {self.grid.n_elems}")
+		self.screen.print_comment(f"          Number of nodes: {self.grid.n_nodes}")
 
-		solver_type = input_file["solver_settings"]["type"]
-		solver_method = input_file["solver_settings"]["method"]
+		solver_type = input_file["solver_settings"]["solver_type"]
+		solver_method = input_file["solver_settings"]["solver_PC"]
+		rtol = input_file["solver_settings"]["rtol"]
 
 		self.screen.print_comment(" ")
 		self.screen.print_comment(" Solver info:")
 		self.screen.print_comment(f"          Type: {solver_type}")
-		self.screen.print_comment(f"          Method: {solver_method}")
-		if solver_type == "KrylovSolver":
-			solver_prec = input_file["solver_settings"]["preconditioner"]
-			solver_tol = input_file["solver_settings"]["relative_tolerance"]
-			self.screen.print_comment(f"          Preconditioner: {solver_prec}")
-			self.screen.print_comment(f"          Tolerance: {solver_tol}")
+		self.screen.print_comment(f"          PC: {solver_method}")
+		self.screen.print_comment(f"          Tol: {rtol}")
+		# if solver_type == "KrylovSolver":
+		# 	solver_prec = input_file["solver_settings"]["preconditioner"]
+		# 	solver_tol = input_file["solver_settings"]["relative_tolerance"]
+		# 	self.screen.print_comment(f"          Preconditioner: {solver_prec}")
+		# 	self.screen.print_comment(f"          Tolerance: {solver_tol}")
 		self.screen.print_comment(" ")
 
 	def __save_input_file(self, filename):
@@ -143,6 +145,8 @@ class Simulator(object):
 
 		# Perform initial computations
 		self.eq_mom.initialize(solve_equilibrium=solve_equilibrium, verbose=verbose, save_results=True, calculate_hardening=hardening)
+
+		print("check")
 		
 		if solve_operation:
 
