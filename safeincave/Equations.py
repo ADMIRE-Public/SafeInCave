@@ -134,11 +134,11 @@ class LinearMomentum():
 
 	def initialize_ouput_files(self, output_folder):
 		# Create output file
-		self.u_vtk = do.File(os.path.join(output_folder, "vtk", "displacement", "displacement.pvd"))
-		self.stress_vtk = do.File(os.path.join(output_folder, "vtk", "stress", "stress.pvd"))
+		self.u_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "displacement", "displacement.pvd"), "w")
+		self.stress_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "stress", "stress.pvd"), "w")
+		self.q_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "q", "q.pvd"), "w")
+		self.p_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "p", "p.pvd"), "w")
 
-		self.q_vtk = do.File(os.path.join(output_folder, "vtk", "q", "q.pvd"))
-		self.p_vtk = do.File(os.path.join(output_folder, "vtk", "p", "p.pvd"))
 
 
 
@@ -159,16 +159,16 @@ class LinearMomentum():
 		q = np.sqrt(3*J2)
 		p = I1/3
 
-		self.von_mises.vector()[:] = self.grid.smoother.dot(q.numpy())
-		self.q_vtk << (self.von_mises, t)
+		self.von_mises.x.array[:] = self.grid.smoother.dot(q.numpy())
+		self.q_vtk.write_function(self.von_mises, t)
 
-		self.sigma_v.vector()[:] = self.grid.smoother.dot(p.numpy())
-		self.p_vtk << (self.sigma_v, t)
+		self.sigma_v.x.array[:] = self.grid.smoother.dot(p.numpy())
+		self.p_vtk.write_function(self.sigma_v, t)
 
-		self.sigma.vector()[:] = self.apply_smoother(self.stress_torch.numpy())
-		self.stress_vtk << (self.sigma, t)
+		self.sigma.x.array[:] = self.apply_smoother(self.stress_torch.numpy())
+		self.stress_vtk.write_function(self.sigma, t)
 
-		self.u_vtk << (self.u, t)
+		self.u_vtk.write_function(self.u, t)
 
 
 	def apply_smoother(self, field_np):
@@ -190,25 +190,30 @@ class LinearMomentum():
 		# Define Dirichlet boundary conditions
 		self.define_dirichlet_bc(self.t0)
 
-		# Build RHS vector
-		b = do.assemble(self.b_body + sum(self.integral_neumann))
-
 		# Initialize elastic stiffness matrix, C0
-		self.C0.vector()[:] = to.flatten(self.m.C0)
+		self.C0.x.array[:] = to.flatten(self.m.C0)
 
-		# Build stiffness matrix
-		a_form = do.inner(utils.dotdot(self.C0, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
-		A = do.assemble(a_form)
+		# Build lhs
+		a = ufl.inner(utils.dotdot(self.C0, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
+		bilinear_form = do.fem.form(a)
+		A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bcs)
+		A.assemble()
+
+		# Build rhs
+		linear_form = do.fem.form(self.b_body + sum(self.integral_neumann))
+		b = do.fem.petsc.assemble_vector(linear_form)
+		do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bcs])
+		do.fem.petsc.set_bc(b, self.bcs)
 
 		# Solve linear system
-		[bc.apply(A, b) for bc in self.bcs]
-		self.solver.solve(A, self.u.vector(), b)
+		self.solver.setOperators(A)
+		self.solver.solve(b, self.u.x.petsc_vec)
 
 		# Compute total strain
-		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
+		self.eps_tot = utils.project(utils.epsilon(self.u), self.DG_3x3)
+		eps_tot_torch = utils.numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
 
 		# Compute stress
-		eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
 		self.compute_stress_C0(eps_tot_torch)
 
 		if solve_equilibrium:
@@ -228,7 +233,7 @@ class LinearMomentum():
 		self.initialize_ouput_files(self.operation_output_folder)
 
 		# Assign stress
-		self.sigma.vector()[:] = self.stress_torch.flatten()
+		self.sigma.x.array[:] = self.stress_torch.flatten()
 
 
 
