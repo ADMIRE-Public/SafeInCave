@@ -130,6 +130,12 @@ class LinearMomentum():
 		# Define linear solver
 		self.solver = self.define_solver()
 
+		# print("check")
+		# self.test_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(self.operation_output_folder, "vtk", "test", "test.pvd"), "w")
+		# print("check")
+		# self.test_vtk.write_mesh(self.grid.mesh)
+		# print("check")
+
 
 
 	def initialize_ouput_files(self, output_folder):
@@ -138,6 +144,13 @@ class LinearMomentum():
 		self.stress_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "stress", "stress.pvd"), "w")
 		self.q_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "q", "q.pvd"), "w")
 		self.p_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "p", "p.pvd"), "w")
+
+		# print("check")
+		# self.q_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "q", "q.pvd"), "w")
+		# print("check")
+		# print(self.grid.mesh)
+		# self.q_vtk.write_mesh(self.grid.mesh)
+		# print("check")
 
 
 
@@ -160,7 +173,14 @@ class LinearMomentum():
 		p = I1/3
 
 		self.von_mises.x.array[:] = self.grid.smoother.dot(q.numpy())
+		# print(self.von_mises.x.array)
+		# print(self.von_mises.x.array.size)
+		# print(self.grid.n_elems)
+		# print(self.q_vtk)
+		# q_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(self.operation_output_folder, "vtk", "q", "q.pvd"), "w")
+		# q_vtk.write_function(self.von_mises, t)
 		self.q_vtk.write_function(self.von_mises, t)
+		# print("check")
 
 		self.sigma_v.x.array[:] = self.grid.smoother.dot(p.numpy())
 		self.p_vtk.write_function(self.sigma_v, t)
@@ -250,7 +270,6 @@ class LinearMomentum():
 						elem_names.append(elem_name)
 						mod_input_file[elem_type][elem_name]["active"] = True
 		self.m = ConstitutiveModel(self.grid, mod_input_file)
-
 
 		# Screen info
 		screen = ScreenPrinter()

@@ -148,11 +148,6 @@ class Simulator(object):
 		
 		if solve_operation:
 
-			# header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
-			# header_align = "center",
-			# row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
-			# row_align = ["center", "center", "center", "center", "center", "center"],
-
 			self.screen.start_timer()
 			self.screen.set_header_columns(["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"], "center")
 			self.screen.set_row_formats(["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"], ["center" for i in range(6)])

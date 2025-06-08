@@ -20,7 +20,7 @@ Useful class to assist building the input_file.json.
 import json
 import numpy as np
 import torch as to
-import dolfin as do
+import dolfinx as do
 
 class BuildInputFile():
 	def __init__(self):
@@ -83,7 +83,7 @@ class BuildInputFile():
 		self.grid = GridHandlerGMSH(grid_name, path_to_grid)
 		self.list_of_boundary_names = list(self.grid.get_boundary_names())
 
-		self.input_file["grid"]["regions"] = {value: key for key, value in self.grid.tags_dict.items()}
+		self.input_file["grid"]["regions"] = {value: int(key) for key, value in self.grid.tags_dict.items()}
 		self.input_file["grid"]["boundaries"] = self.list_of_boundary_names
 
 
@@ -230,18 +230,18 @@ class BuildInputFile():
 			}
 		}
 
-	def build_custom_field(self, fun):
-		"""
-		fun = fun(x, y, z)
-		"""
-		n_elems = self.grid.mesh.num_cells()
-		field = np.zeros(n_elems)
-		for cell in do.cells(self.grid.mesh):
-			centroid = cell.midpoint()
-			x = centroid.x()
-			y = centroid.y()
-			z = centroid.z()
-			field[cell.index()] = fun(x, y, z)
-		return field
+	# def build_custom_field(self, fun):
+	# 	"""
+	# 	fun = fun(x, y, z)
+	# 	"""
+	# 	n_elems = self.grid.mesh.num_cells()
+	# 	field = np.zeros(n_elems)
+	# 	for cell in do.cells(self.grid.mesh):
+	# 		centroid = cell.midpoint()
+	# 		x = centroid.x()
+	# 		y = centroid.y()
+	# 		z = centroid.z()
+	# 		field[cell.index()] = fun(x, y, z)
+	# 	return field
 
 
