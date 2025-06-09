@@ -63,32 +63,32 @@ class LinearMomentum():
 		self.t0 = self.time_list[0]
 
 		# Create function spaces
-		self.CG_3x1 = do.fem.functionspace(self.grid.mesh, ("Lagrange", 1, (grid.domain_dim, )))
-		self.DG_1 = do.fem.functionspace(self.grid.mesh, ("DG", 0))
-		self.DG_3x3 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (3, 3)))
-		self.DG_6x6 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (6, 6)))
+		self.CG0_3x1 = do.fem.functionspace(self.grid.mesh, ("Lagrange", 1, (grid.domain_dim, )))
+		self.DG0_1 = do.fem.functionspace(self.grid.mesh, ("DG", 0))
+		self.DG0_3x3 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (3, 3)))
+		self.DG0_6x6 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (6, 6)))
 
 
 		# Create tensor fields
-		self.C0 = do.fem.Function(self.DG_6x6)
-		self.C1 = do.fem.Function(self.DG_6x6)
-		self.CT = do.fem.Function(self.DG_6x6)
-		self.eps_tot = do.fem.Function(self.DG_3x3)
-		self.eps_rhs = do.fem.Function(self.DG_3x3)
+		self.C0 = do.fem.Function(self.DG0_6x6)
+		self.C1 = do.fem.Function(self.DG0_6x6)
+		self.CT = do.fem.Function(self.DG0_6x6)
+		self.eps_tot = do.fem.Function(self.DG0_3x3)
+		self.eps_rhs = do.fem.Function(self.DG0_3x3)
 
-		self.sigma = do.fem.Function(self.DG_3x3)
-		self.sigma_0 = do.fem.Function(self.DG_3x3)
+		self.sigma = do.fem.Function(self.DG0_3x3)
+		self.sigma_0 = do.fem.Function(self.DG0_3x3)
 		self.sigma.name = "Stress"
 
-		self.sigma_v = do.fem.Function(self.DG_1)
+		self.sigma_v = do.fem.Function(self.DG0_1)
 		self.sigma_v.name = "Mean stress"
 
-		self.von_mises = do.fem.Function(self.DG_1)
+		self.von_mises = do.fem.Function(self.DG0_1)
 		self.von_mises.name = "Von Mises stress"
 
 		# Define variational problem
-		self.du = ufl.TrialFunction(self.CG_3x1)
-		self.v = ufl.TestFunction(self.CG_3x1)
+		self.du = ufl.TrialFunction(self.CG0_3x1)
+		self.v = ufl.TestFunction(self.CG0_3x1)
 		self.ds = ufl.Measure("ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries())
 		self.dx = ufl.Measure("dx", domain=self.grid.mesh, subdomain_data=self.grid.get_subdomains())
 
@@ -97,7 +97,7 @@ class LinearMomentum():
 		self.normal = ufl.dot(self.n, self.v)
 
 		# Create displacement vector
-		self.u = do.fem.Function(self.CG_3x1)
+		self.u = do.fem.Function(self.CG0_3x1)
 		self.u.name = "Displacement"
 
 		# Define pytorch tensor quantities
@@ -116,7 +116,7 @@ class LinearMomentum():
 
 		# Define salt specific weight
 		self.direction = self.input_file["body_force"]["direction"]
-		self.density = do.fem.Function(self.DG_1)
+		self.density = do.fem.Function(self.DG0_1)
 		self.density.x.array[:] = self.grid.get_parameter(self.input_file["body_force"]["density"])
 		self.gravity = self.input_file["body_force"]["gravity"]
 
@@ -140,19 +140,20 @@ class LinearMomentum():
 
 	def initialize_ouput_files(self, output_folder):
 		# Create output file
-		self.u_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "displacement", "displacement.pvd"), "w")
-		self.stress_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "stress", "stress.pvd"), "w")
-		self.q_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "q", "q.pvd"), "w")
-		self.p_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "p", "p.pvd"), "w")
+		self.u_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "displacement", "u.xdmf"), "w")
+		self.stress_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "stress", "stress.xdmf"), "w")
+		self.q_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "q", "q.xdmf"), "w")
+		self.p_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "p", "p.xdmf"), "w")
 
-		# print("check")
-		# self.q_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "q", "q.pvd"), "w")
-		# print("check")
-		# print(self.grid.mesh)
-		# self.q_vtk.write_mesh(self.grid.mesh)
-		# print("check")
+		self.u_vtk.name = "Displacement"
+		self.stress_vtk.name = "Stress"
+		self.q_vtk.name = "Von Mises stress"
+		self.p_vtk.name = "Mean stress"
 
-
+		self.u_vtk.write_mesh(self.grid.mesh)
+		self.stress_vtk.write_mesh(self.grid.mesh)
+		self.q_vtk.write_mesh(self.grid.mesh)
+		self.p_vtk.write_mesh(self.grid.mesh)
 
 
 	def save_solution(self, t):
@@ -173,14 +174,7 @@ class LinearMomentum():
 		p = I1/3
 
 		self.von_mises.x.array[:] = self.grid.smoother.dot(q.numpy())
-		# print(self.von_mises.x.array)
-		# print(self.von_mises.x.array.size)
-		# print(self.grid.n_elems)
-		# print(self.q_vtk)
-		# q_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(self.operation_output_folder, "vtk", "q", "q.pvd"), "w")
-		# q_vtk.write_function(self.von_mises, t)
 		self.q_vtk.write_function(self.von_mises, t)
-		# print("check")
 
 		self.sigma_v.x.array[:] = self.grid.smoother.dot(p.numpy())
 		self.p_vtk.write_function(self.sigma_v, t)
@@ -230,7 +224,7 @@ class LinearMomentum():
 		self.solver.solve(b, self.u.x.petsc_vec)
 
 		# Compute total strain
-		self.eps_tot = utils.project(utils.epsilon(self.u), self.DG_3x3)
+		self.eps_tot = utils.project(utils.epsilon(self.u), self.DG0_3x3)
 		eps_tot_torch = utils.numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
 
 		# Compute stress
@@ -423,9 +417,9 @@ class LinearMomentum():
 			self.solver.solve(b, self.u.x.petsc_vec)
 
 			# Compute total strain
-			self.eps_tot = utils.project(utils.epsilon(self.u), self.DG_3x3)
+			self.eps_tot = utils.project(utils.epsilon(self.u), self.DG0_3x3)
 
-			# self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
+			# self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG0_3x3))
 			eps_tot_torch = utils.numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
 
 			# Compute stress
@@ -879,7 +873,7 @@ class LinearMomentum():
 				values = self.input_file["boundary_conditions"][boundary]["values"]
 				value = np.interp(t, self.time_list, values)
 				dofs = do.fem.locate_dofs_topological(
-					self.CG_3x1.sub(component),
+					self.CG0_3x1.sub(component),
 					self.grid.boundary_dim,
 					self.grid.get_boundary_tags(boundary)
 				)
@@ -887,7 +881,7 @@ class LinearMomentum():
 					do.fem.dirichletbc(
 						do.default_scalar_type(value),
 						dofs,
-						self.CG_3x1.sub(component)
+						self.CG0_3x1.sub(component)
 					)
 				)
 
