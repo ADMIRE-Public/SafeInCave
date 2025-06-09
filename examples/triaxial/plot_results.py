@@ -5,22 +5,26 @@ import numpy as np
 import pandas as pd
 from Utils import read_json
 import matplotlib.pyplot as plt
-from ResultsHandler import read_vector_from_points
+from ResultsHandler import read_vector_from_points, read_mesh_as_pandas
 
 hour = 60*60
 MPa = 1e6
 
 def plot_FEM(ax, output_folder):
+	file_name = os.path.join(output_folder, "operation", "vtk", "displacement", "u.xdmf")
 
-	# Read displacement results
-	pvd_path = os.path.join(output_folder, "operation", "vtk", "displacement")
-	pvd_file = "displacement.pvd"
-	df, u, v, w = read_vector_from_points(pvd_path, pvd_file)
+	# Read mesh
+	df_points, df_cells = read_mesh_as_pandas(file_name)
 
-	point_P = df[(df["z"]==1) & (df["x"]==1) & (df["y"]==1)].index[0]
+	# Read displacements
+	u, v, w = read_vector_from_points(file_name)
 
-	Lz = df["z"].values.max()
-	Lx = df["x"].values.max()
+	# Find points of interest
+	point_P = df_points[(df_points["z"]==1) & (df_points["x"]==1) & (df_points["y"]==1)].index[0]
+
+	# Get domain dimensions
+	Lz = df_points["z"].values.max()
+	Lx = df_points["x"].values.max()
 
 	u_P = u.iloc[point_P].values[1:]
 	w_P = w.iloc[point_P].values[1:]

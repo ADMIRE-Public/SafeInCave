@@ -1,6 +1,6 @@
 {
     "grid": {
-        "path": "../../tests/files/cube_coarse",
+        "path": "../../grids/cube",
         "name": "geom",
         "regions": {
             "OMEGA_A": 27,

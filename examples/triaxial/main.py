@@ -17,8 +17,8 @@ def build_input_file():
 	ifa = BuildInputFile()
 
 	# Create input_grid section
-	# path_to_grid = os.path.join("..", "..", "grids", "cube")
-	path_to_grid = os.path.join("..", "..", "tests", "files", "cube_coarse")
+	path_to_grid = os.path.join("..", "..", "grids", "cube")
+	# path_to_grid = os.path.join("..", "..", "tests", "files", "cube_coarse")
 	ifa.set_input_grid(path_to_grid, "geom")
 
 	# Create output section
