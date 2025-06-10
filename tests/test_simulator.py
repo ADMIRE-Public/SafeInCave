@@ -11,7 +11,7 @@ from Utils import read_json
 class Test1(unittest.TestCase):
 
 	def setUp(self):
-		input_file1 = read_json(os.path.join("files", "cube_coarse", "input_file.json"))
+		input_file1 = read_json("input_file.json")
 		input_file1["grid"]["path"] = os.path.join("files", "cube_coarse")
 		self.sim = s1.Simulator(input_file1)
 		self.load_expected_values()

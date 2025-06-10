@@ -22,6 +22,7 @@ import copy
 import torch as to
 import dolfinx as do
 from petsc4py import PETSc
+import shutil
 import ufl
 import numpy as np
 import Utils as utils
@@ -155,6 +156,17 @@ class LinearMomentum():
 		self.q_vtk.write_mesh(self.grid.mesh)
 		self.p_vtk.write_mesh(self.grid.mesh)
 
+	def save_msh_file(self):
+		origin_msh_file = os.path.join(self.input_file["grid"]["path"], f"{self.grid.geometry_name}.msh")
+		output_folder = os.path.join(self.input_file["output"]["path"], "mesh")
+
+		# Create output folder to save mesh
+		if not os.path.exists(output_folder):
+			os.makedirs(output_folder)
+
+		# Copy mesh
+		shutil.copy(origin_msh_file, output_folder)
+
 
 	def save_solution(self, t):
 
@@ -198,6 +210,9 @@ class LinearMomentum():
 
 
 	def initialize(self, solve_equilibrium=False, verbose=True, save_results=False, calculate_hardening=True):
+		# Save mesh file in results folder
+		self.save_msh_file()
+
 		# Apply Neumann boundary condition
 		self.apply_neumann_bc(self.t0)
 

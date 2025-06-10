@@ -5,26 +5,32 @@ import numpy as np
 import pandas as pd
 from Utils import read_json
 import matplotlib.pyplot as plt
-from ResultsHandler import read_vector_from_points, read_mesh_as_pandas
+from ResultsHandler import read_vector_from_points, read_xdmf_as_pandas, read_msh_as_pandas, find_mapping
+import meshio
 
 hour = 60*60
 MPa = 1e6
 
+
 def plot_FEM(ax, output_folder):
-	file_name = os.path.join(output_folder, "operation", "vtk", "displacement", "u.xdmf")
 
 	# Read mesh
-	df_points, df_cells = read_mesh_as_pandas(file_name)
+	msh_file_name = os.path.join(output_folder, "mesh", "geom.msh")
+	points_msh, cells_msh = read_msh_as_pandas(msh_file_name)
+
+	# Build mapping
+	xdmf_file_name = os.path.join(output_folder, "operation", "xdmf", "displacement", "u.xdmf")
+	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
 
 	# Read displacements
-	u, v, w = read_vector_from_points(file_name)
+	u, v, w = read_vector_from_points(xdmf_file_name, mapping)
 
 	# Find points of interest
-	point_P = df_points[(df_points["z"]==1) & (df_points["x"]==1) & (df_points["y"]==1)].index[0]
+	point_P = points_msh[(points_msh["z"]==1) & (points_msh["x"]==1) & (points_msh["y"]==1)].index[0]
 
 	# Get domain dimensions
-	Lz = df_points["z"].values.max()
-	Lx = df_points["x"].values.max()
+	Lz = points_msh["z"].values.max()
+	Lx = points_msh["x"].values.max()
 
 	u_P = u.iloc[point_P].values[1:]
 	w_P = w.iloc[point_P].values[1:]

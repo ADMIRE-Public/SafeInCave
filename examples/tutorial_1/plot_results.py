@@ -4,7 +4,7 @@ sys.path.append(os.path.join("..", "..", "safeincave"))
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from ResultsHandler import read_vector_from_points, read_mesh_as_pandas
+from ResultsHandler import read_vector_from_points, read_xdmf_as_pandas, read_msh_as_pandas, find_mapping
 
 def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color='0.85'):
 	fig.patch.set_facecolor("#212121ff")
@@ -25,24 +25,31 @@ def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color=
 			ax.set_facecolor(back_color)
 
 
-# Define results file
-file_name = os.path.join("output", "case_0", "operation", "vtk", "displacement", "u.xdmf")
+# Define output folder
+output_folder = os.path.join("output", "case_0")
 
 # Read mesh
-df_points, df_cells = read_mesh_as_pandas(file_name)
+msh_file_name = os.path.join(output_folder, "mesh", "geom.msh")
+points_msh, cells_msh = read_msh_as_pandas(msh_file_name)
+
+# Build mapping
+xdmf_file_name = os.path.join(output_folder, "operation", "xdmf", "displacement", "u.xdmf")
+mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
 
 # Read displacements
-u, v, w = read_vector_from_points(file_name)
+u, v, w = read_vector_from_points(xdmf_file_name, mapping)
 
-point_A = df_points[(df_points["z"] == 1) & (df_points["x"] == 0) & (df_points["y"] == 0)].index[0]
-point_B = df_points[(df_points["z"] == 1) & (df_points["x"] == 0) & (df_points["y"] == 1)].index[0]
-point_C = df_points[(df_points["z"] == 1) & (df_points["x"] == 1) & (df_points["y"] == 1)].index[0]
-point_D = df_points[(df_points["z"] == 1) & (df_points["x"] == 1) & (df_points["y"] == 0)].index[0]
+
+# Define points of interest
+point_A = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 0) & (points_msh["y"] == 0)].index[0]
+point_B = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 0) & (points_msh["y"] == 1)].index[0]
+point_C = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 1) & (points_msh["y"] == 1)].index[0]
+point_D = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 1) & (points_msh["y"] == 0)].index[0]
 print(point_A, point_B, point_C, point_D)
-print("Point A: ", df_points.iloc[point_A].values)
-print("Point B: ", df_points.iloc[point_B].values)
-print("Point C: ", df_points.iloc[point_C].values)
-print("Point D: ", df_points.iloc[point_D].values)
+print("Point A: ", points_msh.iloc[point_A].values)
+print("Point B: ", points_msh.iloc[point_B].values)
+print("Point C: ", points_msh.iloc[point_C].values)
+print("Point D: ", points_msh.iloc[point_D].values)
 
 w_A = w.iloc[point_A].values[1:]
 w_B = w.iloc[point_B].values[1:]

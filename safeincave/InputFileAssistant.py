@@ -230,6 +230,21 @@ class BuildInputFile():
 			}
 		}
 
+	def build_custom_field(self, fun):
+		"""
+		fun = fun(x, y, z)
+		"""
+		n_elems = self.grid.n_elems
+		field = np.zeros(n_elems)
+		x = self.grid.mesh.geometry.x
+		conn_aux = self.grid.mesh.topology.connectivity(3, 0)
+		conn = conn_aux.array.reshape((n_elems, 4))
+		for i in range(n_elems):
+			cell_vertices = conn[i]
+			xc = sum(x[v] for v in cell_vertices) / len(cell_vertices)
+			field[i] = fun(xc[0], xc[1], xc[2])
+		return field
+
 	# def build_custom_field(self, fun):
 	# 	"""
 	# 	fun = fun(x, y, z)
