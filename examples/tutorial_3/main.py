@@ -31,11 +31,7 @@ def create_input_file():
 	ifa.set_output_folder(os.path.join("output", "case_0"))
 
 	# Create solver settings section
-	# ifa.set_krylov_solver(method="cg", preconditioner="petsc_amg", rel_tol=1e-12)
-	ifa.set_krylov_solver(method="cg", preconditioner="ilu", rel_tol=1e-12)
-	# ifa.set_krylov_solver(method="bicgstab", preconditioner="ilu", rel_tol=1e-12)
-	# ifa.set_krylov_solver(method="bicgstab", preconditioner="petsc_amg", rel_tol=1e-12)
-	# ifa.set_direct_solver(method="petsc")
+	ifa.set_solver(solver_type="cg", solver_PC="gamg", rtol=1e-12, maxite=100)
 
 	# Create simulation_settings section
 	ifa.set_equilibrium_stage(active=True, dt=0.1*day, tol=1e-4, ite_max=50)

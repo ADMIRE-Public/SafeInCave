@@ -11,7 +11,8 @@ from Utils import read_json
 class Test1(unittest.TestCase):
 
 	def setUp(self):
-		input_file1 = read_json(os.path.join("files", "cube_coarse", "input_file.json"))
+		input_file1 = read_json("input_file.json")
+		input_file1["grid"]["path"] = os.path.join("files", "cube_coarse")
 		self.sim = s1.Simulator(input_file1)
 		self.load_expected_values()
 
@@ -28,3 +29,4 @@ class Test1(unittest.TestCase):
 	def test_0(self):
 		self.sim.run_simulation(solve_equilibrium=False, verbose=False)
 		np.testing.assert_allclose(self.sim.eq_mom.m.elems_ie[0].alpha.numpy(), np.array(self.true_data["alpha_2"]), rtol=1e-8, atol=1e-8)
+		np.testing.assert_allclose(self.sim.eq_mom.u.x.array, np.array(self.true_data["u_operation"]), rtol=1e-8, atol=1e-8)

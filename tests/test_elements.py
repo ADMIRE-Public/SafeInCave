@@ -5,7 +5,6 @@ sys.path.append(os.path.join("..", "safeincave"))
 import torch as to
 import numpy as np
 from Elements import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
-import dolfin as do
 
 class TestSpring(unittest.TestCase):
 	def setUp(self):

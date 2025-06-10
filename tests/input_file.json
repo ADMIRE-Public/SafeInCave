@@ -1,18 +1,18 @@
 {
     "grid": {
-        "path": "../../grids/cavern_irregular",
+        "path": "files/cube_coarse",
         "name": "geom",
         "regions": {
-            "Salt": 72
+            "OMEGA_A": 27,
+            "OMEGA_B": 28
         },
         "boundaries": [
-            "West",
-            "East",
-            "South",
-            "North",
-            "Bottom",
-            "Top",
-            "Cavern"
+            "NORTH",
+            "SOUTH",
+            "WEST",
+            "EAST",
+            "BOTTOM",
+            "TOP"
         ]
     },
     "output": {
@@ -26,15 +26,15 @@
     },
     "simulation_settings": {
         "equilibrium": {
-            "active": true,
+            "active": false,
             "dt_max": 1800.0,
-            "ite_max": 20,
+            "ite_max": 50,
             "time_tol": 0.0001
         },
         "operation": {
             "active": true,
-            "dt_max": 180.0,
-            "n_skip": 4,
+            "dt_max": 360.0,
+            "n_skip": 1,
             "hardening": true
         }
     },
@@ -54,18 +54,20 @@
         "direction": 2
     },
     "boundary_conditions": {
-        "West": {
-            "type": "dirichlet",
-            "component": 0,
+        "NORTH": {
+            "type": "neumann",
+            "direction": 2,
+            "density": 0.0,
+            "reference_position": 1.0,
             "values": [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0
+                4000000.0,
+                4000000.0,
+                4000000.0,
+                4000000.0,
+                4000000.0
             ]
         },
-        "South": {
+        "SOUTH": {
             "type": "dirichlet",
             "component": 1,
             "values": [
@@ -76,7 +78,31 @@
                 0.0
             ]
         },
-        "Bottom": {
+        "WEST": {
+            "type": "dirichlet",
+            "component": 0,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "EAST": {
+            "type": "neumann",
+            "direction": 2,
+            "density": 0.0,
+            "reference_position": 1.0,
+            "values": [
+                4000000.0,
+                4000000.0,
+                4000000.0,
+                4000000.0,
+                4000000.0
+            ]
+        },
+        "BOTTOM": {
             "type": "dirichlet",
             "component": 2,
             "values": [
@@ -87,56 +113,17 @@
                 0.0
             ]
         },
-        "East": {
+        "TOP": {
             "type": "neumann",
             "direction": 2,
-            "density": 2000,
-            "reference_position": 660.0,
+            "density": 0.0,
+            "reference_position": 1.0,
             "values": [
-                10000000.0,
-                10000000.0,
-                10000000.0,
-                10000000.0,
-                10000000.0
-            ]
-        },
-        "North": {
-            "type": "neumann",
-            "direction": 2,
-            "density": 2000,
-            "reference_position": 660.0,
-            "values": [
-                10000000.0,
-                10000000.0,
-                10000000.0,
-                10000000.0,
-                10000000.0
-            ]
-        },
-        "Top": {
-            "type": "neumann",
-            "direction": 2,
-            "density": 2000,
-            "reference_position": 660.0,
-            "values": [
-                10000000.0,
-                10000000.0,
-                10000000.0,
-                10000000.0,
-                10000000.0
-            ]
-        },
-        "Cavern": {
-            "type": "neumann",
-            "direction": 2,
-            "density": 10,
-            "reference_position": 430,
-            "values": [
-                10000000.0,
-                7000000.0,
-                7000000.0,
-                10000000.0,
-                10000000.0
+                4099999.9999999995,
+                12000000.0,
+                12000000.0,
+                6000000.0,
+                6000000.0
             ]
         }
     },
@@ -156,7 +143,7 @@
             "KelvinVoigt_0": {
                 "type": "KelvinVoigt",
                 "active": true,
-                "equilibrium": true,
+                "equilibrium": false,
                 "parameters": {
                     "E": 10000000000.0,
                     "nu": 0.32,
@@ -165,17 +152,6 @@
             }
         },
         "inelastic": {
-            "disCreep": {
-                "type": "DislocationCreep",
-                "active": true,
-                "equilibrium": true,
-                "parameters": {
-                    "A": 1.9e-20,
-                    "n": 3.0,
-                    "Q": 51600,
-                    "T": 298
-                }
-            },
             "desai": {
                 "type": "ViscoplasticDesai",
                 "active": true,
@@ -192,6 +168,17 @@
                     "gamma": 0.095,
                     "alpha_0": 0.0022,
                     "sigma_t": 5.0
+                }
+            },
+            "disCreep": {
+                "type": "DislocationCreep",
+                "active": true,
+                "equilibrium": false,
+                "parameters": {
+                    "A": 1.9e-20,
+                    "n": 3.0,
+                    "Q": 51600,
+                    "T": 298
                 }
             }
         }

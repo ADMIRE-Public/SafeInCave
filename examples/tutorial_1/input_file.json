@@ -3,8 +3,8 @@
         "path": "../../grids/cube",
         "name": "geom",
         "regions": {
-            "OMEGA_A": 1,
-            "OMEGA_B": 2
+            "OMEGA_A": 27,
+            "OMEGA_B": 28
         },
         "boundaries": [
             "NORTH",
@@ -19,10 +19,10 @@
         "path": "output/case_0"
     },
     "solver_settings": {
-        "type": "KrylovSolver",
-        "method": "cg",
-        "preconditioner": "ilu",
-        "relative_tolerance": 1e-12
+        "solver_type": "cg",
+        "solver_PC": "gamg",
+        "rtol": 1e-12,
+        "maxite": 100
     },
     "simulation_settings": {
         "equilibrium": {

@@ -20,7 +20,10 @@ Everything related to the solution of the linear momentum balance equation.
 import os
 import copy
 import torch as to
-import dolfin as do
+import dolfinx as do
+from petsc4py import PETSc
+import shutil
+import ufl
 import numpy as np
 import Utils as utils
 from ConstitutiveModel import ConstitutiveModel
@@ -41,6 +44,7 @@ class LinearMomentum():
 	def __init__(self, grid, theta, input_file):
 		self.grid = grid
 		self.input_file = input_file
+		self.x = ufl.SpatialCoordinate(self.grid.mesh)
 
 		# Output folder
 		self.operation_output_folder = os.path.join(self.input_file["output"]["path"], "operation")
@@ -60,39 +64,42 @@ class LinearMomentum():
 		self.t0 = self.time_list[0]
 
 		# Create function spaces
-		self.CG_3x1 = do.VectorFunctionSpace(self.grid.mesh, "CG", 1)
-		self.DG_1x1 = do.FunctionSpace(self.grid.mesh, "DG", 0)
-		self.DG_3x3 = do.TensorFunctionSpace(self.grid.mesh, "DG", 0)
-		self.DG_6x6 = do.TensorFunctionSpace(self.grid.mesh, "DG", 0, shape=(6, 6))
+		self.CG0_3x1 = do.fem.functionspace(self.grid.mesh, ("Lagrange", 1, (grid.domain_dim, )))
+		self.DG0_1 = do.fem.functionspace(self.grid.mesh, ("DG", 0))
+		self.DG0_3x3 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (3, 3)))
+		self.DG0_6x6 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (6, 6)))
+
 
 		# Create tensor fields
-		self.C0 = do.Function(self.DG_6x6)
-		self.C1 = do.Function(self.DG_6x6)
-		self.CT = do.Function(self.DG_6x6)
-		self.eps_tot = do.Function(self.DG_3x3)
-		self.eps_rhs = do.Function(self.DG_3x3)
+		self.C0 = do.fem.Function(self.DG0_6x6)
+		self.C1 = do.fem.Function(self.DG0_6x6)
+		self.CT = do.fem.Function(self.DG0_6x6)
+		self.eps_tot = do.fem.Function(self.DG0_3x3)
+		self.eps_rhs = do.fem.Function(self.DG0_3x3)
 
-		self.sigma = do.Function(self.DG_3x3)
-		self.sigma_0 = do.Function(self.DG_3x3)
-		self.sigma.rename("Stress", "MPa")
+		self.sigma = do.fem.Function(self.DG0_3x3)
+		self.sigma_0 = do.fem.Function(self.DG0_3x3)
+		self.sigma.name = "Stress"
 
-		self.sigma_v = do.Function(self.DG_1x1)
-		self.sigma_v.rename("Mean stress", "MPa")
+		self.sigma_v = do.fem.Function(self.DG0_1)
+		self.sigma_v.name = "Mean stress"
 
-		self.von_mises = do.Function(self.DG_1x1)
-		self.von_mises.rename("Von Mises stress", "MPa")
+		self.von_mises = do.fem.Function(self.DG0_1)
+		self.von_mises.name = "Von Mises stress"
 
 		# Define variational problem
-		self.du = do.TrialFunction(self.CG_3x1)
-		self.v = do.TestFunction(self.CG_3x1)
-		self.ds = do.Measure("ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries())
-		self.dx = do.Measure("dx", domain=self.grid.mesh, subdomain_data=self.grid.get_subdomains())
-		self.normal = do.dot(self.v, do.FacetNormal(self.grid.mesh))
-		self.n = do.FacetNormal(self.grid.mesh)
+		self.du = ufl.TrialFunction(self.CG0_3x1)
+		self.v = ufl.TestFunction(self.CG0_3x1)
+		self.ds = ufl.Measure("ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries())
+		self.dx = ufl.Measure("dx", domain=self.grid.mesh, subdomain_data=self.grid.get_subdomains())
+
+		# Define outward normal vectors
+		self.n = ufl.FacetNormal(self.grid.mesh)
+		self.normal = ufl.dot(self.n, self.v)
 
 		# Create displacement vector
-		self.u = do.Function(self.CG_3x1)
-		self.u.rename("Displacement", "m")
+		self.u = do.fem.Function(self.CG0_3x1)
+		self.u.name = "Displacement"
 
 		# Define pytorch tensor quantities
 		self.eps_e_torch = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
@@ -110,30 +117,55 @@ class LinearMomentum():
 
 		# Define salt specific weight
 		self.direction = self.input_file["body_force"]["direction"]
-		self.density = do.Function(self.DG_1x1)
-		self.density.vector()[:] = self.grid.get_parameter(self.input_file["body_force"]["density"])
+		self.density = do.fem.Function(self.DG0_1)
+		self.density.x.array[:] = self.grid.get_parameter(self.input_file["body_force"]["density"])
 		self.gravity = self.input_file["body_force"]["gravity"]
 
 		self.g = [0.0, 0.0, 0.0]
 		self.g[self.direction] = self.gravity
-		self.body_force = self.density*do.Constant(tuple(self.g))
+		self.body_force = self.density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(self.g)))
 
 		# Build body forces on RHS vector
-		self.b_body = do.dot(self.body_force, self.v)*self.dx
+		self.b_body = ufl.dot(self.body_force, self.v)*self.dx
 
 		# Define linear solver
 		self.solver = self.define_solver()
+
+		# print("check")
+		# self.test_vtk = do.io.VTKFile(self.grid.mesh.comm, os.path.join(self.operation_output_folder, "vtk", "test", "test.pvd"), "w")
+		# print("check")
+		# self.test_vtk.write_mesh(self.grid.mesh)
+		# print("check")
 
 
 
 	def initialize_ouput_files(self, output_folder):
 		# Create output file
-		self.u_vtk = do.File(os.path.join(output_folder, "vtk", "displacement", "displacement.pvd"))
-		self.stress_vtk = do.File(os.path.join(output_folder, "vtk", "stress", "stress.pvd"))
+		self.u_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "xdmf", "displacement", "u.xdmf"), "w")
+		self.stress_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "xdmf", "stress", "stress.xdmf"), "w")
+		self.q_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "xdmf", "q", "q.xdmf"), "w")
+		self.p_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "xdmf", "p", "p.xdmf"), "w")
 
-		self.q_vtk = do.File(os.path.join(output_folder, "vtk", "q", "q.pvd"))
-		self.p_vtk = do.File(os.path.join(output_folder, "vtk", "p", "p.pvd"))
+		self.u_vtk.name = "Displacement"
+		self.stress_vtk.name = "Stress"
+		self.q_vtk.name = "Von Mises stress"
+		self.p_vtk.name = "Mean stress"
 
+		self.u_vtk.write_mesh(self.grid.mesh)
+		self.stress_vtk.write_mesh(self.grid.mesh)
+		self.q_vtk.write_mesh(self.grid.mesh)
+		self.p_vtk.write_mesh(self.grid.mesh)
+
+	def save_msh_file(self):
+		origin_msh_file = os.path.join(self.input_file["grid"]["path"], f"{self.grid.geometry_name}.msh")
+		output_folder = os.path.join(self.input_file["output"]["path"], "mesh")
+
+		# Create output folder to save mesh
+		if not os.path.exists(output_folder):
+			os.makedirs(output_folder)
+
+		# Copy mesh
+		shutil.copy(origin_msh_file, output_folder)
 
 
 	def save_solution(self, t):
@@ -153,16 +185,16 @@ class LinearMomentum():
 		q = np.sqrt(3*J2)
 		p = I1/3
 
-		self.von_mises.vector()[:] = self.grid.smoother.dot(q.numpy())
-		self.q_vtk << (self.von_mises, t)
+		self.von_mises.x.array[:] = self.grid.smoother.dot(q.numpy())
+		self.q_vtk.write_function(self.von_mises, t)
 
-		self.sigma_v.vector()[:] = self.grid.smoother.dot(p.numpy())
-		self.p_vtk << (self.sigma_v, t)
+		self.sigma_v.x.array[:] = self.grid.smoother.dot(p.numpy())
+		self.p_vtk.write_function(self.sigma_v, t)
 
-		self.sigma.vector()[:] = self.apply_smoother(self.stress_torch.numpy())
-		self.stress_vtk << (self.sigma, t)
+		self.sigma.x.array[:] = self.apply_smoother(self.stress_torch.numpy())
+		self.stress_vtk.write_function(self.sigma, t)
 
-		self.u_vtk << (self.u, t)
+		self.u_vtk.write_function(self.u, t)
 
 
 	def apply_smoother(self, field_np):
@@ -178,31 +210,39 @@ class LinearMomentum():
 
 
 	def initialize(self, solve_equilibrium=False, verbose=True, save_results=False, calculate_hardening=True):
+		# Save mesh file in results folder
+		self.save_msh_file()
+
 		# Apply Neumann boundary condition
 		self.apply_neumann_bc(self.t0)
 
 		# Define Dirichlet boundary conditions
 		self.define_dirichlet_bc(self.t0)
 
-		# Build RHS vector
-		b = do.assemble(self.b_body + sum(self.integral_neumann))
-
 		# Initialize elastic stiffness matrix, C0
-		self.C0.vector()[:] = to.flatten(self.m.C0)
+		self.C0.x.array[:] = to.flatten(self.m.C0)
 
-		# Build stiffness matrix
-		a_form = do.inner(utils.dotdot(self.C0, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
-		A = do.assemble(a_form)
+		# Build lhs
+		a = ufl.inner(utils.dotdot(self.C0, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
+		bilinear_form = do.fem.form(a)
+		A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bcs)
+		A.assemble()
+
+		# Build rhs
+		linear_form = do.fem.form(self.b_body + sum(self.integral_neumann))
+		b = do.fem.petsc.assemble_vector(linear_form)
+		do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bcs])
+		do.fem.petsc.set_bc(b, self.bcs)
 
 		# Solve linear system
-		[bc.apply(A, b) for bc in self.bcs]
-		self.solver.solve(A, self.u.vector(), b)
+		self.solver.setOperators(A)
+		self.solver.solve(b, self.u.x.petsc_vec)
 
 		# Compute total strain
-		self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
+		self.eps_tot = utils.project(utils.epsilon(self.u), self.DG0_3x3)
+		eps_tot_torch = utils.numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
 
 		# Compute stress
-		eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
 		self.compute_stress_C0(eps_tot_torch)
 
 		if solve_equilibrium:
@@ -222,7 +262,7 @@ class LinearMomentum():
 		self.initialize_ouput_files(self.operation_output_folder)
 
 		# Assign stress
-		self.sigma.vector()[:] = self.stress_torch.flatten()
+		self.sigma.x.array[:] = self.stress_torch.flatten()
 
 
 
@@ -239,7 +279,6 @@ class LinearMomentum():
 						elem_names.append(elem_name)
 						mod_input_file[elem_type][elem_name]["active"] = True
 		self.m = ConstitutiveModel(self.grid, mod_input_file)
-
 
 		# Screen info
 		screen = ScreenPrinter()
@@ -286,7 +325,7 @@ class LinearMomentum():
 		tol_time = self.input_file["simulation_settings"]["equilibrium"]["time_tol"]
 		ite_max = self.input_file["simulation_settings"]["equilibrium"]["ite_max"]
 		error_time = 2*tol_time
-		eps_tot_old = utils.numpy2torch(self.eps_tot.vector()[:])
+		eps_tot_old = utils.numpy2torch(self.eps_tot.x.array[:])
 
 		while error_time > tol_time or n_step <= 2:
 
@@ -296,10 +335,10 @@ class LinearMomentum():
 			self.solve(0, dt)
 
 			# Compute time error (to check if steady state is achieved)
-			eps_tot_flat = self.eps_tot.vector()[:]
+			eps_tot_flat = self.eps_tot.x.array
 			error_time = np.linalg.norm(eps_tot_old - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
-			eps_tot_old = utils.numpy2torch(self.eps_tot.vector()[:])
-			self.sigma.vector()[:] = self.stress_torch.flatten()
+			eps_tot_old = utils.numpy2torch(self.eps_tot.x.array)
+			self.sigma.x.array[:] = self.stress_torch.flatten()
 
 			if save_results:
 				self.save_solution(t)
@@ -360,7 +399,7 @@ class LinearMomentum():
 		while self.error > tol and self.ite < maxiter:
 
 			# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-			eps_tot_k = utils.numpy2torch(self.eps_tot.vector()[:])
+			eps_tot_k = utils.numpy2torch(self.eps_tot.x.array[:])
 
 			# Update stress of previous iteration (stress_k <-- stress)
 			self.update_stress()
@@ -373,23 +412,30 @@ class LinearMomentum():
 
 			# Compute right-hand side
 			self.compute_eps_rhs(dt)
-
-			# Build rhs
-			b_rhs = do.inner(utils.dotdot(self.CT, self.eps_rhs), utils.epsilon(self.v))*self.dx
-			# b = do.assemble(sum(self.integral_neumann) + b_rhs)
-			b = do.assemble(self.b_body + sum(self.integral_neumann) + b_rhs)
+			
 
 			# Build lhs
-			a_form = do.inner(utils.dotdot(self.CT, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
-			A = do.assemble(a_form)
+			a = ufl.inner(utils.dotdot(self.CT, utils.epsilon(self.du)), utils.epsilon(self.v))*self.dx
+			bilinear_form = do.fem.form(a)
+			A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bcs)
+			A.assemble()
+
+			# Build rhs
+			b_rhs = ufl.inner(utils.dotdot(self.CT, self.eps_rhs), utils.epsilon(self.v))*self.dx
+			linear_form = do.fem.form(self.b_body + sum(self.integral_neumann) + b_rhs)
+			b = do.fem.petsc.assemble_vector(linear_form)
+			do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bcs])
+			do.fem.petsc.set_bc(b, self.bcs)
 
 			# Solve linear system
-			[bc.apply(A, b) for bc in self.bcs]
-			self.solver.solve(A, self.u.vector(), b)
+			self.solver.setOperators(A)
+			self.solver.solve(b, self.u.x.petsc_vec)
 
 			# Compute total strain
-			self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG_3x3))
-			eps_tot_torch = utils.numpy2torch(self.eps_tot.vector()[:].reshape((self.n_elems, 3, 3)))
+			self.eps_tot = utils.project(utils.epsilon(self.u), self.DG0_3x3)
+
+			# self.eps_tot.assign(utils.local_projection(utils.epsilon(self.u), self.DG0_3x3))
+			eps_tot_torch = utils.numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
 
 			# Compute stress
 			self.compute_stress(eps_tot_torch, dt)
@@ -406,7 +452,7 @@ class LinearMomentum():
 				self.error = 0.0
 			else:
 				eps_tot_k_flat = to.flatten(eps_tot_k)
-				eps_tot_flat = self.eps_tot.vector()[:]
+				eps_tot_flat = self.eps_tot.x.array
 				self.error = np.linalg.norm(eps_tot_k_flat - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
 
 			self.ite += 1
@@ -538,7 +584,7 @@ class LinearMomentum():
 		"""
 		GT = self.GT_ie_torch + self.GT_ve_torch
 		self.CT_torch = to.linalg.inv(self.m.C0_inv + dt*(1-self.theta)*GT)
-		self.CT.vector()[:] = to.flatten(self.CT_torch)
+		self.CT.x.array[:] = to.flatten(self.CT_torch)
 
 	def compute_eps_ve(self, dt):
 		"""
@@ -668,7 +714,7 @@ class LinearMomentum():
 		BT = self.BT_ie_torch + self.BT_ve_torch
 		GT = self.GT_ie_torch + self.GT_ve_torch
 		self.eps_rhs_torch = self.eps_bar_torch - dt*(1-self.theta)*(BT + utils.dotdot2(GT, self.stress_k_torch))
-		self.eps_rhs.vector()[:] = self.eps_rhs_torch.flatten()
+		self.eps_rhs.x.array[:] = self.eps_rhs_torch.flatten()
 
 	def compute_stress_C0(self, eps_e):
 		"""
@@ -714,7 +760,7 @@ class LinearMomentum():
 		GT = self.GT_ie_torch + self.GT_ve_torch
 		BT = self.BT_ie_torch + self.BT_ve_torch
 		self.stress_torch = utils.dotdot2(self.CT_torch, eps_tot - self.eps_bar_torch + dt*(1-self.theta)*(BT + utils.dotdot2(GT, self.stress_k_torch)))
-		self.sigma.vector()[:] = self.stress_torch.flatten()
+		self.sigma.x.array[:] = self.stress_torch.flatten()
 
 	def update_stress(self):
 		"""
@@ -806,17 +852,16 @@ class LinearMomentum():
 			Time level.
 		"""
 		self.integral_neumann = []
-		i = 0
 		bc_neumann_list = []
 		for boundary in self.input_file["boundary_conditions"]:
 			if self.input_file["boundary_conditions"][boundary]["type"] == "neumann":
-				bc_direction = self.input_file["boundary_conditions"][boundary]["direction"]
-				bc_density = self.input_file["boundary_conditions"][boundary]["density"]
-				ref_position = self.input_file["boundary_conditions"][boundary]["reference_position"]
+				i = self.input_file["boundary_conditions"][boundary]["direction"]
+				rho = self.input_file["boundary_conditions"][boundary]["density"]
+				H = self.input_file["boundary_conditions"][boundary]["reference_position"]
 				values = self.input_file["boundary_conditions"][boundary]["values"]
-				ref_load = -np.interp(t, self.time_list, values)
-				value_neumann = do.Expression(f"load_ref + rho*g*(H - x[{bc_direction}])", load_ref=ref_load, rho=bc_density, g=self.gravity, H=ref_position, degree=1)
-				self.integral_neumann.append(value_neumann*self.normal*self.ds(self.grid.get_boundary_tags(boundary)))
+				p = -np.interp(t, self.time_list, values)
+				value_neumann = p + rho*self.gravity*(H - self.x[i])
+				self.integral_neumann.append(value_neumann*self.normal*self.ds(self.grid.get_boundary_tag(boundary)))
 
 
 
@@ -839,35 +884,36 @@ class LinearMomentum():
 		bc_dirichlet_list = []
 		for boundary in self.input_file["boundary_conditions"]:
 			if self.input_file["boundary_conditions"][boundary]["type"] == "dirichlet":
+				component = self.input_file["boundary_conditions"][boundary]["component"]
 				values = self.input_file["boundary_conditions"][boundary]["values"]
 				value = np.interp(t, self.time_list, values)
-				value_dirichlet = do.Expression("value", value=value, degree=1)
-				component = self.input_file["boundary_conditions"][boundary]["component"]
-				self.bcs.append(do.DirichletBC(self.CG_3x1.sub(component), value_dirichlet, self.grid.get_boundaries(), self.grid.get_boundary_tags(boundary)))
-
+				dofs = do.fem.locate_dofs_topological(
+					self.CG0_3x1.sub(component),
+					self.grid.boundary_dim,
+					self.grid.get_boundary_tags(boundary)
+				)
+				self.bcs.append(
+					do.fem.dirichletbc(
+						do.default_scalar_type(value),
+						dofs,
+						self.CG0_3x1.sub(component)
+					)
+				)
 
 	def define_solver(self):
 		"""
-		Defines the solver for solving the linear system according to the specifications
+		Defines the solver for the linear system according to the specifications
 		in the input_file.json.
 
 		Returns
 		-------
-		solver : dolfin.cpp.la.KrylovSolver or dolfin.cpp.la.LUSolver
-			The solver can be either an iterative solver (KrylovSolver) or a direct solver
-			(LUSolver).
+		solver : 
 		"""
-		solver_type = self.input_file["solver_settings"]["type"]
-		if solver_type == "KrylovSolver":
-			solver = do.KrylovSolver(
-			                      	method = self.input_file["solver_settings"]["method"],
-			                      	preconditioner = self.input_file["solver_settings"]["preconditioner"]
-			                      )
-			solver.parameters["relative_tolerance"] = self.input_file["solver_settings"]["relative_tolerance"]
-		elif solver_type == "LU":
-			solver = do.LUSolver(self.input_file["solver_settings"]["method"])
-		else:
-			raise Exception(f"Solver type {solver_type} not supported. Choose between KrylovSolver and LU.")
+		solver = PETSc.KSP().create(self.grid.mesh.comm)
+		solver.setType(self.input_file["solver_settings"]["solver_type"])
+		solver.getPC().setType(self.input_file["solver_settings"]["solver_PC"])
+		solver.setTolerances(rtol=self.input_file["solver_settings"]["rtol"], 
+							 max_it=self.input_file["solver_settings"]["maxite"])
 		return solver
 
 

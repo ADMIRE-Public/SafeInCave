@@ -20,7 +20,7 @@ Useful class to assist building the input_file.json.
 import json
 import numpy as np
 import torch as to
-import dolfin as do
+import dolfinx as do
 
 class BuildInputFile():
 	def __init__(self):
@@ -33,10 +33,11 @@ class BuildInputFile():
 				"path": None
 			},
 			"solver_settings": {
-				"type": "KrylovSolver",
-				"method": "cg",
+				"solver_type": "KrylovSolver",
+				"solver_PC": "cg",
 				"preconditioner": "ilu",
-				"relative_tolerance": 1e-12,
+				"rtol": 1e-12,
+				"maxite": 100,
 			},
 			"simulation_settings": {
 				"equilibrium": {
@@ -82,31 +83,22 @@ class BuildInputFile():
 		self.grid = GridHandlerGMSH(grid_name, path_to_grid)
 		self.list_of_boundary_names = list(self.grid.get_boundary_names())
 
-		self.input_file["grid"]["regions"] = {value: key for key, value in self.grid.tags_dict.items()}
+		self.input_file["grid"]["regions"] = {value: int(key) for key, value in self.grid.tags_dict.items()}
 		self.input_file["grid"]["boundaries"] = self.list_of_boundary_names
 
 
 
 	def set_output_folder(self, output_folder):
 		self.input_file["output"] = {}
-		self.input_file["output"]["path"] = output_folder
+		self.input_file["output"]["path"] = output_folder		
 
-	def set_krylov_solver(self, method, preconditioner, rel_tol):
+	def set_solver(self, solver_type, solver_PC, rtol=1e-12, maxite=100):
 		self.input_file["solver_settings"] = {
-			"type": "KrylovSolver",
-			"method": method,
-			"preconditioner": preconditioner,
-			"relative_tolerance": rel_tol,
+			"solver_type": solver_type,
+			"solver_PC": solver_PC,
+			"rtol": rtol,
+			"maxite": maxite,
 		}
-
-	def set_direct_solver(self, method):
-		self.input_file["solver_settings"] = {
-			"type": "LU",
-			"method": method
-		}		
-
-	def set_solver(self, solver_settings):
-		self.input_file["solver_settings"] = solver_settings
 
 	def set_equilibrium_stage(self, active=False, dt=1, ite_max=20, tol=1e-9):
 		self.input_file["simulation_settings"]["equilibrium"] = {
@@ -242,14 +234,29 @@ class BuildInputFile():
 		"""
 		fun = fun(x, y, z)
 		"""
-		n_elems = self.grid.mesh.num_cells()
+		n_elems = self.grid.n_elems
 		field = np.zeros(n_elems)
-		for cell in do.cells(self.grid.mesh):
-			centroid = cell.midpoint()
-			x = centroid.x()
-			y = centroid.y()
-			z = centroid.z()
-			field[cell.index()] = fun(x, y, z)
+		x = self.grid.mesh.geometry.x
+		conn_aux = self.grid.mesh.topology.connectivity(3, 0)
+		conn = conn_aux.array.reshape((n_elems, 4))
+		for i in range(n_elems):
+			cell_vertices = conn[i]
+			xc = sum(x[v] for v in cell_vertices) / len(cell_vertices)
+			field[i] = fun(xc[0], xc[1], xc[2])
 		return field
+
+	# def build_custom_field(self, fun):
+	# 	"""
+	# 	fun = fun(x, y, z)
+	# 	"""
+	# 	n_elems = self.grid.mesh.num_cells()
+	# 	field = np.zeros(n_elems)
+	# 	for cell in do.cells(self.grid.mesh):
+	# 		centroid = cell.midpoint()
+	# 		x = centroid.x()
+	# 		y = centroid.y()
+	# 		z = centroid.z()
+	# 		field[cell.index()] = fun(x, y, z)
+	# 	return field
 
 

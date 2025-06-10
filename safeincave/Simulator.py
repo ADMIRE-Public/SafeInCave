@@ -75,21 +75,23 @@ class Simulator(object):
 		self.screen.print_comment(" ")
 		self.screen.print_comment(" Mesh info:")
 		self.screen.print_comment(f"          Location: {grid_path}")
-		self.screen.print_comment(f"          Number of elements: {self.grid.mesh.num_cells()}")
-		self.screen.print_comment(f"          Number of nodes: {self.grid.mesh.num_vertices()}")
+		self.screen.print_comment(f"          Number of elements: {self.grid.n_elems}")
+		self.screen.print_comment(f"          Number of nodes: {self.grid.n_nodes}")
 
-		solver_type = input_file["solver_settings"]["type"]
-		solver_method = input_file["solver_settings"]["method"]
+		solver_type = input_file["solver_settings"]["solver_type"]
+		solver_method = input_file["solver_settings"]["solver_PC"]
+		rtol = input_file["solver_settings"]["rtol"]
 
 		self.screen.print_comment(" ")
 		self.screen.print_comment(" Solver info:")
 		self.screen.print_comment(f"          Type: {solver_type}")
-		self.screen.print_comment(f"          Method: {solver_method}")
-		if solver_type == "KrylovSolver":
-			solver_prec = input_file["solver_settings"]["preconditioner"]
-			solver_tol = input_file["solver_settings"]["relative_tolerance"]
-			self.screen.print_comment(f"          Preconditioner: {solver_prec}")
-			self.screen.print_comment(f"          Tolerance: {solver_tol}")
+		self.screen.print_comment(f"          PC: {solver_method}")
+		self.screen.print_comment(f"          Tol: {rtol}")
+		# if solver_type == "KrylovSolver":
+		# 	solver_prec = input_file["solver_settings"]["preconditioner"]
+		# 	solver_tol = input_file["solver_settings"]["relative_tolerance"]
+		# 	self.screen.print_comment(f"          Preconditioner: {solver_prec}")
+		# 	self.screen.print_comment(f"          Tolerance: {solver_tol}")
 		self.screen.print_comment(" ")
 
 	def __save_input_file(self, filename):
@@ -145,11 +147,6 @@ class Simulator(object):
 		self.eq_mom.initialize(solve_equilibrium=solve_equilibrium, verbose=verbose, save_results=True, calculate_hardening=hardening)
 		
 		if solve_operation:
-
-			# header_columns = ["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"],
-			# header_align = "center",
-			# row_formats = ["%s", "%.3f", "%.3f", "%.i", "%.4e", "%s"],
-			# row_align = ["center", "center", "center", "center", "center", "center"],
 
 			self.screen.start_timer()
 			self.screen.set_header_columns(["Time step", "Final time (h)", "Current time (h)", "# of iters", "Non-linear error", "Save solution"], "center")

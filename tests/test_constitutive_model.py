@@ -4,96 +4,104 @@ import sys
 sys.path.append(os.path.join("..", "safeincave"))
 import torch as to
 import numpy as np
+from Grid import GridHandlerFEniCS
 from ConstitutiveModel import ConstitutiveModel
 from Elements import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
-import dolfin as do
+import dolfinx as do
+from mpi4py import MPI
 
 class Test1(unittest.TestCase):
 	def setUp(self):
-		self.n_elems = 1
+		mesh = do.mesh.create_box(	MPI.COMM_WORLD,
+									[np.array([0., 0., 0.]), np.array([1., 1., 1.])],
+									[1, 1, 1],
+									cell_type = do.mesh.CellType.tetrahedron)
+		self.grid = GridHandlerFEniCS(mesh)
+		self.n_elems = self.grid.n_elems
 		input_cm = {
-			"Elastic": {
+			"elastic": {
 				"Spring0": {
 					"type": "Spring",
 					"active": True,
 					"parameters": {
-						"E":  list(102e9*np.ones(self.n_elems)),
-						"nu": list(0.3*np.ones(self.n_elems))
+						"E":  102e9,
+						"nu": 0.3
 					}
 				},
 				"Spring1": {
 					"type": "Spring",
 					"active": True,
 					"parameters": {
-						"E":  list(72e9*np.ones(self.n_elems)),
-						"nu": list(0.4*np.ones(self.n_elems))
+						"E":  72e9,
+						"nu": 0.4
 					}
 				}
 			},
-			"Viscoelastic": {
+			"viscoelastic": {
 				"KelvinVoigt1": {
 					"type": "KelvinVoigt",
 					"active": True,
 					"parameters": {
-						"E":   list(10e9*np.ones(self.n_elems)),
-						"nu":  list(0.32*np.ones(self.n_elems)),
-						"eta": list(105e11*np.ones(self.n_elems))
+						"E":   10e9,
+						"nu":  0.32,
+						"eta": 105e11
 					}
 				},
 				"KelvinVoigt2": {
 					"type": "KelvinVoigt",
 					"active": True,
 					"parameters": {
-						"E":   list(6e9*np.ones(self.n_elems)),
-						"nu":  list(0.22*np.ones(self.n_elems)),
-						"eta": list(15e11*np.ones(self.n_elems))
+						"E":   6e9,
+						"nu":  0.22,
+						"eta": 15e11
 					}
 				}
 			},
-			"Inelastic": {
+			"inelastic": {
 				"ViscPlastDesai": {
 					"type": "ViscoplasticDesai",
 					"active": True,
 					"parameters": {
-						"mu_1": 	list(5.3665857009859815e-11*np.ones(self.n_elems)),
-						"N_1": 		list(3.1*np.ones(self.n_elems)),
-						"n": 		list(3.0*np.ones(self.n_elems)),
-						"a_1":		list(1.965018496922832e-05*np.ones(self.n_elems)),
-						"eta": 		list(0.8275682807874163*np.ones(self.n_elems)),
-						"beta_1": 	list(0.0048*np.ones(self.n_elems)),
-						"beta": 	list(0.995*np.ones(self.n_elems)),
-						"m": 		list(-0.5*np.ones(self.n_elems)),
-						"gamma": 	list(0.095*np.ones(self.n_elems)),
-						"alpha_0": 	list(0.0022*np.ones(self.n_elems)),
-						"k_v": 		list(0.0*np.ones(self.n_elems)),
-						"sigma_t": 	list(5.0*np.ones(self.n_elems))
+						"mu_1": 	5.3665857009859815e-11,
+						"N_1": 		3.1,
+						"n": 		3.0,
+						"a_1":		1.965018496922832e-05,
+						"eta": 		0.8275682807874163,
+						"beta_1": 	0.0048,
+						"beta": 	0.995,
+						"m": 		-0.5,
+						"gamma": 	0.095,
+						"alpha_0": 	0.0022,
+						"k_v": 		0.0,
+						"sigma_t": 	5.0
 					}
 				},
 				"DisCreep": {
 					"type": "DislocationCreep",
 					"active": True,
 					"parameters": {
-						"A": list(1.9e-20*np.ones(self.n_elems)),
-						"n": list(3.0*np.ones(self.n_elems)),
-						"T": list(298*np.ones(self.n_elems)),
-						"Q": list(51600*np.ones(self.n_elems)),
-						"R": list(8.32*np.ones(self.n_elems))
+						"A": 1.9e-20,
+						"n": 3.0,
+						"T": 298,
+						"Q": 51600,
+						"R": 8.32
 					}
 				}
 			}
 		}
 
-		self.cm = ConstitutiveModel(self.n_elems, input_cm)
+		self.cm = ConstitutiveModel(self.grid, input_cm)
 
-		self.true_C0_inv = to.tensor([[	[ 2.3693e-11, -8.4967e-12, -8.4967e-12,  0.0000e+00,  0.0000e+00, 0.0000e+00],
+		self.true_C0_inv = to.tensor([ 	[ 2.3693e-11, -8.4967e-12, -8.4967e-12,  0.0000e+00,  0.0000e+00, 0.0000e+00],
 										[-8.4967e-12,  2.3693e-11, -8.4967e-12,  0.0000e+00,  0.0000e+00, 0.0000e+00],
 										[-8.4967e-12, -8.4967e-12,  2.3693e-11,  0.0000e+00,  0.0000e+00, 0.0000e+00],
 										[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  3.2190e-11,  0.0000e+00, 0.0000e+00],
 										[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  3.2190e-11, 0.0000e+00],
-										[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00, 3.2190e-11]]], dtype=to.float64)
+										[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00, 3.2190e-11]], dtype=to.float64)
 
 	def test_C0_inv(self):
-		to.testing.assert_close(self.cm.C0_inv, self.true_C0_inv, rtol=1e-4, atol=1e-9)
+		# print(self.cm.C0_inv)
+		to.testing.assert_close(self.cm.C0_inv[0], self.true_C0_inv, rtol=1e-4, atol=1e-9)
 
 	def test_elems(self):
 		self.assertEqual(len(self.cm.elems_e), 2)
@@ -109,5 +117,5 @@ class Test1(unittest.TestCase):
 		self.assertIsInstance(self.cm.elems_ie[1], DislocationCreep)
 
 	def test_n_elems(self):
-		self.assertEqual(self.n_elems, self.cm.n_elems)
+		self.assertEqual(self.n_elems, self.cm.grid.n_elems)
 
