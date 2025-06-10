@@ -8,7 +8,7 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.widgets import Button, Slider
-from ResultsHandler import read_vector_from_points, read_scalar_from_cells
+from ResultsHandler import read_xdmf_as_pandas, read_msh_as_pandas, read_vector_from_points, read_scalar_from_cells, find_mapping, compute_cell_centroids
 import json
 
 def read_json(file_name):
@@ -71,7 +71,7 @@ def calculate_convergence_data(displacement_data, mesh):
 	df_coord, u, v, w = displacement_data
 
 	# Get indices of wall profile
-	wall_ind = np.unique(mesh.cells["line"].flatten())
+	wall_ind = np.unique(mesh.cells_dict["line"].flatten())
 
 	# Get reordered data over cavern wall
 	x0, y0, z0, u, v, w = reorder_data(df_coord, u, v, w, wall_ind)
@@ -256,20 +256,34 @@ def get_simulation_times(log_file):
 
 def plot_results_panel(results_folder, stage="operation"):
 	# Define paths
-	output_path = os.path.join("output", results_folder, stage, "vtk")
+	output_path = os.path.join("output", results_folder, stage, "xdmf")
 
 	# Read log file
 	with open(os.path.join("output", results_folder, "log.txt"), "r") as file:
-	    # Read the entire content of the file
 	    log_file = file.read()
 
 	# Read CPU time
 	cpu_time = get_simulation_times(log_file)
 	cpu_gmtime = time.strftime("%H:%M:%S", time.gmtime(cpu_time))
 
-	# Read displacement results
-	df_coord_nodes, df_ux, df_uy, df_uz = read_vector_from_points(os.path.join(output_path, "displacement"), "displacement.pvd")
-	displacement_data = df_coord_nodes, df_ux, df_uy, df_uz
+	# Read mesh
+	msh_file_name = os.path.join("output", results_folder, "mesh", "geom.msh")
+	points_msh, cells_msh = read_msh_as_pandas(msh_file_name)
+
+	# Build mapping
+	xdmf_file_name = os.path.join(output_path, "displacement", "u.xdmf")
+	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
+
+	# Displacement data
+	df_ux, df_uy, df_uz = read_vector_from_points(xdmf_file_name, mapping)
+	displacement_data = points_msh, df_ux, df_uy, df_uz
+
+	# Stress data
+	points_xdmf, cells_xdmf = read_xdmf_as_pandas(xdmf_file_name)
+	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+	df_p = read_scalar_from_cells(os.path.join(output_path, "p", "p.xdmf"))
+	df_q = read_scalar_from_cells(os.path.join(output_path, "q", "q.xdmf"))
+	stress_data = (mid_cells, df_p.values, df_q.values)
 
 	# Read simulation time steps
 	time_steps = df_ux.columns.values
@@ -281,12 +295,6 @@ def plot_results_panel(results_folder, stage="operation"):
 
 	# Get indices of wall profile
 	mesh = meshio.read(os.path.join(grid_path, "geom.msh"))
-	wall_ind = np.unique(mesh.cells["line"].flatten())
-
-	# # Read stress results
-	df_coord_cells, df_sigma_v = read_scalar_from_cells(os.path.join(output_path, "p"), "p.pvd")
-	df_coord_cells, df_q = read_scalar_from_cells(os.path.join(output_path, "q"), "q.pvd")
-	stress_data = (df_coord_cells, df_sigma_v.values, df_q.values)
 
 	# Read gas pressure
 	gas_time = np.array(input_file["time_settings"]["time_list"])
@@ -294,6 +302,7 @@ def plot_results_panel(results_folder, stage="operation"):
 
 	# Calculate cavern convergence results
 	xi, zi, xf, zf, times, volumes = calculate_convergence_data(displacement_data, mesh)
+
 
 	# Plot pressure schedule
 	fig = plt.figure(figsize=(16, 9))
@@ -332,7 +341,7 @@ def plot_results_panel(results_folder, stage="operation"):
 	ax_logo.axis('off')
 
 	# Plot grid info
-	n_elems = len(mesh.cells["tetra"])
+	n_elems = mesh.cells[0].data.shape[0]
 	n_nodes = len(mesh.points)
 
 	region_names = ""

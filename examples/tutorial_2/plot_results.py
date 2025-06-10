@@ -8,7 +8,7 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.widgets import Button, Slider
-from ResultsHandler import read_mesh_as_pandas, read_vector_from_points, read_scalar_from_cells
+from ResultsHandler import read_xdmf_as_pandas, read_msh_as_pandas, read_vector_from_points, read_scalar_from_cells, find_mapping, compute_cell_centroids
 import json
 
 def read_json(file_name):
@@ -72,17 +72,9 @@ def calculate_convergence_data(displacement_data, mesh):
 
 	# Get indices of wall profile
 	wall_ind = np.unique(mesh.cells_dict["line"].flatten())
-	print(mesh.cells_dict.keys())
-	print(mesh.cells_dict["triangle"])
-	print(mesh.cells_dict["line"])
-	print(mesh.cells_dict["line"].flatten())
-	print(wall_ind)
 
 	# Get reordered data over cavern wall
 	x0, y0, z0, u, v, w = reorder_data(df_coord, u, v, w, wall_ind)
-	print(y0)
-	print(y0.min(), y0.max())
-
 
 	# Get times
 	times = u.columns.values
@@ -132,7 +124,7 @@ def plot_convergence(ax, times, volumes, index=0):
 
 def plot_cavern_shape(ax, xi, zi, xf, zf):
 	ax.plot(xi, zi, "-", color="black", linewidth=2.0, label="Initial shape")
-	# ax.plot(xf, zf, "-", color="#377eb8", linewidth=2.0, label=f"Final shape")
+	ax.plot(xf, zf, "-", color="#377eb8", linewidth=2.0, label=f"Final shape")
 	ax.set_xlabel("x (m)", size=12, fontname="serif")
 	ax.set_ylabel("z (m)", size=12, fontname="serif")
 	ax.legend(loc=1, shadow=True, fancybox=True)
@@ -261,33 +253,34 @@ def get_simulation_times(log_file):
 
 def plot_results_panel(results_folder, stage="operation"):
 	# Define paths
-	output_path = os.path.join("output", results_folder, stage, "vtk")
+	output_path = os.path.join("output", results_folder, stage, "xdmf")
 
 	# Read log file
 	with open(os.path.join("output", results_folder, "log.txt"), "r") as file:
-	    # Read the entire content of the file
 	    log_file = file.read()
 
 	# Read CPU time
 	cpu_time = get_simulation_times(log_file)
 	cpu_gmtime = time.strftime("%H:%M:%S", time.gmtime(cpu_time))
 
-	# Read displacement results
-	# df_coord_nodes, df_ux, df_uy, df_uz = read_vector_from_points(os.path.join(output_path, "displacement"), "displacement.pvd")
-	# displacement_data = df_coord_nodes, df_ux, df_uy, df_uz
-
-	file_name = os.path.join(output_path, "displacement", "u.xdmf")
-
 	# Read mesh
-	df_points, df_cells = read_mesh_as_pandas(file_name)
+	msh_file_name = os.path.join("output", results_folder, "mesh", "geom.msh")
+	points_msh, cells_msh = read_msh_as_pandas(msh_file_name)
 
-	# Read displacements
-	df_ux, df_uy, df_uz = read_vector_from_points(file_name)
+	# Build mapping
+	xdmf_file_name = os.path.join(output_path, "displacement", "u.xdmf")
+	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
 
 	# Displacement data
-	displacement_data = df_points, df_ux, df_uy, df_uz
+	df_ux, df_uy, df_uz = read_vector_from_points(xdmf_file_name, mapping)
+	displacement_data = points_msh, df_ux, df_uy, df_uz
 
-
+	# Stress data
+	points_xdmf, cells_xdmf = read_xdmf_as_pandas(xdmf_file_name)
+	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+	df_p = read_scalar_from_cells(os.path.join(output_path, "p", "p.xdmf"))
+	df_q = read_scalar_from_cells(os.path.join(output_path, "q", "q.xdmf"))
+	stress_data = (mid_cells, df_p.values, df_q.values)
 
 	# Read simulation time steps
 	time_steps = df_ux.columns.values
@@ -299,11 +292,6 @@ def plot_results_panel(results_folder, stage="operation"):
 
 	# Get indices of wall profile
 	mesh = meshio.read(os.path.join(grid_path, "geom.msh"))
-
-	# Read stress results
-	df_p = read_scalar_from_cells(os.path.join(output_path, "p", "p.xdmf"))
-	df_q = read_scalar_from_cells(os.path.join(output_path, "q", "q.xdmf"))
-	stress_data = (df_cells, df_p.values, df_q.values)
 
 	# Read gas pressure
 	gas_time = np.array(input_file["time_settings"]["time_list"])
@@ -386,14 +374,14 @@ def plot_results_panel(results_folder, stage="operation"):
 
 	points = get_relevant_points()
 
-	# plot_paths(ax00, stress_data, points[0])
-	# plot_paths(ax10, stress_data, points[5])
-	# plot_paths(ax02, stress_data, points[2])
-	# plot_paths(ax01, stress_data, points[1])
-	# plot_paths(ax12, stress_data, points[3])
-	# plot_paths(ax11, stress_data, points[4])
+	plot_paths(ax00, stress_data, points[0])
+	plot_paths(ax10, stress_data, points[5])
+	plot_paths(ax02, stress_data, points[2])
+	plot_paths(ax01, stress_data, points[1])
+	plot_paths(ax12, stress_data, points[3])
+	plot_paths(ax11, stress_data, points[4])
 
-	# plot_probe_points(ax0, points)
+	plot_probe_points(ax0, points)
 
 
 	# The function to be called anytime a slider's value changes

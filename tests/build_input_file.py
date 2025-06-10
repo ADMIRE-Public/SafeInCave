@@ -1,7 +1,7 @@
 import os
 import sys
 import numpy as np
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
+sys.path.append(os.path.join("..", "safeincave"))
 from Grid import GridHandlerGMSH
 from InputFileAssistant import BuildInputFile
 
@@ -15,7 +15,7 @@ bif = BuildInputFile()
 
 # Create input_grid section
 # path_to_grid = os.path.join("files", "cube_coarse")
-bif.set_input_grid(".", "geom")
+bif.set_input_grid(os.path.join("files", "cube_coarse"), "geom")
 
 # Create output section
 bif.set_output_folder(os.path.join("output", "case_0"))

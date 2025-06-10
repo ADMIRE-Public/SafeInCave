@@ -13,7 +13,7 @@ class Test1(unittest.TestCase):
 
 	def setUp(self):
 		self.grid = GridHandlerGMSH("geom", os.path.join("files", "cube_coarse"))
-		self.input_file = read_json(os.path.join("files", "cube_coarse", "input_file.json"))
+		self.input_file = read_json("input_file.json")
 		self.theta = self.input_file["time_settings"]["theta"]
 		self.eq = LinearMomentum(self.grid, self.theta, self.input_file)
 		self.load_expected_values()
