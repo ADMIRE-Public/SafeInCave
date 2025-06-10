@@ -40,56 +40,82 @@ def read_mesh_as_pandas(file_name):
 def read_scalar_from_cells(file_name):
     with ms.xdmf.TimeSeriesReader(file_name) as reader:
         points, cells = reader.read_points_cells()
-        df_scalar = pd.DataFrame()
+        n = cells[0].data.shape[0]
+        m = reader.num_steps
+        A = np.zeros((n, m))
+        time_list = []
         for k in range(reader.num_steps):
             time, _, cell_data = reader.read_data(k)
+            time_list.append(time)
             field_name = list(cell_data.keys())[0]
-            df_scalar[time] = cell_data[field_name][0].flatten()
+            A[:,k] = cell_data[field_name][0].flatten()
+        df_scalar = pd.DataFrame(A, columns=time_list)
     return df_scalar
 
 def read_scalar_from_points(file_name):
     with ms.xdmf.TimeSeriesReader(file_name) as reader:
         points, cells = reader.read_points_cells()
-        df_scalar = pd.DataFrame()
+        n = points.shape[0]
+        m = reader.num_steps
+        A = np.zeros((n, m))
+        time_list = []
         for k in range(reader.num_steps):
             time, point_data, _ = reader.read_data(k)
             field_name = list(point_data.keys())[0]
-            df_scalar[time] = point_data[field_name][0].flatten()
+            A[:,k] = point_data[field_name][0].flatten()
+        df_scalar = pd.DataFrame(A, columns=time_list)
     return df_scalar
 
 def read_vector_from_points(file_name):
     with ms.xdmf.TimeSeriesReader(file_name) as reader:
         points, cells = reader.read_points_cells()
-        df_ux = pd.DataFrame()
-        df_uy = pd.DataFrame()
-        df_uz = pd.DataFrame()
-        print(reader.num_steps)
+        n = points.shape[0]
+        m = reader.num_steps
+        Ax = np.zeros((n, m))
+        Ay = np.zeros((n, m))
+        Az = np.zeros((n, m))
+        time_list = []
         for k in range(reader.num_steps):
             time, point_data, _ = reader.read_data(k)
+            time_list.append(time)
             field_name = list(point_data.keys())[0]
-            df_ux[time] = point_data[field_name][:,0]
-            df_uy[time] = point_data[field_name][:,1]
-            df_uz[time] = point_data[field_name][:,2]
+            Ax[:,k] = point_data[field_name][:,0]
+            Ay[:,k] = point_data[field_name][:,1]
+            Az[:,k] = point_data[field_name][:,2]
+        df_ux = pd.DataFrame(Ax, columns=time_list)
+        df_uy = pd.DataFrame(Ay, columns=time_list)
+        df_uz = pd.DataFrame(Az, columns=time_list)
     return df_ux, df_uy, df_uz
+
 
 def read_tensor_from_cells(file_name):
     with ms.xdmf.TimeSeriesReader(file_name) as reader:
         points, cells = reader.read_points_cells()
-        df_sxx = pd.DataFrame()
-        df_syy = pd.DataFrame()
-        df_szz = pd.DataFrame()
-        df_sxy = pd.DataFrame()
-        df_sxz = pd.DataFrame()
-        df_syz = pd.DataFrame()
+        n = cells[0].data.shape[0]
+        m = reader.num_steps
+        sxx = np.zeros((n, m))
+        syy = np.zeros((n, m))
+        szz = np.zeros((n, m))
+        sxy = np.zeros((n, m))
+        sxz = np.zeros((n, m))
+        syz = np.zeros((n, m))
+        time_list = []
         for k in range(reader.num_steps):
             time, _, cell_data = reader.read_data(k)
+            time_list.append(time)
             field_name = list(cell_data.keys())[0]
-            df_sxx[time] = cell_data[field_name][0][:,0]
-            df_syy[time] = cell_data[field_name][0][:,4]
-            df_szz[time] = cell_data[field_name][0][:,8]
-            df_sxy[time] = cell_data[field_name][0][:,1]
-            df_sxz[time] = cell_data[field_name][0][:,2]
-            df_syz[time] = cell_data[field_name][0][:,5]
+            sxx[:,k] = cell_data[field_name][0][:,0]
+            syy[:,k] = cell_data[field_name][0][:,4]
+            szz[:,k] = cell_data[field_name][0][:,8]
+            sxy[:,k] = cell_data[field_name][0][:,1]
+            sxz[:,k] = cell_data[field_name][0][:,2]
+            syz[:,k] = cell_data[field_name][0][:,5]
+        df_sxx = pd.DataFrame(sxx, columns=time_list)
+        df_syy = pd.DataFrame(syy, columns=time_list)
+        df_szz = pd.DataFrame(szz, columns=time_list)
+        df_sxy = pd.DataFrame(sxy, columns=time_list)
+        df_sxz = pd.DataFrame(sxz, columns=time_list)
+        df_syz = pd.DataFrame(syz, columns=time_list)
     return df_sxx, df_syy, df_szz, df_sxy, df_sxz, df_syz
 
 

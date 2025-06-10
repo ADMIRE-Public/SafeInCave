@@ -140,10 +140,10 @@ class LinearMomentum():
 
 	def initialize_ouput_files(self, output_folder):
 		# Create output file
-		self.u_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "displacement", "u.xdmf"), "w")
-		self.stress_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "stress", "stress.xdmf"), "w")
-		self.q_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "q", "q.xdmf"), "w")
-		self.p_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "vtk", "p", "p.xdmf"), "w")
+		self.u_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "xdmf", "displacement", "u.xdmf"), "w")
+		self.stress_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "xdmf", "stress", "stress.xdmf"), "w")
+		self.q_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "xdmf", "q", "q.xdmf"), "w")
+		self.p_vtk = do.io.XDMFFile(self.grid.mesh.comm, os.path.join(output_folder, "xdmf", "p", "p.xdmf"), "w")
 
 		self.u_vtk.name = "Displacement"
 		self.stress_vtk.name = "Stress"

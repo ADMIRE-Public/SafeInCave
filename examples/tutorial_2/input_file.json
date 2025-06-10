@@ -3,7 +3,7 @@
         "path": "../../grids/cavern_irregular",
         "name": "geom",
         "regions": {
-            "Salt": 1
+            "Salt": 72
         },
         "boundaries": [
             "West",
@@ -19,10 +19,10 @@
         "path": "output/case_0"
     },
     "solver_settings": {
-        "type": "KrylovSolver",
-        "method": "cg",
-        "preconditioner": "petsc_amg",
-        "relative_tolerance": 1e-12
+        "solver_type": "cg",
+        "solver_PC": "gamg",
+        "rtol": 1e-12,
+        "maxite": 100
     },
     "simulation_settings": {
         "equilibrium": {
