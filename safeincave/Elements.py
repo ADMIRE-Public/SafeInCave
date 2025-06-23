@@ -465,6 +465,29 @@ class DislocationCreep():
 		else:
 			self._eps_ie_rate = A_bar[:,None,None]*dev
 
+	# def compute_E(self, stress_vec):
+	# 	"""
+	# 	This function computes :math:`\\frac{\\partial \\dot{\\pmb{\\varepsilon}}_{ie}}{\\partial \\pmb{\\sigma}}`
+	# 	by finite differences.
+
+	# 	Parameters
+	# 	----------
+	# 	stress_vec : torch.Tensor
+	# 		A (nelems, 3, 3) pytorch tensor storing the stress tensor for all grid elements.
+
+	# 	"""
+	# 	EPSILON = 1e-2
+	# 	self._E = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+	# 	stress_eps = stress_vec.clone()
+	# 	c1 = 1.0
+	# 	c2 = 2.0
+	# 	magic_indexes = [(0,0,0,c1), (1,1,1,c1), (2,2,2,c1), (0,1,3,c2), (0,2,4,c2), (1,2,5,c2)]
+	# 	for i, j, k, phi in magic_indexes:
+	# 		stress_eps[:,i,j] += EPSILON
+	# 		eps_ie_rate_eps = self.compute_eps_ie_rate(stress_eps, return_eps_ie=True)
+	# 		self._E[:,:,k] = phi*(eps_ie_rate_eps[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - self._eps_ie_rate[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / EPSILON
+	# 		stress_eps[:,i,j] -= EPSILON
+
 	def compute_E(self, stress_vec):
 		"""
 		This function computes :math:`\\frac{\\partial \\dot{\\pmb{\\varepsilon}}_{ie}}{\\partial \\pmb{\\sigma}}`
@@ -480,12 +503,19 @@ class DislocationCreep():
 		self._E = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
 		stress_eps = stress_vec.clone()
 		c1 = 1.0
-		c2 = 2.0
+		c2 = 1.0
 		magic_indexes = [(0,0,0,c1), (1,1,1,c1), (2,2,2,c1), (0,1,3,c2), (0,2,4,c2), (1,2,5,c2)]
 		for i, j, k, phi in magic_indexes:
 			stress_eps[:,i,j] += EPSILON
 			eps_ie_rate_eps = self.compute_eps_ie_rate(stress_eps, return_eps_ie=True)
-			self._E[:,:,k] = phi*(eps_ie_rate_eps[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - self._eps_ie_rate[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / EPSILON
+
+			if k <= 2:
+				self._E[:,:,k] += phi*(eps_ie_rate_eps[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - self._eps_ie_rate[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / EPSILON
+
+			else:
+				self._E[:,:,k] += (eps_ie_rate_eps[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - self._eps_ie_rate[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / EPSILON
+				self._E[:,:,k] += (eps_ie_rate_eps[:,[0,1,2,1,2,2], [0,1,2,0,0,1]] - self._eps_ie_rate[:,[0,1,2,1,2,2], [0,1,2,0,0,1]]) / EPSILON
+
 			stress_eps[:,i,j] -= EPSILON
 
 	def compute_G_B(self, stress_vec, *args):
@@ -688,9 +718,32 @@ class ViscoplasticDesai():
 		self.compute_E(stress_vec)
 		self._G = self._E - self._H/self._h[:,None,None]
 
+	# def compute_E(self, stress_vec):
+	# 	"""
+	# 	This function computes :math:`\\frac{\\partial \\dot{\\pmb{\\varepsilon}}_{vp}}{\\partial \\pmb{\\sigma}}`
+	# 	by finite differences.
+
+	# 	Parameters
+	# 	----------
+	# 	stress_vec : torch.Tensor
+	# 		A (nelems, 3, 3) pytorch tensor storing the stress tensor for all grid elements.
+
+	# 	"""
+	# 	EPSILON_STRESS = 1e-1
+	# 	self._E = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+	# 	stress_eps = stress_vec.clone()
+	# 	c1 = 1.0
+	# 	c2 = 2.0
+	# 	magic_indexes = [(0,0,0,c1), (1,1,1,c1), (2,2,2,c1), (0,1,3,c2), (0,2,4,c2), (1,2,5,c2)]
+	# 	for i, j, k, phi in magic_indexes:
+	# 		stress_eps[:,i,j] += EPSILON_STRESS
+	# 		eps_ie_rate_eps = self.compute_eps_ie_rate(stress_eps, return_eps_ie=True)
+	# 		self._E[:,:,k] = phi*(eps_ie_rate_eps[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - self._eps_ie_rate[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / EPSILON_STRESS
+	# 		stress_eps[:,i,j] -= EPSILON_STRESS
+
 	def compute_E(self, stress_vec):
 		"""
-		This function computes :math:`\\frac{\\partial \\dot{\\pmb{\\varepsilon}}_{vp}}{\\partial \\pmb{\\sigma}}`
+		This function computes :math:`\\frac{\\partial \\dot{\\pmb{\\varepsilon}}_{ie}}{\\partial \\pmb{\\sigma}}`
 		by finite differences.
 
 		Parameters
@@ -699,17 +752,24 @@ class ViscoplasticDesai():
 			A (nelems, 3, 3) pytorch tensor storing the stress tensor for all grid elements.
 
 		"""
-		EPSILON_STRESS = 1e-1
+		EPSILON = 1e-2
 		self._E = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
 		stress_eps = stress_vec.clone()
 		c1 = 1.0
-		c2 = 2.0
+		c2 = 1.0
 		magic_indexes = [(0,0,0,c1), (1,1,1,c1), (2,2,2,c1), (0,1,3,c2), (0,2,4,c2), (1,2,5,c2)]
 		for i, j, k, phi in magic_indexes:
-			stress_eps[:,i,j] += EPSILON_STRESS
+			stress_eps[:,i,j] += EPSILON
 			eps_ie_rate_eps = self.compute_eps_ie_rate(stress_eps, return_eps_ie=True)
-			self._E[:,:,k] = phi*(eps_ie_rate_eps[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - self._eps_ie_rate[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / EPSILON_STRESS
-			stress_eps[:,i,j] -= EPSILON_STRESS
+
+			if k <= 2:
+				self._E[:,:,k] += phi*(eps_ie_rate_eps[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - self._eps_ie_rate[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / EPSILON
+
+			else:
+				self._E[:,:,k] += (eps_ie_rate_eps[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - self._eps_ie_rate[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / EPSILON
+				self._E[:,:,k] += (eps_ie_rate_eps[:,[0,1,2,1,2,2], [0,1,2,0,0,1]] - self._eps_ie_rate[:,[0,1,2,1,2,2], [0,1,2,0,0,1]]) / EPSILON
+
+			stress_eps[:,i,j] -= EPSILON
 
 	def compute_residue(self, eps_rate, alpha, dt):
 		"""

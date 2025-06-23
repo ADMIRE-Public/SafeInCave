@@ -58,6 +58,17 @@ class Test1(unittest.TestCase):
 				}
 			},
 			"inelastic": {
+				"DisCreep": {
+					"type": "DislocationCreep",
+					"active": True,
+					"parameters": {
+						"A": 1.9e-20,
+						"n": 3.0,
+						"T": 298,
+						"Q": 51600,
+						"R": 8.32
+					}
+				},
 				"ViscPlastDesai": {
 					"type": "ViscoplasticDesai",
 					"active": True,
@@ -74,17 +85,6 @@ class Test1(unittest.TestCase):
 						"alpha_0": 	0.0022,
 						"k_v": 		0.0,
 						"sigma_t": 	5.0
-					}
-				},
-				"DisCreep": {
-					"type": "DislocationCreep",
-					"active": True,
-					"parameters": {
-						"A": 1.9e-20,
-						"n": 3.0,
-						"T": 298,
-						"Q": 51600,
-						"R": 8.32
 					}
 				}
 			}
@@ -113,9 +113,8 @@ class Test1(unittest.TestCase):
 		self.assertIsInstance(self.cm.elems_ve[1], Viscoelastic)
 
 		self.assertEqual(len(self.cm.elems_ie), 2)
-		self.assertIsInstance(self.cm.elems_ie[0], ViscoplasticDesai)
-		self.assertIsInstance(self.cm.elems_ie[1], DislocationCreep)
+		self.assertIsInstance(self.cm.elems_ie[1], ViscoplasticDesai)
+		self.assertIsInstance(self.cm.elems_ie[0], DislocationCreep)
 
 	def test_n_elems(self):
 		self.assertEqual(self.n_elems, self.cm.grid.n_elems)
-
