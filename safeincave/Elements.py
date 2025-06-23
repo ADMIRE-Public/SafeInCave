@@ -695,6 +695,7 @@ class ViscoplasticDesai():
 		EPSILON_STRESS = 1e-1
 
 		alpha_eps = self._alpha + EPSILON_ALPHA
+		# print(self._alpha)
 		eps_ie_rate_eps = self.compute_eps_ie_rate(stress_vec, alpha=alpha_eps, return_eps_ie=True)
 
 		self._r = self.compute_residue(self._eps_ie_rate, self._alpha, dt)
@@ -718,28 +719,52 @@ class ViscoplasticDesai():
 		self.compute_E(stress_vec)
 		self._G = self._E - self._H/self._h[:,None,None]
 
-	# def compute_E(self, stress_vec):
-	# 	"""
-	# 	This function computes :math:`\\frac{\\partial \\dot{\\pmb{\\varepsilon}}_{vp}}{\\partial \\pmb{\\sigma}}`
-	# 	by finite differences.
 
-	# 	Parameters
-	# 	----------
-	# 	stress_vec : torch.Tensor
-	# 		A (nelems, 3, 3) pytorch tensor storing the stress tensor for all grid elements.
+		self._T = to.zeros((self.n_elems, 3, 3))
+		self._T[:,0,0] = self._G[:,0,0] + self._G[:,1,0] + self._G[:,2,0]
+		self._T[:,0,1] = self._G[:,0,3] + self._G[:,1,3] + self._G[:,2,3]
+		self._T[:,0,2] = self._G[:,0,4] + self._G[:,1,4] + self._G[:,2,4]
+		self._T[:,1,0] = self._G[:,0,3] + self._G[:,1,3] + self._G[:,2,3]
+		self._T[:,1,1] = self._G[:,0,1] + self._G[:,1,1] + self._G[:,2,1]
+		self._T[:,1,2] = self._G[:,0,5] + self._G[:,1,5] + self._G[:,2,5]
+		self._T[:,2,0] = self._G[:,0,4] + self._G[:,1,4] + self._G[:,2,4]
+		self._T[:,2,1] = self._G[:,0,5] + self._G[:,1,5] + self._G[:,2,5]
+		self._T[:,2,2] = self._G[:,0,2] + self._G[:,1,2] + self._G[:,2,2]
 
-	# 	"""
-	# 	EPSILON_STRESS = 1e-1
-	# 	self._E = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-	# 	stress_eps = stress_vec.clone()
-	# 	c1 = 1.0
-	# 	c2 = 2.0
-	# 	magic_indexes = [(0,0,0,c1), (1,1,1,c1), (2,2,2,c1), (0,1,3,c2), (0,2,4,c2), (1,2,5,c2)]
-	# 	for i, j, k, phi in magic_indexes:
-	# 		stress_eps[:,i,j] += EPSILON_STRESS
-	# 		eps_ie_rate_eps = self.compute_eps_ie_rate(stress_eps, return_eps_ie=True)
-	# 		self._E[:,:,k] = phi*(eps_ie_rate_eps[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - self._eps_ie_rate[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / EPSILON_STRESS
-	# 		stress_eps[:,i,j] -= EPSILON_STRESS
+		self._IT = to.zeros((self.n_elems, 6, 6))
+		self._IT[:,0,0] = self._T[:,0,0]
+		self._IT[:,0,1] = self._T[:,1,1]
+		self._IT[:,0,2] = self._T[:,2,2]
+		self._IT[:,0,3] = self._T[:,0,1] + self._T[:,1,0]
+		self._IT[:,0,4] = self._T[:,0,2] + self._T[:,2,0]
+		self._IT[:,0,5] = self._T[:,1,2] + self._T[:,2,1]
+		self._IT[:,1,:] = self._IT[:,0,:]
+		self._IT[:,2,:] = self._IT[:,0,:]
+
+		self._G_tilde = self._G - self._IT/3
+
+		I = to.eye(3).unsqueeze(0).repeat(self.n_elems, 1, 1)
+		tr_B = to.einsum("...ii", self._B).view(-1, 1, 1)
+		self._B_tilde = self._B - tr_B*I/3
+
+
+		# self._T = to.tensor([
+		# 	[
+		# 		(self._G[:,[0,0]] + self._G[:,[1,0]] + self._G[:,[2,0]]), 
+		# 		(self._G[:,[0,3]] + self._G[:,[1,3]] + self._G[:,[2,3]]), 
+		# 		(self._G[:,[0,4]] + self._G[:,[1,4]] + self._G[:,[2,4]])
+		# 	],
+		# 	[
+		# 		(self._G[:,[0,3]] + self._G[:,[1,3]] + self._G[:,[2,3]]),
+		# 		(self._G[:,[0,1]] + self._G[:,[1,1]] + self._G[:,[2,1]]),
+		# 		(self._G[:,[0,5]] + self._G[:,[1,5]] + self._G[:,[2,5]])
+		# 	],
+		# 	[
+		# 		(self._G[:,[0,4]] + self._G[:,[1,4]] + self._G[:,[2,4]]),
+		# 		(self._G[:,[0,5]] + self._G[:,[1,5]] + self._G[:,[2,5]]),
+		# 		(self._G[:,[0,2]] + self._G[:,[1,2]] + self._G[:,[2,2]])
+		# 	]
+		# ])
 
 	def compute_E(self, stress_vec):
 		"""
@@ -1154,10 +1179,16 @@ class ViscoplasticDesai():
 		dQdS[:,2,1] = dQdS[:,1,2] = dQdS_12
 
 		ramp_idx = to.where(Fvp > 0)[0]
-		lmbda = to.zeros(self.n_elems, dtype=to.float64)
+		# lmbda = to.zeros(self.n_elems, dtype=to.float64)
+		lmbda = to.zeros(self.n_elems)
+		# print()
+		# print(ramp_idx)
+		# print(lmbda)
+		# print(self.mu_1)
+		# print(Fvp)
 		lmbda[ramp_idx] = self._mu_1[ramp_idx]*(Fvp[ramp_idx]/self.F_0)**self._N_1[ramp_idx]
-		# lmbda[ramp_idx] = self._mu_1[ramp_idx]*(Fvp[ramp_idx]/self.F_0[ramp_idx])**self._N_1[ramp_idx]
 		eps_vp_rate = -dQdS*lmbda[:, None, None]
+		# print(eps_vp_rate)
 
 		if return_eps_ie:
 			return eps_vp_rate

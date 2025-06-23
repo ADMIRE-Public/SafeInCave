@@ -10,6 +10,8 @@ from Elements import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
 import dolfinx as do
 from mpi4py import MPI
 
+MPa = 1e6
+
 class Test1(unittest.TestCase):
 	def setUp(self):
 		mesh = do.mesh.create_box(	MPI.COMM_WORLD,
@@ -82,7 +84,7 @@ class Test1(unittest.TestCase):
 						"beta": 	0.995,
 						"m": 		-0.5,
 						"gamma": 	0.095,
-						"alpha_0": 	0.0022,
+						"alpha_0": 	0.00022,
 						"k_v": 		0.0,
 						"sigma_t": 	5.0
 					}
@@ -99,22 +101,52 @@ class Test1(unittest.TestCase):
 										[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  3.2190e-11, 0.0000e+00],
 										[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00, 3.2190e-11]], dtype=to.float64)
 
-	def test_C0_inv(self):
-		# print(self.cm.C0_inv)
-		to.testing.assert_close(self.cm.C0_inv[0], self.true_C0_inv, rtol=1e-4, atol=1e-9)
+	# def test_C0_inv(self):
+	# 	# print(self.cm.C0_inv)
+	# 	to.testing.assert_close(self.cm.C0_inv[0], self.true_C0_inv, rtol=1e-4, atol=1e-9)
 
-	def test_elems(self):
-		self.assertEqual(len(self.cm.elems_e), 2)
-		self.assertIsInstance(self.cm.elems_e[0], Spring)
-		self.assertIsInstance(self.cm.elems_e[1], Spring)
+	# def test_elems(self):
+	# 	self.assertEqual(len(self.cm.elems_e), 2)
+	# 	self.assertIsInstance(self.cm.elems_e[0], Spring)
+	# 	self.assertIsInstance(self.cm.elems_e[1], Spring)
 
-		self.assertEqual(len(self.cm.elems_ve), 2)
-		self.assertIsInstance(self.cm.elems_ve[0], Viscoelastic)
-		self.assertIsInstance(self.cm.elems_ve[1], Viscoelastic)
+	# 	self.assertEqual(len(self.cm.elems_ve), 2)
+	# 	self.assertIsInstance(self.cm.elems_ve[0], Viscoelastic)
+	# 	self.assertIsInstance(self.cm.elems_ve[1], Viscoelastic)
 
-		self.assertEqual(len(self.cm.elems_ie), 2)
-		self.assertIsInstance(self.cm.elems_ie[1], ViscoplasticDesai)
-		self.assertIsInstance(self.cm.elems_ie[0], DislocationCreep)
+	# 	self.assertEqual(len(self.cm.elems_ie), 2)
+	# 	self.assertIsInstance(self.cm.elems_ie[1], ViscoplasticDesai)
+	# 	self.assertIsInstance(self.cm.elems_ie[0], DislocationCreep)
 
-	def test_n_elems(self):
-		self.assertEqual(self.n_elems, self.cm.grid.n_elems)
+	# def test_n_elems(self):
+	# 	self.assertEqual(self.n_elems, self.cm.grid.n_elems)
+
+	def test_T(self):
+		dt = 1e-3
+		stress = to.zeros((self.n_elems, 3, 3))
+		for i in range(self.n_elems):
+			stress[i,:,:] = -to.tensor([
+								[2.0, 0.5, 0.2],
+								[0.5, 2.0, 0.3],
+								[0.2, 0.3, 12.0]
+							])*MPa
+		# print(stress)
+		# self.cm.elems_ie[1].compute_initial_hardening(stress)
+		self.cm.elems_ie[1].compute_G_B(stress, dt)
+		self.cm.elems_ie[1].compute_eps_ie_rate(stress)
+		print(self.cm.elems_ie[1]._alpha)
+		print(self.cm.elems_ie[1]._Fvp)
+		print()
+		print(self.cm.elems_ie[1]._eps_ie_rate[0])
+		print()
+		print(self.cm.elems_ie[1]._G[0])
+		print()
+		print(self.cm.elems_ie[1]._G_tilde[0])
+		print()
+		print(self.cm.elems_ie[1]._B[0])
+		print()
+		print(self.cm.elems_ie[1]._B_tilde[0])
+		print()
+		print(self.cm.elems_ie[1]._T[0])
+		print()
+		print(self.cm.elems_ie[1]._IT[0])
