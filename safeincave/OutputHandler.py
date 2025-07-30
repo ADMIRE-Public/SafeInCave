@@ -1,4 +1,5 @@
 import dolfinx as do
+import shutil
 import os
 
 class SaveFields():
@@ -29,5 +30,14 @@ class SaveFields():
 			field = getattr(self.eq, field_data["field_name"])
 			field.name = field_data["label_name"]
 			self.output_fields[i].write_function(field, t)
+
+	def save_mesh(self):
+		mesh_origin_file = os.path.join(self.eq.grid.grid_folder, f"{self.eq.grid.geometry_name}.msh")
+		mesh_destination_folder = os.path.join(self.output_folder, "mesh")
+		if not os.path.exists(mesh_destination_folder):
+			os.makedirs(mesh_destination_folder, exist_ok=True)
+		shutil.copy(mesh_origin_file, mesh_destination_folder)
+
+
 
 
