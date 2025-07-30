@@ -163,6 +163,9 @@ class Simulator_TM(Simulator):
 			for output in self.outputs:
 				output.save_fields(t)
 
+		for output in self.outputs:
+			output.save_mesh()
+
 
 class Simulator_M(Simulator):
 	def __init__(self, eq_mom, t_control, outputs, compute_elastic_response=True):
@@ -281,7 +284,8 @@ class Simulator_M(Simulator):
 			for output in self.outputs:
 				output.save_fields(t)
 
-
+		for output in self.outputs:
+			output.save_mesh()
 
 
 class Simulator_T(Simulator):
@@ -323,3 +327,6 @@ class Simulator_T(Simulator):
 			# Save fields
 			for output in self.outputs:
 				output.save_fields(t)
+
+		for output in self.outputs:
+			output.save_mesh()
