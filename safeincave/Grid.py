@@ -173,7 +173,7 @@ class GridHandlerFEniCS(object):
 		self.build_dolfin_tags()
 		self.load_boundaries()
 		self.build_subdomains()
-		# self.__extract_grid_data()
+		self.__extract_grid_data()
 		# self.build_smoother()
 
 	def build_box_dimensions(self):
@@ -248,10 +248,6 @@ class GridHandlerFEniCS(object):
 			return None
 		else:
 			return self.boundary_tags[BOUNDARY_NAME]
-
-
-
-
 
 	def get_boundary_names(self):
 		boundary_names = list(self.dolfin_tags[self.boundary_dim].keys())
