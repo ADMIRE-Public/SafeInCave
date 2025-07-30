@@ -748,24 +748,6 @@ class ViscoplasticDesai():
 		self._B_tilde = self._B - tr_B*I/3
 
 
-		# self._T = to.tensor([
-		# 	[
-		# 		(self._G[:,[0,0]] + self._G[:,[1,0]] + self._G[:,[2,0]]), 
-		# 		(self._G[:,[0,3]] + self._G[:,[1,3]] + self._G[:,[2,3]]), 
-		# 		(self._G[:,[0,4]] + self._G[:,[1,4]] + self._G[:,[2,4]])
-		# 	],
-		# 	[
-		# 		(self._G[:,[0,3]] + self._G[:,[1,3]] + self._G[:,[2,3]]),
-		# 		(self._G[:,[0,1]] + self._G[:,[1,1]] + self._G[:,[2,1]]),
-		# 		(self._G[:,[0,5]] + self._G[:,[1,5]] + self._G[:,[2,5]])
-		# 	],
-		# 	[
-		# 		(self._G[:,[0,4]] + self._G[:,[1,4]] + self._G[:,[2,4]]),
-		# 		(self._G[:,[0,5]] + self._G[:,[1,5]] + self._G[:,[2,5]]),
-		# 		(self._G[:,[0,2]] + self._G[:,[1,2]] + self._G[:,[2,2]])
-		# 	]
-		# ])
-
 	def compute_E(self, stress_vec):
 		"""
 		This function computes :math:`\\frac{\\partial \\dot{\\pmb{\\varepsilon}}_{ie}}{\\partial \\pmb{\\sigma}}`

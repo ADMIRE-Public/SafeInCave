@@ -169,7 +169,6 @@ class LinearMomentum():
 
 
 	def save_solution(self, t):
-
 		MPa = 1e6
 		sxx = self.stress_torch[:,0,0]/MPa
 		syy = self.stress_torch[:,1,1]/MPa
@@ -252,7 +251,7 @@ class LinearMomentum():
 		if calculate_hardening:
 			self.compute_initial_hardening(verbose)
 
-		# Compute old ielastic strain rates
+		# Compute old inelastic strain rates
 		self.compute_eps_ie_rate()
 
 		# Update inelastic strain rate (Warning! Do NOT update eps_ie here, because this is wrong!)

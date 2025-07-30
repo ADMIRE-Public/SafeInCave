@@ -22,7 +22,7 @@ def build_input_file():
 	ifa.set_input_grid(path_to_grid, "geom")
 
 	# Create output section
-	ifa.set_output_folder(os.path.join("output", "case_0"))
+	ifa.set_output_folder(os.path.join("output", "case_e_vp"))
 
 	# Create solver settings section
 	ifa.set_solver(solver_type="cg", solver_PC="gamg", rtol=1e-12, maxite=100)
@@ -57,12 +57,12 @@ def build_input_file():
 	# Add elastic elements
 	ifa.add_elastic_element(name="Spring_0", E=102*GPa, nu=0.3, active=True, equilibrium=True)
 
-	# Add viscoelastic elements
-	ifa.add_viscoelastic_element(name="KelvinVoigt_0", E=10*GPa, nu=0.32, eta=105e11, active=True, equilibrium=True)
+	# # Add viscoelastic elements
+	# ifa.add_viscoelastic_element(name="KelvinVoigt_0", E=10*GPa, nu=0.32, eta=105e11, active=True, equilibrium=True)
 
-	# Add inelastic elements
-	T_sample = 25+273
-	ifa.add_dislocation_creep_element(name="disCreep", A=1.9e-20, n=3.0, Q=51600, T=T_sample, active=True, equilibrium=True)
+	# # Add inelastic elements
+	# T_sample = 25+273
+	# ifa.add_dislocation_creep_element(name="disCreep", A=1.9e-20, n=3.0, Q=51600, T=T_sample, active=True, equilibrium=True)
 
 	ifa.add_desai_element(	name="desai",
 							mu_1=5.3665857009859815e-11,
@@ -77,7 +77,7 @@ def build_input_file():
 							alpha_0=0.0022,
 							sigma_t=5.0,
 							active=True,
-							equilibrium=False )
+							equilibrium=True )
 
 
 	# Save input_file.json

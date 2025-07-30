@@ -19,7 +19,7 @@ It builds the constitutive model and contains all the information about it.
 
 import torch as to
 from Utils import *
-import Elements as element
+import MixedElements as element
 
 class ConstitutiveModel():
 	"""

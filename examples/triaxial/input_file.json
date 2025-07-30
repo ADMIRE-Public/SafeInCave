@@ -16,7 +16,7 @@
         ]
     },
     "output": {
-        "path": "output/case_0"
+        "path": "output/case_e_vp"
     },
     "solver_settings": {
         "solver_type": "cg",
@@ -139,34 +139,12 @@
                 }
             }
         },
-        "viscoelastic": {
-            "KelvinVoigt_0": {
-                "type": "KelvinVoigt",
-                "active": true,
-                "equilibrium": true,
-                "parameters": {
-                    "E": 10000000000.0,
-                    "nu": 0.32,
-                    "eta": 10500000000000.0
-                }
-            }
-        },
+        "viscoelastic": {},
         "inelastic": {
-            "disCreep": {
-                "type": "DislocationCreep",
-                "active": true,
-                "equilibrium": true,
-                "parameters": {
-                    "A": 1.9e-20,
-                    "n": 3.0,
-                    "Q": 51600,
-                    "T": 298
-                }
-            },
             "desai": {
                 "type": "ViscoplasticDesai",
                 "active": true,
-                "equilibrium": false,
+                "equilibrium": true,
                 "parameters": {
                     "mu_1": 5.366585700985981e-11,
                     "N_1": 3.1,
