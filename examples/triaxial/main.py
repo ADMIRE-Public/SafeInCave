@@ -29,8 +29,8 @@ class LinearMomentumMod(LinearMomentum):
 		self.eps_vp = do.fem.Function(self.DG0_3x3)
 
 	def run_after_solve(self):
+		self.eps_ve.x.array[:] = to.flatten(self.mat.elems_ne[0].eps_ne_k)
 		self.eps_cr.x.array[:] = to.flatten(self.mat.elems_ne[1].eps_ne_k)
-		self.eps_vp.x.array[:] = to.flatten(self.mat.elems_ne[2].eps_ne_k)
 		self.eps_vp.x.array[:] = to.flatten(self.mat.elems_ne[2].eps_ne_k)
 		self.Fvp.x.array[:] = self.mat.elems_ne[2].Fvp
 
@@ -49,7 +49,7 @@ def main():
 	# Time settings for equilibrium stage
 	unit = "hour"
 	t_0 = 0.0
-	dt = 0.1
+	dt = 0.5
 	t_final = 24
 	t_control = TimeController(time_step=dt, final_time=t_final, initial_time=t_0, time_unit=unit)
 
@@ -140,14 +140,6 @@ def main():
 					 	  component = 1,
 					 	  values = [0.0, 0.0],
 					 	  time_values = [0.0, t_control.t_final])
-
-	bc_east = momBC.NeumannBC(boundary_name = "EAST",
-						direction = 2,
-						density = 0.0,
-						ref_pos = 0.0,
-						values =      [10.0*utils.MPa, 10.0*utils.MPa],
-						time_values = [0.0,            t_control.t_final],
-						g = g_vec[2])
 
 	bc_east = momBC.NeumannBC(boundary_name = "EAST",
 						direction = 2,

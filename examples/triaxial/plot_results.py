@@ -5,106 +5,121 @@ import numpy as np
 import pandas as pd
 from Utils import read_json
 import matplotlib.pyplot as plt
-from PostProcessingTools import read_vector_from_points, read_xdmf_as_pandas, read_msh_as_pandas, find_mapping
 import meshio
+from PostProcessingTools import (read_vector_from_points,
+								find_mapping,
+								read_msh_as_pandas,
+								read_xdmf_as_pandas,
+								compute_cell_centroids,
+								read_scalar_from_cells,
+								read_tensor_from_cells)
 
 hour = 60*60
 MPa = 1e6
 
 
-def plot_FEM(ax, output_folder):
-	# Read mesh
-	msh_file_name = os.path.join(output_folder, "mesh", "geom.msh")
-	points_msh, cells_msh = read_msh_as_pandas(msh_file_name)
+def find_closest_point(target_point: list, points: pd.DataFrame) -> int:
+	x_p, y_p, z_p = target_point
+	d = np.sqrt(  (points["x"].values - x_p)**2
+	            + (points["y"].values - y_p)**2
+	            + (points["z"].values - z_p)**2 )
+	cell_p = d.argmin()
+	return cell_p
 
-	# Build mapping
-	xdmf_file_name = os.path.join(output_folder, "u", "u.xdmf")
-	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
 
-	# Read displacements
-	u, v, w = read_vector_from_points(xdmf_file_name, mapping)
+def plot_strains(ax, output_folder):
+	points_xdmf, cells_xdmf = read_xdmf_as_pandas(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
+	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
 
-	# Find points of interest
-	point_P = points_msh[(points_msh["z"]==1) & (points_msh["x"]==1) & (points_msh["y"]==1)].index[0]
+	target_point = [0.5, 0.5, 0.5]
+	cell_id = find_closest_point(target_point, mid_cells)
 
-	# Get domain dimensions
-	Lz = points_msh["z"].values.max()
-	Lx = points_msh["x"].values.max()
+	ve_xx, ve_yy, ve_zz, ve_xy, ve_xz, ve_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
+	cr_xx, cr_yy, cr_zz, cr_xy, cr_xz, cr_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_cr", "eps_cr.xdmf"))
+	vp_xx, vp_yy, vp_zz, vp_xy, vp_xz, vp_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_vp", "eps_vp.xdmf"))
+	tot_xx, tot_yy, tot_zz, tot_xy, tot_xz, tot_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_tot", "eps_tot.xdmf"))
 
-	u_P = u.iloc[point_P].values[1:]
-	w_P = w.iloc[point_P].values[1:]
+	eps_ve = 100*(ve_xx - ve_zz).iloc[cell_id].values
+	eps_cr = 100*(cr_xx - cr_zz).iloc[cell_id].values
+	eps_vp = 100*(vp_xx - vp_zz).iloc[cell_id].values
+	eps_tot = 100*(tot_xx - tot_zz).iloc[cell_id].values
 
-	eps_h = -u_P / Lx
-	eps_v = -w_P / Lz
+	t = tot_xx.iloc[cell_id].index.values/hour
 
-	t = w.iloc[point_P].index.values[1:]/hour
+	ax.plot(t, eps_tot, "-", label=r"$\varepsilon_\text{tot}$")
+	ax.plot(t, eps_ve, "-", label=r"$\varepsilon_\text{ve}$")
+	ax.plot(t, eps_cr, "-", label=r"$\varepsilon_\text{cr}$")
+	ax.plot(t, eps_vp, "-", label=r"$\varepsilon_\text{vp}$")
+	ax.set_xlabel("Time (h)", size=12, fontname="serif")
+	ax.set_ylabel(r"$\varepsilon_1 - \varepsilon_3$ (%)", size=12, fontname="serif")
+	ax.legend(loc=0, shadow=True, fancybox=True, prop={"size": 8})
+	ax.grid(True, color="0.92")
+	ax.set_facecolor("0.85")
 
-	# Read input file
-	input_file = read_json("input_file.json")
 
-	# Extract vertical stresses
-	time_list = np.array(input_file["time_settings"]["time_list"])/hour
-	sigma_v_list = np.array(input_file["boundary_conditions"]["TOP"]["values"])/MPa
-	sigma_v = np.interp(t, time_list, sigma_v_list)
 
-	ax.plot(t, eps_v*100, ".", color="steelblue", label=r"$\varepsilon_1$ - FEM")
-	ax.plot(t, eps_h*100, ".", color="lightcoral", label=r"$\varepsilon_3$ - FEM")
+def plot_eps_tot(ax, output_folder):
+	points_xdmf, cells_xdmf = read_xdmf_as_pandas(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
+	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+
+	# target_point = [0.5, 0.5, 0.5]
+	target_point = [1.0, 1.0, 1.0]
+	cell_id = find_closest_point(target_point, mid_cells)
+
+	tot_xx, tot_yy, tot_zz, tot_xy, tot_xz, tot_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_tot", "eps_tot.xdmf"))
+
+	# eps_tot = 100*(tot_xx - tot_zz).iloc[cell_id].values
+	eps_1 = -100*tot_zz.iloc[cell_id].values
+	eps_3 = -100*tot_xx.iloc[cell_id].values
+
+	t = tot_xx.iloc[cell_id].index.values/hour
+
+	ax.plot(t, eps_1, "-", label=r"$\varepsilon_1$")
+	ax.plot(t, eps_3, "-", label=r"$\varepsilon_3$")
 	ax.set_xlabel("Time (h)", size=12, fontname="serif")
 	ax.set_ylabel("Total strain (%)", size=12, fontname="serif")
 	ax.legend(loc=0, shadow=True, fancybox=True, prop={"size": 8})
 	ax.grid(True, color="0.92")
 	ax.set_facecolor("0.85")
 
-def plot_MP(ax1, ax2, ax3, output_folder):
-	results = read_json(os.path.join(output_folder, "material_point", "results.json"))
 
-	# Extract results
-	time = np.array(results["time"]) / hour
-	epsilon_1 = np.array(results["total"]["epsilon_1"]) * 100
-	epsilon_3 = np.array(results["total"]["epsilon_3"]) * 100
-	sigma_1 = np.array(results["stress"]["sigma_1"]) / MPa
-	sigma_3 = np.array(results["stress"]["sigma_3"]) / MPa
 
-	# Plot stresses
-	ax1.plot(time, sigma_1, ".-", color="steelblue", label=r"$\sigma_1$")
-	ax1.plot(time, sigma_3, ".-", color="lightcoral", label=r"$\sigma_3$")
-	ax1.set_xlabel("Time (h)", size=10, fontname="serif")
-	ax1.set_ylabel("Stress (MPa)", size=10, fontname="serif")
-	ax1.legend(loc=0, shadow=True, fancybox=True, prop={"size": 8})
-	ax1.grid(True, color="0.92")
-	ax1.set_facecolor("0.85")
 
-	# Plot total strains
-	ax2.plot(time, epsilon_1, "-", color="steelblue", label=r"$\varepsilon_1$ - MP")
-	ax2.plot(time, epsilon_3, "-", color="lightcoral", label=r"$\varepsilon_3$ - MP")
-	ax2.set_xlabel("Time (h)", size=10, fontname="serif")
-	ax2.set_ylabel("Total strain (%)", size=10, fontname="serif")
-	ax2.legend(loc=0, shadow=True, fancybox=True, prop={"size": 8})
-	ax2.grid(True, color="0.92")
-	ax2.set_facecolor("0.85")
 
-	# Plot individual element contributions
-	for element in results.keys():
-		if element != "total" and element != "stress" and element != "time":
-			eps_1 = np.array(results[element]["epsilon_1"]) * 100
-			eps_3 = np.array(results[element]["epsilon_3"]) * 100
-			ax3.plot(time, eps_1, "-", label=element)
-	ax3.set_xlabel("Time (h)", size=10, fontname="serif")
-	ax3.set_ylabel("Partial strains (%)", size=10, fontname="serif")
-	ax3.legend(loc=0, shadow=True, fancybox=True, prop={"size": 8})
-	ax3.grid(True, color="0.92")
-	ax3.set_facecolor("0.85")
+
+def plot_Fvp(ax, output_folder):
+	points_xdmf, cells_xdmf = read_xdmf_as_pandas(os.path.join(output_folder, "Fvp", "Fvp.xdmf"))
+	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+
+	# target_point = [0.5, 0.5, 0.5]
+	target_point = [1.0, 1.0, 1.0]
+	cell_id = find_closest_point(target_point, mid_cells)
+
+	df_Fvp = read_scalar_from_cells(os.path.join(output_folder, "Fvp", "Fvp.xdmf"))
+	Fvp = df_Fvp.iloc[cell_id].values
+
+	t = df_Fvp.iloc[cell_id].index.values/hour
+
+	ax.plot(t, Fvp, "-")
+	ax.plot(t, len(t)*[0], "--", color="tomato")
+	ax.set_xlabel("Time (h)", size=12, fontname="serif")
+	ax.set_ylabel("Yield function (-)", size=12, fontname="serif")
+	ax.grid(True, color="0.92")
+	ax.set_facecolor("0.85")
+
 
 def main():
 	results_folder = os.path.join("output", "case_0")
+	# results_folder = os.path.join("output", "test")
 
 	# Plot loading schedule
-	fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 3))
-	fig.subplots_adjust(top=0.970, bottom=0.155, left=0.043, right=0.980, hspace=0.35, wspace=0.225)
+	fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 3))
+	fig.subplots_adjust(top=0.970, bottom=0.155, left=0.062, right=0.980, hspace=0.35, wspace=0.312)
 	fig.patch.set_alpha(0.0)
 
-	# plot_MP(ax1, ax2, ax3, results_folder)
-	plot_FEM(ax2, results_folder)
+	plot_eps_tot(ax1, results_folder)
+	plot_strains(ax2, results_folder)
+	plot_Fvp(ax3, results_folder)
 
 	plt.show()
 
