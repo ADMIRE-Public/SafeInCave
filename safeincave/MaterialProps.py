@@ -360,7 +360,7 @@ class ViscoplasticDesai(NonElasticElement):
 		delta_alpha = -(self.r + to.einsum('bij,bij->b', self.P, stress - stress_k))/self.h
 		self.alpha += delta_alpha
 
-	def __compute_stress_invariants(self, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz):
+	def compute_stress_invariants(self, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz):
 		I1 = s_xx + s_yy + s_zz
 		I2 = s_xx*s_yy + s_yy*s_zz + s_xx*s_zz - s_xy**2 - s_yz**2 - s_xz**2
 		I3 = s_xx*s_yy*s_zz + 2*s_xy*s_yz*s_xz - s_zz*s_xy**2 - s_xx*s_yz**2 - s_yy*s_xz**2
@@ -377,7 +377,7 @@ class ViscoplasticDesai(NonElasticElement):
 		I1_star = I1 + self.sigma_t
 		return I1, I2, I3, J2, J3, Sr, I1_star, ind_J2_leq_0
 
-	def __extract_stress_components(self, stress):
+	def extract_stress_components(self, stress):
 		stress_vec = -stress
 		s_xx = stress_vec[:,0,0]/MPa
 		s_yy = stress_vec[:,1,1]/MPa
@@ -387,27 +387,34 @@ class ViscoplasticDesai(NonElasticElement):
 		s_yz = stress_vec[:,1,2]/MPa
 		return s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
 
-	def __compute_Fvp(self, alpha, I1, J2, Sr):
+	def compute_Fvp(self, alpha, I1, J2, Sr):
 		F1 = (alpha*I1**self.n - self.gamma*I1**2)
 		F2 = (to.exp(self.beta_1*I1) - self.beta*Sr)
 		Fvp = J2 + F1*F2**self.m
 		return Fvp
 
 	def compute_initial_hardening(self, stress, Fvp_0=0.0):
-		s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = self.__extract_stress_components(stress)
-		I1, I2, I3, J2, J3, Sr, I1_star, _ = self.__compute_stress_invariants(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
+		s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = self.extract_stress_components(stress)
+		I1, I2, I3, J2, J3, Sr, I1_star, _ = self.compute_stress_invariants(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
+		# print("I1", float(I1.min()), float(I1.max()))
+		# print("J2", float(J2.min()), float(J2.max()))
 		self.alpha_0 =  self.gamma*I1_star**(2-self.n) + (Fvp_0 - J2)*I1_star**(-self.n)*(to.exp(self.beta_1*I1_star) - self.beta*Sr)**(-self.m)
 		self.alpha = self.alpha_0.clone()
+
+		s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = self.extract_stress_components(stress)
+		I1, I2, I3, J2, J3, Sr, I1_star, ind_J2_leq_0 = self.compute_stress_invariants(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
+		self.Fvp = self.compute_Fvp(self.alpha, I1_star, J2, Sr)
+
 
 	def compute_eps_ne_rate(self, stress, phi1, Temp, alpha=None, return_eps_ne=False):
 		if alpha == None:
 			alpha = self.alpha
 
-		s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = self.__extract_stress_components(stress)
-		I1, I2, I3, J2, J3, Sr, I1_star, ind_J2_leq_0 = self.__compute_stress_invariants(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
+		s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = self.extract_stress_components(stress)
+		I1, I2, I3, J2, J3, Sr, I1_star, ind_J2_leq_0 = self.compute_stress_invariants(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
 
 		# Compute yield function
-		Fvp = self.__compute_Fvp(alpha, I1_star, J2, Sr)
+		Fvp = self.compute_Fvp(alpha, I1_star, J2, Sr)
 		if not return_eps_ne:
 			self.Fvp = Fvp.clone()
 
@@ -486,7 +493,7 @@ class ViscoplasticDesai(NonElasticElement):
 		dQdS[ind_J2_leq_0,:,:] = 0.0
 
 		# Calculate strain rate
-		ramp_idx = list(to.where(Fvp > 0)[0])
+		ramp_idx = to.where(Fvp > 0)[0]
 		lmbda = to.zeros(self.n_elems, dtype=to.float64)
 		if len(ramp_idx) != 0:
 			lmbda[ramp_idx] = self.mu_1[ramp_idx]*(Fvp[ramp_idx]/self.F_0)**self.N_1[ramp_idx]

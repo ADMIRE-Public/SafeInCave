@@ -264,7 +264,10 @@ class LinearMomentum(LinearMomentumBase):
 		self.p_nodes = utils.project(ufl.tr(self.sig)/3, self.CG1_1)
 
 	def compute_p_elems(self) -> do.fem.Function:
-		self.p_elems = utils.project(ufl.tr(self.sig)/3, self.DG0_1)
+		# self.p_elems = utils.project(ufl.tr(self.sig)/3, self.DG0_1)
+		stress_to = utils.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+		p_to = to.einsum("kii->k", stress_to)
+		self.p_elems.x.array[:] = to.flatten(p_to)
 
 	def solve(self, stress_k_to, t, dt):
 

@@ -17,6 +17,7 @@ from abc import ABC, abstractmethod
 import torch as to
 import numpy as np
 from mpi4py import MPI
+from Utils import numpy2torch
 
 class Simulator(ABC):
 	@abstractmethod
@@ -60,7 +61,7 @@ class Simulator_TM(Simulator):
 			eps_tot_to = self.eq_mom.compute_total_strain()
 
 			# Retrieve stress
-			stress_to = utils.numpy2torch(self.eq_mom.sig.x.array.reshape((self.eq_mom.n_elems, 3, 3)))
+			stress_to = numpy2torch(self.eq_mom.sig.x.array.reshape((self.eq_mom.n_elems, 3, 3)))
 
 		# Set new temperature to momentum equation
 		T_elems = self.eq_heat.get_T_elems()
@@ -198,7 +199,7 @@ class Simulator_M(Simulator):
 			eps_tot_to = self.eq_mom.compute_total_strain()
 
 			# Retrieve stress
-			stress_to = utils.numpy2torch(self.eq_mom.sig.x.array.reshape((self.eq_mom.n_elems, 3, 3)))
+			stress_to = numpy2torch(self.eq_mom.sig.x.array.reshape((self.eq_mom.n_elems, 3, 3)))
 
 		# Calculate and eps_ie_rate_old
 		self.eq_mom.compute_eps_ne_rate(stress_to, self.t_control.t)
@@ -224,7 +225,7 @@ class Simulator_M(Simulator):
 			self.eq_mom.bc.update_neumann(t)
 
 			# Iterative loop settings
-			tol = 1e-7
+			tol = 1e-8
 			error = 2*tol
 			ite = 0
 			maxiter = 40
@@ -272,10 +273,6 @@ class Simulator_M(Simulator):
 			# Update strain
 			self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
 
-			# Print stuff
-			if self.eq_mom.grid.mesh.comm.rank == 0:
-				print(t/self.t_control.time_unit, ite, error)
-
 			# Save fields
 			self.eq_mom.compute_p_elems()
 			self.eq_mom.compute_q_elems()
@@ -283,6 +280,14 @@ class Simulator_M(Simulator):
 			self.eq_mom.compute_q_nodes()
 			for output in self.outputs:
 				output.save_fields(t)
+
+			# Print stuff
+			if self.eq_mom.grid.mesh.comm.rank == 0:
+				print(t/self.t_control.time_unit, ite, error)
+				try:
+					print(float(self.eq_mom.mat.elems_ne[-1].Fvp.max()))
+				except:
+					pass
 
 		for output in self.outputs:
 			output.save_mesh()
