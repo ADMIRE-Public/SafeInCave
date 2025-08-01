@@ -45,11 +45,11 @@ def main():
 	    start_time = MPI.Wtime()
 
 	# Read grid
-	grid_path = os.path.join("..", "..", "grids", "cavern_regular")
+	grid_path = os.path.join("..", "..", "grids", "cavern_irregular")
 	grid = GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0")
+	output_folder = os.path.join("output", "case_2")
 
 	# Define momentum equation
 	mom_eq = LinearMomentumMod(grid, theta=0.5)
@@ -241,7 +241,7 @@ def main():
 	desai.compute_initial_hardening(stress_to, Fvp_0=0.0)
 
 	# Add viscoplastic element to constitutive model
-	mom_eq.mat.add_to_non_elastic(desai)
+	# mom_eq.mat.add_to_non_elastic(desai)
 
 	# Time settings for equilibrium stage
 	tc_operation = TimeController(time_step=0.1, final_time=24, initial_time=0.0, time_unit="hour")
