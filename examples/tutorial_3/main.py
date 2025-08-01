@@ -1,7 +1,7 @@
 import os
 import sys
 sys.path.append(os.path.join("..", "..", "safeincave"))
-from Grid import GridHandlerGMSH, GridHandlerFEniCS
+from Grid2 import GridHandlerGMSH
 from mpi4py import MPI
 import ufl
 import dolfinx as do
@@ -47,7 +47,7 @@ def main():
 	output_folder = os.path.join("output", "case_0")
 
 	# Define momentum equation
-	mom_eq = LinearMomentum(grid, theta=0.5)
+	mom_eq = LinearMomentum(grid, theta=0.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -79,6 +79,12 @@ def main():
 	nu0 = 0.3*to.ones(mom_eq.n_elems)
 	spring_0 = Spring(E0, nu0, "spring")
 
+	# Create Kelvin-Voigt viscoelastic element
+	eta = 105e11*to.ones(mom_eq.n_elems)
+	E1 = 10*utils.GPa*to.ones(mom_eq.n_elems)
+	nu1 = 0.32*to.ones(mom_eq.n_elems)
+	kelvin = Viscoelastic(eta, E1, nu1, "kelvin")
+
 	# Create creep
 	A = to.zeros(mom_eq.n_elems)
 	A[ind_salt] = 1.9e-20
@@ -89,6 +95,7 @@ def main():
 
 	# Create constitutive model
 	mat.add_to_elastic(spring_0)
+	# mat.add_to_non_elastic(kelvin)
 	mat.add_to_non_elastic(creep_0)
 
 	# Set constitutive model
@@ -189,10 +196,12 @@ def main():
 	output_mom = SaveFields(mom_eq)
 	output_mom.set_output_folder(ouput_folder_equilibrium)
 	output_mom.add_output_field("u", "Displacement (m)")
-	output_mom.add_output_field("Temp", "Temperature (K)")
+	# output_mom.add_output_field("Temp", "Temperature (K)")
 	output_mom.add_output_field("eps_tot", "Total strain (-)")
 	output_mom.add_output_field("p_elems", "Mean stress (Pa)")
 	output_mom.add_output_field("q_elems", "Von Mises stress (Pa)")
+	output_mom.add_output_field("p_nodes", "Mean stress (Pa)")
+	output_mom.add_output_field("q_nodes", "Von Mises stress (Pa)")
 	outputs = [output_mom]
 
 	# Define simulator
@@ -267,10 +276,12 @@ def main():
 	output_mom = SaveFields(mom_eq)
 	output_mom.set_output_folder(output_folder_operation)
 	output_mom.add_output_field("u", "Displacement (m)")
-	output_mom.add_output_field("Temp", "Temperature (K)")
+	# output_mom.add_output_field("Temp", "Temperature (K)")
 	output_mom.add_output_field("eps_tot", "Total strain (-)")
 	output_mom.add_output_field("p_elems", "Mean stress (Pa)")
 	output_mom.add_output_field("q_elems", "Von Mises stress (Pa)")
+	output_mom.add_output_field("p_nodes", "Mean stress (Pa)")
+	output_mom.add_output_field("q_nodes", "Von Mises stress (Pa)")
 	outputs = [output_mom]
 
 	# Define simulator

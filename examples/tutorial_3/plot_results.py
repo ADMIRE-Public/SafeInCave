@@ -92,7 +92,7 @@ def calculate_convergence_data(displacement_data, mesh):
 		volumes.append(100*abs(vol_0 - vol)/vol_0)
 
 	# Plot cavern shape
-	expansion_factor = 50
+	expansion_factor = 10
 	xi = x0 + 0*expansion_factor*u[t_initial]
 	yi = y0 + 0*expansion_factor*v[t_initial]
 	zi = z0 + 0*expansion_factor*w[t_initial]
@@ -169,11 +169,6 @@ def plot_dilatancy_boundary(ax):
 
 def plot_paths(ax, stress_data, point_color, index=0):
 	cells_coord, sigma_v, q = stress_data
-	# sigma_v = -sigma_v/MPa
-	# sigma_v /= -MPa
-	# q /= MPa
-	# print(sigma_v)
-	# print(q)
 
 	# Find closest cell to point
 	x_p, y_p, z_p = point_color[0]
@@ -228,12 +223,19 @@ def get_relevant_points():
 	x5, z5 = 45, 345 - depth
 	x6, z6 = 42.8, 393.4 - depth
 
-	point_1 = (x1, 0.0, z1)
-	point_2 = (x2, 0.0, z2)
-	point_3 = (x3, 0.0, z3)
-	point_4 = (x4, 0.0, z4)
-	point_5 = (x5, 0.0, z5)
-	point_6 = (x6, 0.0, z6)
+	# point_1 = (x1, 0.0, z1)
+	# point_2 = (x2, 0.0, z2)
+	# point_3 = (x3, 0.0, z3)
+	# point_4 = (x4, 0.0, z4)
+	# point_5 = (x5, 0.0, z5)
+	# point_6 = (x6, 0.0, z6)
+
+	point_1 = (0.0, x1, z1)
+	point_2 = (0.0, x2, z2)
+	point_3 = (0.0, x3, z3)
+	point_4 = (0.0, x4, z4)
+	point_5 = (0.0, x5, z5)
+	point_6 = (0.0, x6, z6)
 
 	points = [
 		(point_1, "deepskyblue"),
@@ -467,7 +469,7 @@ def plot_results_panel(results_folder, stage="operation"):
 	plt.show()
 
 def main():
-	plot_results_panel("case_0", "operation")
+	plot_results_panel("case_2", "operation")
 
 if __name__ == '__main__':
 	main()
