@@ -119,7 +119,7 @@ def read_scalar_from_points(file_name):
             time, point_data, _ = reader.read_data(k)
             time_list.append(time)
             field_name = list(point_data.keys())[0]
-            A[:,k] = point_data[field_name][0].flatten()
+            A[:,k] = point_data[field_name][:,0]
         df_scalar = pd.DataFrame(A, columns=time_list)
     return df_scalar
 
