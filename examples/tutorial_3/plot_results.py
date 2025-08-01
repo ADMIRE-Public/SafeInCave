@@ -8,7 +8,13 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.widgets import Button, Slider
-from PostProcessingTools import read_xdmf_as_pandas, read_msh_as_pandas, read_vector_from_points, read_scalar_from_cells, find_mapping, compute_cell_centroids
+from PostProcessingTools import (read_xdmf_as_pandas,
+								 read_msh_as_pandas,
+								 read_vector_from_points,
+								 read_scalar_from_cells,
+								 find_mapping,
+								 compute_cell_centroids,
+								 read_scalar_from_points)
 import json
 
 def read_json(file_name):
@@ -92,7 +98,7 @@ def calculate_convergence_data(displacement_data, mesh):
 		volumes.append(100*abs(vol_0 - vol)/vol_0)
 
 	# Plot cavern shape
-	expansion_factor = 10
+	expansion_factor = 5
 	xi = x0 + 0*expansion_factor*u[t_initial]
 	yi = y0 + 0*expansion_factor*v[t_initial]
 	zi = z0 + 0*expansion_factor*w[t_initial]
@@ -167,36 +173,58 @@ def plot_dilatancy_boundary(ax):
 	ax.plot(p_points, q_points, "-", color="black")
 
 
-def plot_paths(ax, stress_data, point_color, index=0):
-	cells_coord, sigma_v, q = stress_data
 
-	# Find closest cell to point
-	x_p, y_p, z_p = point_color[0]
-	d = np.sqrt(  (cells_coord["x"].values - x_p)**2
-	            + (cells_coord["y"].values - y_p)**2
-	            + (cells_coord["z"].values - z_p)**2 )
-	cell_p = d.argmin()
-	x_cell_p = cells_coord["x"].values[cell_p]
-	y_cell_p = cells_coord["y"].values[cell_p]
-	z_cell_p = cells_coord["z"].values[cell_p]
+def rotate_z(coord, angle):
+	rotation_matrix_z = np.array([
+	    [np.cos(angle), -np.sin(angle), 0],
+	    [np.sin(angle), np.cos(angle), 0],
+	    [0, 0, 1]
+	])
+	return np.dot(coord, rotation_matrix_z.T)
+
+def get_selected_points(point_base, point_coords):
+	selected_idx = []
+	thetas = np.linspace(0, np.pi/2, 80)
+	for theta in thetas:
+		rotating_point = rotate_z(point_base, theta)
+		x_p, y_p, z_p = rotating_point
+		d = np.sqrt(  (point_coords[:,0] - x_p)**2
+		            + (point_coords[:,1] - y_p)**2
+		            + (point_coords[:,2] - z_p)**2 )
+		point_idx = d.argmin()
+		if abs(point_coords[point_idx,2] - z_p) < 0.1:
+			if point_idx not in selected_idx:
+				selected_idx.append(point_idx)
+	return selected_idx
+
+def get_p_q(point_base, point_coords, df_p, df_q):
+	# Get selected points
+	selected_idxs = get_selected_points(point_base, point_coords)
+
+	# Calculate average mean stress along selected points
+	p_selected = df_p[selected_idxs]
+	p_avg = np.average(p_selected, axis=0)
+
+	# Calculate average von Mises stress along selected points
+	q_selected = df_q[selected_idxs]
+	q_avg = np.average(q_selected, axis=0)
+
+	return p_avg, q_avg
+
+def plot_paths(ax, stress_data, point_color, index=0):
+	cells_coord, p, q = stress_data
+	p_avg, q_avg = get_p_q(point_color[0], cells_coord.values, p, q)
 
 	plot_dilatancy_boundary(ax)
-	ax.plot(sigma_v[cell_p], q[cell_p], "-", color=point_color[1])
-	ax.scatter(sigma_v[cell_p][index], q[cell_p][index], c="white", edgecolors="black", zorder=10000)
+	ax.plot(p_avg, q_avg, "-", color=point_color[1])
+	ax.scatter(p_avg[index], q_avg[index], c="white", edgecolors="black", zorder=10000)
 	ax.set_xlabel("Mean stress (MPa)", size=10, fontname="serif")
 	ax.set_ylabel("Von Mises stress (MPa)", size=10, fontname="serif")
 
-	ax.plot(sigma_v[cell_p][0], q[cell_p][0], "o", color="blue", label="Start")
-	ax.plot(sigma_v[cell_p][-1], q[cell_p][-1], "^", color="red", label="Finish")
+	ax.plot(p_avg[0], q_avg[0], "o", color="blue", label="Start")
+	ax.plot(p_avg[-1], q_avg[-1], "^", color="red", label="Finish")
 	ax.legend(loc=2, ncol=2, prop={"size": 8})
-	# if label_start:
-	# 	ax.plot(sigma_v[cell_p][0], q[cell_p][0], "o", color="blue", label="Start")
-	# 	ax.plot(sigma_v[cell_p][-1], q[cell_p][-1], "^", color="red", label="Finish")
-	# 	ax.legend(loc=2, ncol=2, prop={"size": 8})
-	# 	# ax.legend(bbox_to_anchor=(0.92, 1.25), ncol=2)
-	# else:
-	# 	ax.plot(sigma_v[cell_p][0], q[cell_p][0], "o", color="blue")
-	# 	ax.plot(sigma_v[cell_p][-1], q[cell_p][-1], "^", color="red")
+
 
 def plot_probe_points(ax, points):
 	for point, color in points:
@@ -216,26 +244,12 @@ def plot_gas_pressure(ax, time_steps, time, pressure, index=0):
 def get_relevant_points():
 	depth = 800 + 430
 
-	x1, z1 = 0, 430 - depth
-	x2, z2 = 0, 205.1 - depth
-	x3, z3 = 74.63, 267.4 - depth
-	x4, z4 = 57.62, 301.3 - depth
-	x5, z5 = 45, 345 - depth
-	x6, z6 = 42.8, 393.4 - depth
-
-	# point_1 = (x1, 0.0, z1)
-	# point_2 = (x2, 0.0, z2)
-	# point_3 = (x3, 0.0, z3)
-	# point_4 = (x4, 0.0, z4)
-	# point_5 = (x5, 0.0, z5)
-	# point_6 = (x6, 0.0, z6)
-
-	point_1 = (0.0, x1, z1)
-	point_2 = (0.0, x2, z2)
-	point_3 = (0.0, x3, z3)
-	point_4 = (0.0, x4, z4)
-	point_5 = (0.0, x5, z5)
-	point_6 = (0.0, x6, z6)
+	point_1 = (0.0, 	0.0, 	430.0 - depth)
+	point_2 = (0.0, 	0.0, 	205.1 - depth)
+	point_3 = (74.63, 	0.0, 	267.4 - depth)
+	point_4 = (57.62, 	0.0, 	301.3 - depth)
+	point_5 = (45.0, 	0.0, 	345.0 - depth)
+	point_6 = (42.8, 	0.0, 	393.4 - depth)
 
 	points = [
 		(point_1, "deepskyblue"),
@@ -287,9 +301,13 @@ def plot_results_panel(results_folder, stage="operation"):
 	# Stress data
 	points_xdmf, cells_xdmf = read_xdmf_as_pandas(xdmf_file_name)
 	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
-	df_p = read_scalar_from_cells(os.path.join(output_path, "p_elems", "p_elems.xdmf"))
-	df_q = read_scalar_from_cells(os.path.join(output_path, "q_elems", "q_elems.xdmf"))
-	stress_data = (mid_cells, -df_p.values/MPa, df_q.values/MPa)
+	# df_p = read_scalar_from_cells(os.path.join(output_path, "p_elems", "p_elems.xdmf"))
+	# df_q = read_scalar_from_cells(os.path.join(output_path, "q_elems", "q_elems.xdmf"))
+	df_p = read_scalar_from_points(os.path.join(output_path, "p_nodes", "p_nodes.xdmf"))
+	df_q = read_scalar_from_points(os.path.join(output_path, "q_nodes", "q_nodes.xdmf"))
+	# stress_data = (mid_cells, -df_p.values/MPa, df_q.values/MPa)
+	stress_data = (points_xdmf, -df_p.values/MPa, df_q.values/MPa)
+	# stress_data = (points_xdmf, df_p.values, df_q.values)
 
 	# Read simulation time steps
 	time_steps = df_ux.columns.values
@@ -350,15 +368,6 @@ def plot_results_panel(results_folder, stage="operation"):
 	# n_elems = mesh.cells[0].data.shape[0]
 	n_elems = mesh.cells["tetra"].shape[0]
 	n_nodes = len(mesh.points)
-
-	# print()
-	# print(mesh.__dict__.keys())
-	# print()
-	# print(mesh.field_data)
-	# print()
-	# print(mesh.field_data.keys())
-
-	# print()
 
 	region_names = ""
 	for field_name in mesh.field_data.keys():
@@ -469,7 +478,7 @@ def plot_results_panel(results_folder, stage="operation"):
 	plt.show()
 
 def main():
-	plot_results_panel("case_2", "operation")
+	plot_results_panel("case_0", "operation")
 
 if __name__ == '__main__':
 	main()
