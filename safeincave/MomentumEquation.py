@@ -72,15 +72,31 @@ class LinearMomentumBase(ABC):
 		body_force = density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(g)))
 		self.b_body = ufl.dot(body_force, self.u_)*self.dx
 
+	# def compute_q_nodes(self) -> do.fem.Function:
+	# 	dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
+	# 	q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
+	# 	self.q_nodes = utils.project(q_form, self.CG1_1)
+
+	# def compute_q_elems(self) -> do.fem.Function:
+	# 	dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
+	# 	q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
+	# 	self.q_elems = utils.project(q_form, self.DG0_1)
+
 	def compute_q_nodes(self) -> do.fem.Function:
-		dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
-		q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
-		self.q_nodes = utils.project(q_form, self.CG1_1)
+		stress = utils.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+		I1 = stress[:,0,0] + stress[:,1,1] + stress[:,2,2]
+		I2 = stress[:,0,0]*stress[:,1,1] + stress[:,1,1]*stress[:,2,2] + stress[:,0,0]*stress[:,2,2] - stress[:,0,1]**2 - stress[:,0,2]**2 - stress[:,1,2]**2
+		J2 = (1/3)*I1**2 - I2
+		q_to = to.sqrt(3*J2)
+		self.q_nodes.x.array[:] = self.grid.A_csr.dot(q_to.numpy())
 
 	def compute_q_elems(self) -> do.fem.Function:
-		dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
-		q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
-		self.q_elems = utils.project(q_form, self.DG0_1)
+		stress = utils.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+		I1 = stress[:,0,0] + stress[:,1,1] + stress[:,2,2]
+		I2 = stress[:,0,0]*stress[:,1,1] + stress[:,1,1]*stress[:,2,2] + stress[:,0,0]*stress[:,2,2] - stress[:,0,1]**2 - stress[:,0,2]**2 - stress[:,1,2]**2
+		J2 = (1/3)*I1**2 - I2
+		q_to = to.sqrt(3*J2)
+		self.q_elems.x.array[:] = self.grid.smoother.dot(q_to.numpy())
 
 	def compute_total_strain(self):
 		self.eps_tot = utils.project(utils.epsilon(self.u), self.DG0_3x3)
@@ -260,14 +276,26 @@ class LinearMomentum(LinearMomentumBase):
 	def split_solution(self):
 		self.u = self.X
 
+	# def compute_p_nodes(self) -> do.fem.Function:
+	# 	self.p_nodes = utils.project(ufl.tr(self.sig)/3, self.CG1_1)
+
+	# def compute_p_elems(self) -> do.fem.Function:
+	# 	# self.p_elems = utils.project(ufl.tr(self.sig)/3, self.DG0_1)
+	# 	stress_to = utils.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+	# 	p_to = to.einsum("kii->k", stress_to)
+	# 	self.p_elems.x.array[:] = to.flatten(p_to)
+
 	def compute_p_nodes(self) -> do.fem.Function:
-		self.p_nodes = utils.project(ufl.tr(self.sig)/3, self.CG1_1)
+		stress = utils.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+		I1 = stress[:,0,0] + stress[:,1,1] + stress[:,2,2]
+		p_to = I1/3
+		self.p_nodes.x.array[:] = self.grid.A_csr.dot(p_to)
 
 	def compute_p_elems(self) -> do.fem.Function:
-		# self.p_elems = utils.project(ufl.tr(self.sig)/3, self.DG0_1)
 		stress_to = utils.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
 		p_to = to.einsum("kii->k", stress_to)
-		self.p_elems.x.array[:] = to.flatten(p_to)
+		p_to = self.grid.smoother.dot(p_to.numpy())
+		self.p_elems.x.array[:] = p_to
 
 	def solve(self, stress_k_to, t, dt):
 
