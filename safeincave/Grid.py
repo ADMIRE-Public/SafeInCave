@@ -52,6 +52,55 @@ class GridHandlerGMSH(object):
 		self.load_boundaries()
 		self.build_box_dimensions()
 		self.__extract_grid_data()
+		self.build_smoother()
+
+	def __tetrahedron_volume(self, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4):
+	    volume = abs((1/6) * ((x2 - x1) * ((y3 - y1)*(z4 - z1) - (z3 - z1)*(y4 - y1)) + 
+	                 (y2 - y1) * ((z3 - z1)*(x4 - x1) - (x3 - x1)*(z4 - z1)) + 
+	                 (z2 - z1) * ((x3 - x1)*(y4 - y1) - (y3 - y1)*(x4 - x1))))
+	    return volume
+
+	def __compute_volumes(self):
+		conn = self.mesh.topology.connectivity(3, 0).array.reshape(-1, 4)
+		coord = self.mesh.geometry.x
+		self.volumes = np.zeros(self.n_elems)
+		for i in range(self.n_elems):
+			nodes = conn[i]
+			x1, y1, z1 = coord[nodes[0], 0], coord[nodes[0], 1], coord[nodes[0], 2]
+			x2, y2, z2 = coord[nodes[1], 0], coord[nodes[1], 1], coord[nodes[1], 2]
+			x3, y3, z3 = coord[nodes[2], 0], coord[nodes[2], 1], coord[nodes[2], 2]
+			x4, y4, z4 = coord[nodes[3], 0], coord[nodes[3], 1], coord[nodes[3], 2]
+			self.volumes[i] = self.__tetrahedron_volume(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4)
+
+	def __build_node_elem_stencil(self):
+		conn = self.mesh.topology.connectivity(3, 0).array.reshape(-1, 4)
+		coord = self.mesh.geometry.x
+		self.stencil = [[] for i in range(self.n_nodes)]
+		for elem, elem_conn in enumerate(conn):
+			for node in elem_conn:
+				if elem not in self.stencil[node]:
+					self.stencil[node].append(elem)
+
+	def build_smoother(self):
+		self.__compute_volumes()
+		self.__build_node_elem_stencil()
+		A_row, A_col, A_data = [], [], []
+		for node in range(self.n_nodes):
+			vol = self.volumes[self.stencil[node]].sum()
+			for elem in self.stencil[node]:
+				A_row.append(node)
+				A_col.append(elem)
+				A_data.append(self.volumes[elem]/vol)
+		self.A_csr = csr_matrix((A_data, (A_row, A_col)), shape=(self.n_nodes, self.n_elems))
+		conn = self.mesh.topology.connectivity(3, 0).array.reshape(-1, 4)
+		B_row, B_col, B_data = [], [], []
+		for elem, nodes in enumerate(conn):
+			for node in nodes:
+				B_row.append(elem)
+				B_col.append(node)
+				B_data.append(1/len(nodes))
+		self.B_csr = csr_matrix((B_data, (B_row, B_col)), shape=(self.n_elems, self.n_nodes))
+		self.smoother = self.B_csr.dot(self.A_csr)
 
 	def load_mesh(self):
 		self.mesh, self.subdomains, self.boundaries = gmshio.read_from_msh(
