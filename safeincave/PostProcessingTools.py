@@ -108,7 +108,7 @@ def read_scalar_from_cells(file_name):
         df_scalar = pd.DataFrame(A, columns=time_list)
     return df_scalar
 
-def read_scalar_from_points(file_name):
+def read_scalar_from_points(file_name, mapping):
     with ms.xdmf.TimeSeriesReader(file_name) as reader:
         points, cells = reader.read_points_cells()
         n = points.shape[0]
@@ -120,7 +120,7 @@ def read_scalar_from_points(file_name):
             time_list.append(time)
             field_name = list(point_data.keys())[0]
             A[:,k] = point_data[field_name][:,0]
-        df_scalar = pd.DataFrame(A, columns=time_list)
+        df_scalar = pd.DataFrame(A[mapping], columns=time_list)
     return df_scalar
 
 def read_vector_from_points(file_name, point_mapping):
