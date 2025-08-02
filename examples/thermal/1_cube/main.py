@@ -69,8 +69,16 @@ def main():
 							values = nt*[273 + 1.0],
 							time_values = time_values)
 
+	bc_west = heatBC.RobinBC(boundary_name = "WEST", 
+							values = nt*[273 + 1.0],
+							h = 5.0,
+							time_values = time_values)
+
 	bc_handler = heatBC.BcHandler(heat_eq)
 	bc_handler.add_boundary_condition(bc_east)
+	bc_handler.add_boundary_condition(bc_west)
+
+	# Add boundary condition to heat equation
 	heat_eq.set_boundary_conditions(bc_handler)
 
 	# Set initial temperature field

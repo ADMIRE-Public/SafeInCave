@@ -39,41 +39,6 @@ def reorder_data(df_coord, T, line_idx):
 	T = T.loc[sorted_x0_ind]
 	return x0, T
 
-def plot_T(ax, results_folder):
-	# Read mesh
-	msh_file_name = os.path.join(results_folder, "mesh", "geom.msh")
-	points_msh, cells_msh = read_msh_as_pandas(msh_file_name)
-
-	# Read displacements
-	xdmf_file_name = os.path.join(results_folder, "T", "T.xdmf")
-	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
-	T = read_scalar_from_points(xdmf_file_name, mapping)
-
-	line_idx = points_msh[(points_msh["z"] == 1) & (points_msh["y"] == 0)].index
-	T_line = T.loc[line_idx]
-
-	x = points_msh.iloc[line_idx]
-
-	x, T_line = reorder_data(x, T_line, line_idx)
-
-	t = T.iloc[0].index.values/60/60/24
-
-	ax.plot(x.values, T_line.values[:,0], ".-", color="#377eb8", label=f"t={round(t[0],2)} day(s)")
-	ax.plot(x.values, T_line.values[:,3], ".-", color="#ff7f00", label=f"t={round(t[3],2)} day(s)")
-	ax.plot(x.values, T_line.values[:,15], ".-", color="#4daf4a", label=f"t={round(t[15],2)} day(s)")
-	ax.plot(x.values, T_line.values[:,30], ".-", color="#f781bf", label=f"t={round(t[30],2)} day(s)")
-	ax.legend(loc=0, shadow=True, fancybox=True)
-
-	# ax.plot(t, w_A*1000, ".-", color="#377eb8", label="Point A")
-	# ax.plot(t, w_B*1000, ".-", color="#ff7f00", label="Point B")
-	# ax.plot(t, w_C*1000, ".-", color="#4daf4a", label="Point C")
-	# ax.plot(t, w_D*1000, ".-", color="#f781bf", label="Point D")
-	# ax.set_xlabel("Time (minutes)", size=12, fontname="serif")
-	# ax.set_ylabel("Displacement (mm)", size=12, fontname="serif")
-	# ax.grid(True)
-
-
-
 
 def main():
 	results_folder = os.path.join("output", "case_0")
@@ -93,15 +58,20 @@ def main():
 	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
 	T = read_scalar_from_points(xdmf_file_name, mapping)
 
+	# Extract points along line (y,z)=(0,1)
 	line_idx = points_msh[(points_msh["z"] == 1) & (points_msh["y"] == 0)].index
-	T_line = T.loc[line_idx]
 
+	# Get temperature and coordinates along the line (y,z)=(0,1)
+	T_line = T.loc[line_idx]
 	x = points_msh.iloc[line_idx]
 
+	# Reorder according to increasing x coodinate values
 	x, T_line = reorder_data(x, T_line, line_idx)
 
+	# Extract time in days
 	t = T.iloc[0].index.values/60/60/24
 
+	# Plot figures
 	ax1.plot(x.values, T_line.values[:,0], ".-", color="#377eb8", label=f"t={round(t[0],2)} day(s)")
 	ax1.plot(x.values, T_line.values[:,3], ".-", color="#ff7f00", label=f"t={round(t[3],2)} day(s)")
 	ax1.plot(x.values, T_line.values[:,15], ".-", color="#4daf4a", label=f"t={round(t[15],2)} day(s)")
@@ -114,7 +84,6 @@ def main():
 	ax2.set_xlabel("Time (days)", fontname="serif", fontsize=12)
 	ax2.set_ylabel("Temperature (K)", fontname="serif", fontsize=12)
 	
-
 	apply_grey_theme(fig, [ax1, ax2], transparent=True, grid_color="0.92", back_color='0.85')
 
 	plt.show()
