@@ -21,6 +21,7 @@ class TimeController():
 		self.__decide_time_unit(time_unit)
 		self.dt = time_step*self.time_unit
 		self.t_final = final_time*self.time_unit
+		self.t_initial = initial_time*self.time_unit
 		self.t = initial_time*self.time_unit
 
 	def __decide_time_unit(self, time_unit):
