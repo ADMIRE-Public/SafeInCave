@@ -20,7 +20,6 @@ import ufl
 from petsc4py import PETSc
 import torch as to
 from Utils import dotdot2
-from CharacteristicLength import ModelML
 from MaterialProps import Material
 from HeatBC import BcHandler
 import Utils as utils

@@ -54,6 +54,7 @@ class TimeControllerParabolic():
 		self.time_list = self.calculate_varying_times(self.fun_parabolic)
 		self.time_step = 0
 		self.t = self.time_list[self.time_step]
+		# self.dt = self.time_list[1] - self.time_list[0]
 		self.dt = 0
 
 	def __decide_time_unit(self, time_unit):

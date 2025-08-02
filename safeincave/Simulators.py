@@ -304,8 +304,8 @@ class Simulator_T(Simulator):
 		for output in self.outputs:
 			output.initialize()
 
-		# Solve initial T field
-		self.eq_heat.solve(0, self.t_control.dt)
+		# # Solve initial T field
+		# self.eq_heat.solve(0, self.t_control.dt)
 
 		# Save fields
 		output.save_fields(0)
