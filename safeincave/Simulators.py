@@ -135,6 +135,8 @@ class Simulator_TM(Simulator):
 				# Compute error
 				if self.eq_mom.theta == 1.0:
 					error = 0.0
+				elif len(self.eq_mom.mat.elems_ne) == 0:
+					error = 0.0
 				else:
 					eps_tot_k_flat = to.flatten(eps_tot_k_to)
 					eps_tot_flat = to.flatten(eps_tot_to)
@@ -255,6 +257,8 @@ class Simulator_M(Simulator):
 
 				# Compute error
 				if self.eq_mom.theta == 1.0:
+					error = 0.0
+				elif len(self.eq_mom.mat.elems_ne) == 0:
 					error = 0.0
 				else:
 					eps_tot_k_flat = to.flatten(eps_tot_k_to)
