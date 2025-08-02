@@ -45,7 +45,7 @@ def main():
 	    start_time = MPI.Wtime()
 
 	# Read grid
-	grid_path = os.path.join("..", "..", "grids", "cavern_irregular")
+	grid_path = os.path.join("..", "..", "..", "grids", "cavern_irregular")
 	grid = GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
@@ -243,7 +243,7 @@ def main():
 	# Add viscoplastic element to constitutive model
 	# mom_eq.mat.add_to_non_elastic(desai)
 
-	# Time settings for equilibrium stage
+	# Time settings for operation stage
 	tc_operation = TimeController(time_step=0.1, final_time=24, initial_time=0.0, time_unit="hour")
 
 	# Boundary conditions
