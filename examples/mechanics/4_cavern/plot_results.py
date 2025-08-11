@@ -301,13 +301,16 @@ def plot_results_panel(results_folder, stage="operation"):
 	# Stress data
 	points_xdmf, cells_xdmf = read_xdmf_as_pandas(xdmf_file_name)
 	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+	# mid_cells = compute_cell_centroids(points_msh.values, cells_msh.values)
 	# df_p = read_scalar_from_cells(os.path.join(output_path, "p_elems", "p_elems.xdmf"))
 	# df_q = read_scalar_from_cells(os.path.join(output_path, "q_elems", "q_elems.xdmf"))
-	df_p = read_scalar_from_points(os.path.join(output_path, "p_nodes", "p_nodes.xdmf"))
-	df_q = read_scalar_from_points(os.path.join(output_path, "q_nodes", "q_nodes.xdmf"))
+	df_p = read_scalar_from_points(os.path.join(output_path, "p_nodes", "p_nodes.xdmf"), mapping)
+	df_q = read_scalar_from_points(os.path.join(output_path, "q_nodes", "q_nodes.xdmf"), mapping)
 	# stress_data = (mid_cells, -df_p.values/MPa, df_q.values/MPa)
 	stress_data = (points_xdmf, -df_p.values/MPa, df_q.values/MPa)
 	# stress_data = (points_xdmf, df_p.values, df_q.values)
+
+	print()
 
 	# Read simulation time steps
 	time_steps = df_ux.columns.values
@@ -359,7 +362,7 @@ def plot_results_panel(results_folder, stage="operation"):
 	plot_cavern_shape(ax0, xi, zi, xf, zf)
 	plot_convergence(ax32, times, volumes)
 
-	img = plt.imread(os.path.join("..", "..", "docs", "source", "_static", "logo_2.png"))
+	img = plt.imread(os.path.join("..", "..", "..", "docs", "source", "_static", "logo_2.png"))
 	ax_logo.imshow(img)
 	ax_logo.text(910, 295, "Version 1.2.0")
 	ax_logo.axis('off')

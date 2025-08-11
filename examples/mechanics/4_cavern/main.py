@@ -222,7 +222,7 @@ def main():
 
 
 
-	# Time settings for equilibrium stage
+	# Time settings for operation stage
 	tc_op = TimeController(time_step=2, final_time=240, initial_time=0.0, time_unit="hour")
 
 	# # Boundary conditions
