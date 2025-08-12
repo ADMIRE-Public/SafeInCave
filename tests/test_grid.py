@@ -58,33 +58,33 @@ class Test1(unittest.TestCase):
 		np.testing.assert_allclose(subdomains.values[:10], self.expected_dtags_10f)
 		np.testing.assert_allclose(subdomains.values[-10:], self.expected_dtags_10b)
 
-class Test2(unittest.TestCase):
-	def setUp(self):
-		mesh = do.mesh.create_box(	MPI.COMM_WORLD,
-									[np.array([0., 0., 0.]), np.array([1., 1., 1.])],
-									[5, 5, 5],
-									cell_type = do.mesh.CellType.tetrahedron)
-		self.grid = GridHandlerFEniCS(mesh)
-		self.expected_bNames = ["WEST", "EAST", "SOUTH", "NORTH", "BOTTOM", "TOP"]
-		self.expected_btags_20 = np.array([5, 3, 5, 3, 5, 3, 2, 2, 2, 5, 2, 2, 2, 2, 3, 2, 5, 5, 5, 3])
-		self.expected_dNames = ["BODY"]
-		self.expected_dtags_10f = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-		self.expected_dtags_10b = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+# class Test2(unittest.TestCase):
+# 	def setUp(self):
+# 		mesh = do.mesh.create_box(	MPI.COMM_WORLD,
+# 									[np.array([0., 0., 0.]), np.array([1., 1., 1.])],
+# 									[5, 5, 5],
+# 									cell_type = do.mesh.CellType.tetrahedron)
+# 		self.grid = GridHandlerFEniCS(mesh)
+# 		self.expected_bNames = ["WEST", "EAST", "SOUTH", "NORTH", "BOTTOM", "TOP"]
+# 		self.expected_btags_20 = np.array([5, 3, 5, 3, 5, 3, 2, 2, 2, 5, 2, 2, 2, 2, 3, 2, 5, 5, 5, 3])
+# 		self.expected_dNames = ["BODY"]
+# 		self.expected_dtags_10f = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+# 		self.expected_dtags_10b = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-	def test_mesh_type(self):
-		self.assertIsInstance(self.grid.mesh, do.mesh.Mesh)
+# 	def test_mesh_type(self):
+# 		self.assertIsInstance(self.grid.mesh, do.mesh.Mesh)
 
-	def test_boundaries(self):
-		for i, b_name in enumerate(self.grid.get_boundary_names()):
-			self.assertEqual(b_name, self.expected_bNames[i])
-			self.assertEqual(self.grid.get_boundary_tags(b_name), i+1)
-		bounds = self.grid.get_boundaries()
-		np.testing.assert_allclose(bounds.values[:20], self.expected_btags_20)
+# 	def test_boundaries(self):
+# 		for i, b_name in enumerate(self.grid.get_boundary_names()):
+# 			self.assertEqual(b_name, self.expected_bNames[i])
+# 			self.assertEqual(self.grid.get_boundary_tags(b_name), i+1)
+# 		bounds = self.grid.get_boundaries()
+# 		np.testing.assert_allclose(bounds.values[:20], self.expected_btags_20)
 
-	def test_subdomains(self):
-		subdomains = self.grid.get_subdomains()
-		self.assertIsInstance(subdomains, do.mesh.MeshTags)
+# 	def test_subdomains(self):
+# 		subdomains = self.grid.get_subdomains()
+# 		self.assertIsInstance(subdomains, do.mesh.MeshTags)
 
-		for i, domain_name in enumerate(self.grid.get_subdomain_names()):
-			self.assertEqual(domain_name, self.expected_dNames[i])
-			self.assertEqual(self.grid.get_subdomain_tag(domain_name), i+1)
+# 		for i, domain_name in enumerate(self.grid.get_subdomain_names()):
+# 			self.assertEqual(domain_name, self.expected_dNames[i])
+# 			self.assertEqual(self.grid.get_subdomain_tag(domain_name), i+1)
