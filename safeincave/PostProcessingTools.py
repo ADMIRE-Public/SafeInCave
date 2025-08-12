@@ -22,6 +22,7 @@ import pandas as pd
 import numpy as np
 import os
 
+# Type alias
 DataFrameType = pd.core.frame.DataFrame
 
 def find_point_mapping(original_points: np.ndarray, new_points: np.ndarray) -> np.ndarray:
