@@ -1,3 +1,6 @@
+"""
+Classes responsible for time management (time stepping, controlling final time, etc)
+"""
 # Copyright 2024 The safeincave community.
 #
 # This file is part of safeincave.
