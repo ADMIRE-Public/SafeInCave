@@ -13,19 +13,25 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 # License for the specific language governing permissions and limitations under
 # the License.
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from HeatBC import BcHandler
+
 from abc import ABC, abstractmethod
 import dolfinx as do
-# import basix
 import ufl
 from petsc4py import PETSc
 import torch as to
 from MaterialProps import Material
-from HeatBC import BcHandler
 from Grid import GridHandlerGMSH
 import Utils as utils
 
+
+
 class HeatDiffusion():
-	"""
+    """
     Transient heat-diffusion solver on a DOLFINx mesh.
 
     This class sets up the finite-element spaces, fields, measures, and linear
@@ -78,22 +84,22 @@ class HeatDiffusion():
       (:class:`Material`), and a BC handler (:class:`BcHandler`) are set
       before calling :meth:`solve`.
     """
-	def __init__(self, grid: GridHandlerGMSH):
-		self.grid = grid
+    def __init__(self, grid: GridHandlerGMSH):
+        self.grid = grid
 
-		self.create_function_spaces()
+        self.create_function_spaces()
 
-		self.n_elems = self.DG0_1.dofmap.index_map.size_local + len(self.DG0_1.dofmap.index_map.ghosts)
-		self.n_nodes = self.V.dofmap.index_map.size_local + len(self.V.dofmap.index_map.ghosts)
-		self.dt = do.fem.Constant(self.grid.mesh, 1.0)
+        self.n_elems = self.DG0_1.dofmap.index_map.size_local + len(self.DG0_1.dofmap.index_map.ghosts)
+        self.n_nodes = self.V.dofmap.index_map.size_local + len(self.V.dofmap.index_map.ghosts)
+        self.dt = do.fem.Constant(self.grid.mesh, 1.0)
 
-		self.create_trial_test_functions()
-		self.create_ds_dx()
-		self.create_fenicsx_fields()
-		# self.create_pytorch_fields()
+        self.create_trial_test_functions()
+        self.create_ds_dx()
+        self.create_fenicsx_fields()
+        # self.create_pytorch_fields()
 
-	def set_material(self, material: Material) -> None:
-		"""
+    def set_material(self, material: Material) -> None:
+        """
         Attach material properties and initialize FE fields.
 
         Parameters
@@ -109,11 +115,11 @@ class HeatDiffusion():
         ------------
         Calls :meth:`initialize` to copy material arrays into FE functions.
         """
-		self.mat = material
-		self.initialize()
+        self.mat = material
+        self.initialize()
 
-	def set_solver(self, solver: PETSc.KSP) -> None:
-		"""
+    def set_solver(self, solver: PETSc.KSP) -> None:
+        """
         Set the PETSc linear solver.
 
         Parameters
@@ -125,10 +131,10 @@ class HeatDiffusion():
         -------
         None
         """
-		self.solver = solver
+        self.solver = solver
 
-	def set_boundary_conditions(self, bc: BcHandler) -> None:
-		"""
+    def set_boundary_conditions(self, bc: BcHandler) -> None:
+        """
         Set the boundary-condition handler.
 
         Parameters
@@ -141,10 +147,10 @@ class HeatDiffusion():
         -------
         None
         """
-		self.bc = bc
+        self.bc = bc
 
-	def create_trial_test_functions(self) -> None:
-		"""
+    def create_trial_test_functions(self) -> None:
+        """
         Create trial and test functions in `V`.
 
         Returns
@@ -155,11 +161,11 @@ class HeatDiffusion():
         ------------
         Defines :attr:`dT` and :attr:`T_` as UFL trial/test functions.
         """
-		self.dT = ufl.TrialFunction(self.V)
-		self.T_ = ufl.TestFunction(self.V)
+        self.dT = ufl.TrialFunction(self.V)
+        self.T_ = ufl.TestFunction(self.V)
 
-	def create_function_spaces(self) -> None:
-		"""
+    def create_function_spaces(self) -> None:
+        """
         Build function spaces for materials (DG0) and temperature (P1).
 
         Returns
@@ -170,11 +176,11 @@ class HeatDiffusion():
         ------------
         Defines :attr:`DG0_1` and :attr:`V`.
         """
-		self.DG0_1 = do.fem.functionspace(self.grid.mesh, ("DG", 0))
-		self.V = do.fem.functionspace(self.grid.mesh, ("Lagrange", 1))
+        self.DG0_1 = do.fem.functionspace(self.grid.mesh, ("DG", 0))
+        self.V = do.fem.functionspace(self.grid.mesh, ("Lagrange", 1))
 
-	def create_ds_dx(self) -> None:
-		"""
+    def create_ds_dx(self) -> None:
+        """
         Create UFL measures with subdomain data for integration.
 
         Returns
@@ -186,11 +192,11 @@ class HeatDiffusion():
         Defines :attr:`ds` for boundary integrals and :attr:`dx` for domain integrals,
         using mesh tags from :attr:`grid`.
         """
-		self.ds = ufl.Measure("ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries())
-		self.dx = ufl.Measure("dx", domain=self.grid.mesh, subdomain_data=self.grid.get_subdomains())
+        self.ds = ufl.Measure("ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries())
+        self.dx = ufl.Measure("dx", domain=self.grid.mesh, subdomain_data=self.grid.get_subdomains())
 
-	def create_fenicsx_fields(self) -> None:
-		"""
+    def create_fenicsx_fields(self) -> None:
+        """
         Allocate DOLFINx Functions for material and temperature fields.
 
         Returns
@@ -202,15 +208,15 @@ class HeatDiffusion():
         Creates :attr:`k`, :attr:`rho`, :attr:`cp` in `DG0_1` and
         :attr:`T_old`, :attr:`T`, :attr:`X` in `V`.
         """
-		self.k = do.fem.Function(self.DG0_1)
-		self.rho = do.fem.Function(self.DG0_1)
-		self.cp = do.fem.Function(self.DG0_1)
-		self.T_old = do.fem.Function(self.V)
-		self.T = do.fem.Function(self.V)
-		self.X = do.fem.Function(self.V)
+        self.k = do.fem.Function(self.DG0_1)
+        self.rho = do.fem.Function(self.DG0_1)
+        self.cp = do.fem.Function(self.DG0_1)
+        self.T_old = do.fem.Function(self.V)
+        self.T = do.fem.Function(self.V)
+        self.X = do.fem.Function(self.V)
 
-	def initialize(self) -> None:
-		"""
+    def initialize(self) -> None:
+        """
         Copy material arrays into FE functions (`k`, `rho`, `cp`).
 
         Returns
@@ -222,12 +228,12 @@ class HeatDiffusion():
         Writes into `self.k.x.array`, `self.rho.x.array`, and `self.cp.x.array`
         from the arrays stored in :attr:`mat`.
         """
-		self.k.x.array[:] = self.mat.k
-		self.rho.x.array[:] = self.mat.density
-		self.cp.x.array[:] = self.mat.cp
+        self.k.x.array[:] = self.mat.k
+        self.rho.x.array[:] = self.mat.density
+        self.cp.x.array[:] = self.mat.cp
 
-	def split_solution(self) -> None:
-		"""
+    def split_solution(self) -> None:
+        """
         Assign the solver vector `X` to the temperature field `T`.
 
         Returns
@@ -240,10 +246,10 @@ class HeatDiffusion():
         underlying arrays. If you need a deep copy, copy `self.X.x.array` into
         `self.T.x.array`.
         """
-		self.T = self.X
+        self.T = self.X
 
-	def update_T_old(self) -> None:
-		"""
+    def update_T_old(self) -> None:
+        """
         Copy the current temperature into the `T_old` storage.
 
         Returns
@@ -254,10 +260,10 @@ class HeatDiffusion():
         ------------
         Overwrites `self.T_old.x.array` with `self.T.x.array`.
         """
-		self.T_old.x.array[:] = self.T.x.array
+        self.T_old.x.array[:] = self.T.x.array
 
-	def set_initial_T(self, T_field: to.Tensor) -> None:
-		"""
+    def set_initial_T(self, T_field: to.Tensor) -> None:
+        """
         Initialize both current and previous temperature fields.
 
         Parameters
@@ -273,11 +279,11 @@ class HeatDiffusion():
         ------------
         Writes into `self.T_old.x.array` and `self.T.x.array`.
         """
-		self.T_old.x.array[:] = T_field
-		self.T.x.array[:] = T_field
+        self.T_old.x.array[:] = T_field
+        self.T.x.array[:] = T_field
 
-	def get_T_elems(self) -> None:
-		"""
+    def get_T_elems(self) -> None:
+        """
         Project the nodal temperature to DG0 and return as a torch tensor.
 
         Returns
@@ -290,24 +296,20 @@ class HeatDiffusion():
         Uses :func:`Utils.project` to project `T` onto `DG0_1` and
         :func:`Utils.numpy2torch` to convert to a Torch tensor.
         """
-		T_elems = utils.project(self.T, self.DG0_1)
-		return utils.numpy2torch(T_elems.x.array)
+        T_elems = utils.project(self.T, self.DG0_1)
+        return utils.numpy2torch(T_elems.x.array)
 
 
-	def solve(self, t: float, dt: float) -> None:
-		"""
+    def solve(self, t: float, dt: float) -> None:
+        """
         Assemble and solve one implicit time step.
 
         The method:
-        1. Updates boundary conditions at time ``t`` via :class:`BcHandler`.
-        2. Sets the time step constant ``dt``.
-        3. Assembles the bilinear form
-           :math:`(\\rho c_p / \\Delta t) (dT, T_) + (k \\nabla dT, \\nabla T_)`
-           plus Robin terms.
-        4. Assembles the right-hand side
-           :math:`(\\rho c_p / \\Delta t) (T_{old}, T_)` plus Neumann and Robin terms.
-        5. Applies Dirichlet BCs, solves the linear system for :attr:`X`,
-           and updates :attr:`T` and :attr:`T_old`.
+        1. Update boundary conditions at time ``t`` via :class:`BcHandler`.
+        2. Set the time-step constant ``dt``.
+        3. Assemble the bilinear form :math:`(\\rho c_p / \\Delta t) (dT, T_) + (k \\nabla dT, \\nabla T_)` plus Robin terms.
+        4. Assemble the right-hand side :math:`(\\rho c_p / \\Delta t) (T_{old}, T_)` plus Neumann and Robin terms.
+        5. Apply Dirichlet BCs, solve the linear system for :attr:`X`, and update :attr:`T` and :attr:`T_old`.
 
         Parameters
         ----------
@@ -331,34 +333,34 @@ class HeatDiffusion():
         - Dirichlet conditions are enforced strongly; Neumann/Robin are added
           to the forms via the handler lists.
         """
-		# Update boundary conditions
-		self.bc.update_bcs(t)
+        # Update boundary conditions
+        self.bc.update_bcs(t)
 
-		self.dt.value = dt
+        self.dt.value = dt
 
-		# Build bilinear form
-		a = (self.rho*self.cp*self.dT*self.T_/self.dt + self.k*ufl.dot(ufl.grad(self.dT), ufl.grad(self.T_)))*self.dx
-		a += sum(self.bc.robin_bcs_a)
-		bilinear_form = do.fem.form(a)
-		A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
-		A.assemble()
+        # Build bilinear form
+        a = (self.rho*self.cp*self.dT*self.T_/self.dt + self.k*ufl.dot(ufl.grad(self.dT), ufl.grad(self.T_)))*self.dx
+        a += sum(self.bc.robin_bcs_a)
+        bilinear_form = do.fem.form(a)
+        A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
+        A.assemble()
 
-		# Build linear form
-		L = (self.rho*self.cp*self.T_old*self.T_/self.dt)*self.dx + sum(self.bc.neumann_bcs) + sum(self.bc.robin_bcs_b)
-		linear_form = do.fem.form(L)
-		b = do.fem.petsc.assemble_vector(linear_form)
-		do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
-		b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
-		do.fem.petsc.set_bc(b, self.bc.dirichlet_bcs)
-		b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        # Build linear form
+        L = (self.rho*self.cp*self.T_old*self.T_/self.dt)*self.dx + sum(self.bc.neumann_bcs) + sum(self.bc.robin_bcs_b)
+        linear_form = do.fem.form(L)
+        b = do.fem.petsc.assemble_vector(linear_form)
+        do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
+        b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
+        do.fem.petsc.set_bc(b, self.bc.dirichlet_bcs)
+        b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
-		# Solve linear system
-		self.solver.setOperators(A)
-		self.solver.solve(b, self.X.x.petsc_vec)
-		self.X.x.scatter_forward()
-		self.split_solution()
+        # Solve linear system
+        self.solver.setOperators(A)
+        self.solver.solve(b, self.X.x.petsc_vec)
+        self.X.x.scatter_forward()
+        self.split_solution()
 
-		# Update old temperature field
-		self.update_T_old()
+        # Update old temperature field
+        self.update_T_old()
 
 

@@ -13,11 +13,16 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 # License for the specific language governing permissions and limitations under
 # the License.
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from HeatEquation import HeatDiffusion
+    
 from abc import ABC
 import numpy as np
 import dolfinx as do
 import ufl
-from HeatEquation import HeatDiffusion
 
 
 class GeneralBC(ABC):
@@ -131,7 +136,7 @@ class RobinBC(GeneralBC):
 
 
 class BcHandler():
-	"""
+    """
     Boundary-condition handler for a heat-diffusion equation.
 
     This class stores user-defined boundary conditions, organizes them by
@@ -142,11 +147,12 @@ class BcHandler():
     ----------
     equation : HeatDiffusion
         Equation object providing:
-        - ``V`` : function space of the primary field,
-        - ``grid`` : mesh/grid handler with methods
-          ``get_boundary_tags(name)`` and ``get_boundary_tag(name)``,
-        - variational symbols such as ``T_`` (test function),
-          ``dT`` (trial increment), and measure ``ds``.
+
+        - ``V``: function space of the primary field.
+        - ``grid``: mesh/grid handler with methods
+          :meth:`get_boundary_tags` and :meth:`get_boundary_tag`.
+        - Variational symbols, e.g., ``T_`` (test function), ``dT`` (trial
+          increment), and the measure ``ds``.
 
     Attributes
     ----------
@@ -158,14 +164,14 @@ class BcHandler():
         Registered Neumann BCs.
     robin_boundaries : list[RobinBC]
         Registered Robin BCs.
-    dirichlet_bcs : list[dolfinx.fem.DirichletBC]  (set by :meth:`update_dirichlet`)
-        DOLFINx Dirichlet BC objects at the current time.
-    neumann_bcs : list[ufl.Form]  (set by :meth:`update_neumann`)
-        Neumann contributions to the linear form.
-    robin_bcs_a : list[ufl.Form]  (set by :meth:`update_robin`)
-        Robin contributions to the bilinear form (coefficient times trial/test).
-    robin_bcs_b : list[ufl.Form]  (set by :meth:`update_robin`)
-        Robin contributions to the linear form (coefficient times ambient value).
+    dirichlet_bcs : list[dolfinx.fem.DirichletBC]
+        DOLFINx Dirichlet BC objects at the current time (set by :meth:`update_dirichlet`).
+    neumann_bcs : list[ufl.Form]
+        Neumann contributions to the linear form (set by :meth:`update_neumann`).
+    robin_bcs_a : list[ufl.Form]
+        Robin contributions to the bilinear form (coefficient times trial/test; set by :meth:`update_robin`).
+    robin_bcs_b : list[ufl.Form]
+        Robin contributions to the linear form (coefficient times ambient value; set by :meth:`update_robin`).
 
     Notes
     -----
@@ -173,26 +179,26 @@ class BcHandler():
     :func:`numpy.interp` between ``values`` and ``time_values`` stored in each
     boundary-condition object.
     """
-	def __init__(self, equation: HeatDiffusion):
-		self.eq = equation
-		self.dirichlet_boundaries = []
-		self.neumann_boundaries = []
-		self.robin_boundaries = []
+    def __init__(self, equation: HeatDiffusion):
+        self.eq = equation
+        self.dirichlet_boundaries = []
+        self.neumann_boundaries = []
+        self.robin_boundaries = []
 
-	def reset_boundary_conditions(self) -> None:
-		"""
+    def reset_boundary_conditions(self) -> None:
+        """
         Clear all registered boundary conditions of all types.
 
         Returns
         -------
         None
         """
-		self.dirichlet_boundaries = []
-		self.neumann_boundaries = []
-		self.robin_boundaries = []
+        self.dirichlet_boundaries = []
+        self.neumann_boundaries = []
+        self.robin_boundaries = []
 
-	def add_boundary_condition(self, bc : GeneralBC) -> None:
-		"""
+    def add_boundary_condition(self, bc : GeneralBC) -> None:
+        """
         Register a boundary condition by its type.
 
         Parameters
@@ -209,17 +215,17 @@ class BcHandler():
         Exception
             If the boundary condition type is not supported.
         """
-		if bc.type == "dirichlet":
-			self.dirichlet_boundaries.append(bc)
-		elif bc.type == "neumann":
-			self.neumann_boundaries.append(bc)
-		elif bc.type == "robin":
-			self.robin_boundaries.append(bc)
-		else:
-			raise Exception(f"Boundary type {bc.type} not supported.")
+        if bc.type == "dirichlet":
+        	self.dirichlet_boundaries.append(bc)
+        elif bc.type == "neumann":
+        	self.neumann_boundaries.append(bc)
+        elif bc.type == "robin":
+        	self.robin_boundaries.append(bc)
+        else:
+            raise Exception(f"Boundary type {bc.type} not supported.")
 
-	def update_bcs(self, t: float) -> None:
-		"""
+    def update_bcs(self, t: float) -> None:
+        """
         Update all boundary-condition objects for a given time.
 
         This builds the runtime lists:
@@ -234,12 +240,12 @@ class BcHandler():
         -------
         None
         """
-		self.update_dirichlet(t)
-		self.update_neumann(t)
-		self.update_robin(t)
+        self.update_dirichlet(t)
+        self.update_neumann(t)
+        self.update_robin(t)
 
-	def update_dirichlet(self, t: float) -> None:
-		"""
+    def update_dirichlet(self, t: float) -> None:
+        """
         Build Dirichlet BC objects at time ``t``.
 
         Parameters
@@ -258,24 +264,24 @@ class BcHandler():
         - located dofs on the boundary,
         - interpolated Dirichlet value at time ``t``.
         """
-		self.dirichlet_bcs = []
-		for bc in self.dirichlet_boundaries:
-			value = np.interp(t, bc.time_values, bc.values)
-			dofs = do.fem.locate_dofs_topological(
-				self.eq.V,
-				self.eq.grid.boundary_dim,
-				self.eq.grid.get_boundary_tags(bc.boundary_name)
-			)
-			self.dirichlet_bcs.append(
-				do.fem.dirichletbc(
-					do.default_scalar_type(value),
-					dofs,
-					self.eq.V
-				)
-			)
+        self.dirichlet_bcs = []
+        for bc in self.dirichlet_boundaries:
+        	value = np.interp(t, bc.time_values, bc.values)
+        	dofs = do.fem.locate_dofs_topological(
+        		self.eq.V,
+        		self.eq.grid.boundary_dim,
+        		self.eq.grid.get_boundary_tags(bc.boundary_name)
+        	)
+        	self.dirichlet_bcs.append(
+        		do.fem.dirichletbc(
+        			do.default_scalar_type(value),
+        			dofs,
+        			self.eq.V
+        		)
+        	)
 
-	def update_neumann(self, t: float) -> None:
-		"""
+    def update_neumann(self, t: float) -> None:
+        """
         Build Neumann contributions to the linear form at time ``t``.
 
         Parameters
@@ -292,13 +298,13 @@ class BcHandler():
         Populates :attr:`neumann_bcs` with UFL terms of the form
         ``value * eq.T_ * ds(tag)`` to be added to the right-hand side.
         """
-		self.neumann_bcs = []
-		for bc in self.neumann_boundaries:
-			value = np.interp(t, bc.time_values, bc.values)
-			self.neumann_bcs.append(value*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
+        self.neumann_bcs = []
+        for bc in self.neumann_boundaries:
+            value = np.interp(t, bc.time_values, bc.values)
+            self.neumann_bcs.append(value*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
 
-	def update_robin(self, t: float) -> None:
-		"""
+    def update_robin(self, t: float) -> None:
+        """
         Build Robin (convective) contributions to bilinear/linear forms.
 
         Parameters
@@ -319,10 +325,10 @@ class BcHandler():
           (linear form contribution),
         where ``T_inf`` is interpolated from the Robin BC values at time ``t``.
         """
-		self.robin_bcs_a = []
-		self.robin_bcs_b = []
-		for bc in self.robin_boundaries:
-			T_inf = np.interp(t, bc.time_values, bc.values)
-			self.robin_bcs_a.append(bc.h*self.eq.dT*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
-			self.robin_bcs_b.append(bc.h*T_inf*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
+        self.robin_bcs_a = []
+        self.robin_bcs_b = []
+        for bc in self.robin_boundaries:
+        	T_inf = np.interp(t, bc.time_values, bc.values)
+        	self.robin_bcs_a.append(bc.h*self.eq.dT*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
+        	self.robin_bcs_b.append(bc.h*T_inf*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
 

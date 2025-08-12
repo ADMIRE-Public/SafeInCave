@@ -162,7 +162,7 @@ class TimeController(TimeControllerBase):
 
 
 class TimeControllerParabolic():
-	"""
+    """
     Nonuniform (parabolic) time controller.
 
     Builds a monotonically increasing list of `n_time_steps` time instants
@@ -199,14 +199,14 @@ class TimeControllerParabolic():
     - Advance logic uses an internal index ``self.time_step``; initialize it
       (e.g., to ``0``) before calling :meth:`advance_time`.
     """
-	def __init__(self, n_time_steps: int, initial_time: float, final_time: float, time_unit: str="second"):
-		super().__init__(initial_time, final_time, time_unit)
-		self.n_time_steps = n_time_steps
-		self.time_list = self.calculate_varying_times(self.fun_parabolic)
-		self.dt = self.time_list[1] - self.time_list[0]
+    def __init__(self, n_time_steps: int, initial_time: float, final_time: float, time_unit: str="second"):
+        super().__init__(initial_time, final_time, time_unit)
+        self.n_time_steps = n_time_steps
+        self.time_list = self.calculate_varying_times(self.fun_parabolic)
+        self.dt = self.time_list[1] - self.time_list[0]
 
-	def fun_parabolic(self, t_array: np.ndarray) -> np.ndarray:
-		"""
+    def fun_parabolic(self, t_array: np.ndarray) -> np.ndarray:
+        """
         Parabolic mapping used to skew an equally spaced time grid.
 
         Parameters
@@ -219,38 +219,39 @@ class TimeControllerParabolic():
         numpy.ndarray
             Elementwise square of `t_array` (i.e., ``t_array**2``).
         """
-		return t_array**2
+        return t_array**2
 
-	def calculate_varying_times(self, fun: Fn) -> np.ndarray:
-		"""
+    def calculate_varying_times(self, fun: Fn) -> np.ndarray:
+        """
         Generate a nonuniform time grid via a monotone mapping and rescaling.
 
-        Steps:
+        Steps
+        -----
         1. Build an equally spaced grid on ``[t_initial, t_final]``.
-        2. Apply `fun` to this grid to skew the spacing.
-        3. Linearly rescale the mapped values back to the original range so
-           that the first and last times remain `t_initial` and `t_final`.
+        2. Apply ``fun`` to this grid to skew the spacing.
+        3. Linearly rescale the mapped values back to the original range so that
+           the first and last times remain ``t_initial`` and ``t_final``.
 
         Parameters
         ----------
-        fun : Callable[[float], float]
+        fun : Callable[[numpy.ndarray], numpy.ndarray]
             Monotone mapping to skew the spacing (e.g., :meth:`fun_parabolic`).
 
         Returns
         -------
         numpy.ndarray
-            Monotone array of times (in **seconds**) of length `n_time_steps`.
+            Monotone array of times (in seconds) of length ``n_time_steps``.
         """
-		t_eq = np.linspace(self.t_initial, self.t_final, self.n_time_steps)
-		y = fun(t_eq)
-		f_min = np.min(t_eq)
-		f_max = np.max(y)
-		k = (t_eq.max() - t_eq.min())/(f_max - f_min)
-		y = k*(y - f_min) + t_eq.min()
-		return y
+        t_eq = np.linspace(self.t_initial, self.t_final, self.n_time_steps)
+        y = fun(t_eq)
+        f_min = np.min(t_eq)
+        f_max = np.max(y)
+        k = (t_eq.max() - t_eq.min())/(f_max - f_min)
+        y = k*(y - f_min) + t_eq.min()
+        return y
 
-	def advance_time(self) -> None:
-		"""
+    def advance_time(self) -> None:
+        """
         Advance to the next time in :attr:`time_list` and update `dt`.
 
         Returns
@@ -265,7 +266,7 @@ class TimeControllerParabolic():
         - ``self.t = time_list[time_step]``
         - ``self.dt = time_list[time_step] - time_list[time_step-1]``
         """
-		self.time_step += 1
-		self.t = self.time_list[self.time_step]
-		self.dt = self.time_list[self.time_step] - self.time_list[self.time_step-1]
+        self.time_step += 1
+        self.t = self.time_list[self.time_step]
+        self.dt = self.time_list[self.time_step] - self.time_list[self.time_step-1]
 
