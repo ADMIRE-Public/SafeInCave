@@ -1,7 +1,7 @@
 """
 Class responsible for printing data on screen during simulation
 """
-# Copyright 2024 The safeincave community.
+# Copyright 2025 The safeincave community.
 #
 # This file is part of safeincave.
 #
