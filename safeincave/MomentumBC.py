@@ -16,6 +16,7 @@
 from abc import ABC
 import numpy as np
 import dolfinx as do
+from MomentumEquation import LinearMomentum
 import ufl
 
 class GeneralBC(ABC):
@@ -27,7 +28,7 @@ class GeneralBC(ABC):
 
 
 class DirichletBC(GeneralBC):
-	def __init__(self, boundary_name : str, component : int, values : list, time_values : list):
+	def __init__(self, boundary_name: str, component: int, values: list, time_values: list):
 		self.boundary_name = boundary_name
 		self.type = "dirichlet"
 		self.values = values
@@ -35,7 +36,7 @@ class DirichletBC(GeneralBC):
 		self.component = component
 
 class NeumannBC(GeneralBC):
-	def __init__(self, boundary_name : str, direction : int, density : float, ref_pos : float, values : list, time_values : list, g=-9.91):
+	def __init__(self, boundary_name: str, direction: int, density: float, ref_pos: float, values: list, time_values: list, g=-9.91):
 		self.boundary_name = boundary_name
 		self.type = "neumann"
 		self.values = values
@@ -47,17 +48,17 @@ class NeumannBC(GeneralBC):
 
 
 class BcHandler():
-	def __init__(self, equation):
+	def __init__(self, equation: LinearMomentum):
 		self.eq = equation
 		self.dirichlet_boundaries = []
 		self.neumann_boundaries = []
 		self.x = ufl.SpatialCoordinate(self.eq.grid.mesh)
 
-	def reset_boundary_conditions(self):
+	def reset_boundary_conditions(self) -> None:
 		self.dirichlet_boundaries = []
 		self.neumann_boundaries = []
 
-	def add_boundary_condition(self, bc : GeneralBC):
+	def add_boundary_condition(self, bc : GeneralBC) -> None:
 		if bc.type == "dirichlet":
 			self.dirichlet_boundaries.append(bc)
 		elif bc.type == "neumann":
@@ -65,7 +66,7 @@ class BcHandler():
 		else:
 			raise Exception(f"Boundary type {bc.type} not supported.")
 
-	def update_dirichlet(self, t):
+	def update_dirichlet(self, t: float) -> None:
 		self.dirichlet_bcs = []
 		for bc in self.dirichlet_boundaries:
 			value = np.interp(t, bc.time_values, bc.values)
@@ -82,7 +83,7 @@ class BcHandler():
 				)
 			)
 
-	def update_neumann(self, t):
+	def update_neumann(self, t: float) -> None:
 		self.neumann_bcs = []
 		for bc in self.neumann_boundaries:
 			i = bc.direction
