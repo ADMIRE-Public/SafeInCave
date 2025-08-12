@@ -44,7 +44,7 @@ def main():
 
 	# Read displacements
 	xdmf_file_name = os.path.join(results_folder, "u", "u.xdmf")
-	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
+	mapping = find_mapping(points_msh, xdmf_file_name)
 	u, v, w = read_vector_from_points(xdmf_file_name, mapping)
 
 	point_1 = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 1) & (points_msh["y"] == 1)].index[0]

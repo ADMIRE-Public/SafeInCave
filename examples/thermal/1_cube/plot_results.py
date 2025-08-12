@@ -55,7 +55,7 @@ def main():
 
 	# Read displacements
 	xdmf_file_name = os.path.join(results_folder, "T", "T.xdmf")
-	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
+	mapping = find_mapping(points_msh, xdmf_file_name)
 	T = read_scalar_from_points(xdmf_file_name, mapping)
 
 	# Extract points along line (y,z)=(0,1)

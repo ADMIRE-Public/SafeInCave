@@ -274,7 +274,7 @@ def plot_results_panel(results_folder, stage="operation"):
 
 	# Build mapping
 	xdmf_file_name = os.path.join(output_path, "u", "u.xdmf")
-	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
+	mapping = find_mapping(points_msh, xdmf_file_name)
 
 	# Displacement data
 	df_ux, df_uy, df_uz = read_vector_from_points(xdmf_file_name, mapping)

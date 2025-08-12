@@ -38,7 +38,7 @@ def plot_displacements(ax, results_folder):
 
 	# Read displacements
 	xdmf_file_name = os.path.join(results_folder, "u", "u.xdmf")
-	mapping = find_mapping(points_msh, cells_msh, xdmf_file_name)
+	mapping = find_mapping(points_msh, xdmf_file_name)
 	u, v, w = read_vector_from_points(xdmf_file_name, mapping)
 
 	point_A = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 0) & (points_msh["y"] == 0)].index[0]
