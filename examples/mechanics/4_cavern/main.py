@@ -1,24 +1,38 @@
+# import os
+# import sys
+# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
+# from Grid2 import GridHandlerGMSH
+# from mpi4py import MPI
+# import ufl
+# import dolfinx as do
+# import torch as to
+# import numpy as np
+# from petsc4py import PETSc
+# import Utils as utils
+# from MaterialProps import *
+# from MomentumEquation import LinearMomentum
+# import MomentumBC as momBC
+# from OutputHandler import SaveFields
+# from Simulators import Simulator_M
+# from TimeHandler import TimeController, TimeControllerParabolic
+# import time
+
+import safeincave as sf
+import safeincave.Utils as ut
+import safeincave.MomentumBC as momBC
+from mpi4py import MPI
+import dolfinx as do
 import os
 import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-from Grid2 import GridHandlerGMSH
-from mpi4py import MPI
 import ufl
-import dolfinx as do
 import torch as to
 import numpy as np
 from petsc4py import PETSc
-import Utils as utils
-from MaterialProps import *
-from MomentumEquation import LinearMomentum
-import MomentumBC as momBC
-from OutputHandler import SaveFields
-from Simulators import Simulator_M
-from TimeHandler import TimeController, TimeControllerParabolic
 import time
 
-GPa = utils.GPa
-day = utils.day
+GPa = ut.GPa
+MPa = ut.MPa
+day = ut.day
 
 def get_geometry_parameters(path_to_grid):
 	f = open(os.path.join(path_to_grid, "geom.geo"), "r")
@@ -39,15 +53,15 @@ def main():
 	    start_time = MPI.Wtime()
 
 	# Read grid
-	grid_path = os.path.join("..", "..", "grids", "cavern_overburden_coarse")
+	grid_path = os.path.join("..", "..", "..", "grids", "cavern_overburden_coarse")
 	# grid_path = os.path.join("..", "..", "grids", "cavern_overburden")
-	grid = GridHandlerGMSH("geom", grid_path)
+	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
 	output_folder = os.path.join("output", "case_0")
 
 	# Define momentum equation
-	mom_eq = LinearMomentum(grid, theta=0.0)
+	mom_eq = sf.LinearMomentum(grid, theta=0.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -57,7 +71,7 @@ def main():
 	mom_eq.set_solver(mom_solver)
 
 	# Define material properties
-	mat = Material(mom_eq.n_elems)
+	mat = sf.Material(mom_eq.n_elems)
 
 	# Extract region indices
 	ind_salt = grid.region_indices["Salt"]
@@ -77,13 +91,13 @@ def main():
 	E0[ind_salt] = 102*GPa
 	E0[ind_ovb] = 180*GPa
 	nu0 = 0.3*to.ones(mom_eq.n_elems)
-	spring_0 = Spring(E0, nu0, "spring")
+	spring_0 = sf.Spring(E0, nu0, "spring")
 
 	# Create Kelvin-Voigt viscoelastic element
 	eta = 105e11*to.ones(mom_eq.n_elems)
-	E1 = 10*utils.GPa*to.ones(mom_eq.n_elems)
+	E1 = 10*GPa*to.ones(mom_eq.n_elems)
 	nu1 = 0.32*to.ones(mom_eq.n_elems)
-	kelvin = Viscoelastic(eta, E1, nu1, "kelvin")
+	kelvin = sf.Viscoelastic(eta, E1, nu1, "kelvin")
 
 	# Create creep
 	A = to.zeros(mom_eq.n_elems)
@@ -91,7 +105,7 @@ def main():
 	A[ind_ovb] = 0.0
 	Q = 51600*to.ones(mom_eq.n_elems)
 	n = 3.0*to.ones(mom_eq.n_elems)
-	creep_0 = DislocationCreep(A, Q, n, "creep")
+	creep_0 = sf.DislocationCreep(A, Q, n, "creep")
 
 	# Create constitutive model
 	mat.add_to_elastic(spring_0)
@@ -112,16 +126,16 @@ def main():
 		dTdZ = 27/km
 		T_surface = 20 + 273
 		return T_surface - dTdZ*z
-	T0_field = utils.create_field_elems(grid, T_field_fun)
+	T0_field = ut.create_field_elems(grid, T_field_fun)
 	mom_eq.set_T0(T0_field)
 	mom_eq.set_T(T0_field)
 
 	# Time settings for equilibrium stage
-	tc_eq = TimeControllerParabolic(final_time=5, initial_time=0.0, n_time_steps=50, time_unit="day")
-	# tc_eq = TimeController(time_step=0.1, final_time=5, initial_time=0.0, time_unit="day")
+	tc_eq = sf.TimeControllerParabolic(n_time_steps=20, initial_time=0.0, final_time=5, time_unit="day")
+	# tc_eq = sf.TimeController(dt=0.1, final_time=5, initial_time=0.0, time_unit="day")
 
 	# Boundary conditions
-	time_values = [0*utils.hour,  1*utils.hour]
+	time_values = [0*ut.hour,  1*ut.hour]
 	nt = len(time_values)
 
 	bc_west_salt = momBC.DirichletBC(boundary_name="West_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
@@ -191,9 +205,10 @@ def main():
 	# Print output folder
 	if MPI.COMM_WORLD.rank == 0:
 		print(ouput_folder_equilibrium)
+		sys.stdout.flush()
 
 	# Create output handlers
-	output_mom = SaveFields(mom_eq)
+	output_mom = sf.SaveFields(mom_eq)
 	output_mom.set_output_folder(ouput_folder_equilibrium)
 	output_mom.add_output_field("u", "Displacement (m)")
 	# output_mom.add_output_field("Temp", "Temperature (K)")
@@ -205,7 +220,7 @@ def main():
 	outputs = [output_mom]
 
 	# Define simulator
-	sim = Simulator_M(mom_eq, tc_eq, outputs, True)
+	sim = sf.Simulator_M(mom_eq, tc_eq, outputs, True)
 	sim.run()
 
 	# Print time
@@ -214,6 +229,7 @@ def main():
 		elaspsed_time = end_time - start_time
 		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
 		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
+		sys.stdout.flush()
 
 
 
@@ -223,7 +239,7 @@ def main():
 
 
 	# Time settings for operation stage
-	tc_op = TimeController(time_step=2, final_time=240, initial_time=0.0, time_unit="hour")
+	tc_op = sf.TimeController(dt=2, initial_time=0.0, final_time=240, time_unit="hour")
 
 	# # Boundary conditions
 	bc_west_salt = momBC.DirichletBC(boundary_name="West_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
@@ -271,9 +287,10 @@ def main():
 	# Print output folder
 	if MPI.COMM_WORLD.rank == 0:
 		print(output_folder_operation)
+		sys.stdout.flush()
 
 	# Create output handlers
-	output_mom = SaveFields(mom_eq)
+	output_mom = sf.SaveFields(mom_eq)
 	output_mom.set_output_folder(output_folder_operation)
 	output_mom.add_output_field("u", "Displacement (m)")
 	# output_mom.add_output_field("Temp", "Temperature (K)")
@@ -285,7 +302,7 @@ def main():
 	outputs = [output_mom]
 
 	# Define simulator
-	sim = Simulator_M(mom_eq, tc_op, outputs, False)
+	sim = sf.Simulator_M(mom_eq, tc_op, outputs, False)
 	sim.run()
 
 	# Print time
@@ -294,6 +311,7 @@ def main():
 		elaspsed_time = end_time - start_time
 		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
 		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
+		sys.stdout.flush()
 
 
 if __name__ == '__main__':

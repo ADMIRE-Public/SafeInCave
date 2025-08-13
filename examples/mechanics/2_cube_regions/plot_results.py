@@ -1,17 +1,8 @@
 import os
-import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
 import numpy as np
-import pandas as pd
-from Utils import read_json, MPa
 import matplotlib.pyplot as plt
-import meshio
-from PostProcessingTools import (read_vector_from_points,
-								find_mapping,
-								read_scalar_from_cells,
-								read_xdmf_as_pandas,
-								compute_cell_centroids,
-								read_msh_as_pandas)
+import safeincave as sf
+import safeincave.PostProcessingTools as post
 
 def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color='0.85'):
 	fig.patch.set_facecolor("#212121ff")
@@ -34,12 +25,12 @@ def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color=
 def plot_displacements(ax, results_folder):
 	# Read mesh
 	msh_file_name = os.path.join(results_folder, "mesh", "geom.msh")
-	points_msh, cells_msh = read_msh_as_pandas(msh_file_name)
+	points_msh, cells_msh = post.read_msh_as_pandas(msh_file_name)
 
 	# Read displacements
 	xdmf_file_name = os.path.join(results_folder, "u", "u.xdmf")
-	mapping = find_mapping(points_msh, xdmf_file_name)
-	u, v, w = read_vector_from_points(xdmf_file_name, mapping)
+	mapping = post.find_mapping(points_msh, xdmf_file_name)
+	u, v, w = post.read_vector_from_points(xdmf_file_name, mapping)
 
 	point_A = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 0) & (points_msh["y"] == 0)].index[0]
 	point_B = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 0) & (points_msh["y"] == 1)].index[0]
@@ -69,13 +60,13 @@ def plot_displacements(ax, results_folder):
 
 
 def plot_q(ax, results_folder):
-	points_xdmf, cells_xdmf = read_xdmf_as_pandas(os.path.join(results_folder, "q_elems", "q_elems.xdmf"))
-	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(os.path.join(results_folder, "q_elems", "q_elems.xdmf"))
+	mid_cells = post.compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
 
 	ind_A = mid_cells.index[mid_cells["y"] < 0.5]
 	ind_B = mid_cells.index[mid_cells["y"] > 0.5]
 
-	q_df = read_scalar_from_cells(os.path.join(results_folder, "q_elems", "q_elems.xdmf"))
+	q_df = post.read_scalar_from_cells(os.path.join(results_folder, "q_elems", "q_elems.xdmf"))
 
 	q_A = np.average(q_df.iloc[ind_A].values, axis=0)[1:]/MPa
 	q_B = np.average(q_df.iloc[ind_B].values, axis=0)[1:]/MPa

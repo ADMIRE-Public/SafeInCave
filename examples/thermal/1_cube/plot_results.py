@@ -1,15 +1,6 @@
-import os
-import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-import numpy as np
-import pandas as pd
-from Utils import read_json, MPa
+import safeincave.PostProcessingTools as post
 import matplotlib.pyplot as plt
-import meshio
-from PostProcessingTools import (read_scalar_from_points,
-								find_mapping,
-								read_xdmf_as_pandas,
-								read_msh_as_pandas)
+import os
 
 def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color='0.85'):
 	fig.patch.set_facecolor("#212121ff")
@@ -51,12 +42,12 @@ def main():
 
 	# Read mesh
 	msh_file_name = os.path.join(results_folder, "mesh", "geom.msh")
-	points_msh, cells_msh = read_msh_as_pandas(msh_file_name)
+	points_msh, cells_msh = post.read_msh_as_pandas(msh_file_name)
 
 	# Read displacements
 	xdmf_file_name = os.path.join(results_folder, "T", "T.xdmf")
-	mapping = find_mapping(points_msh, xdmf_file_name)
-	T = read_scalar_from_points(xdmf_file_name, mapping)
+	mapping = post.find_mapping(points_msh, xdmf_file_name)
+	T = post.read_scalar_from_points(xdmf_file_name, mapping)
 
 	# Extract points along line (y,z)=(0,1)
 	line_idx = points_msh[(points_msh["z"] == 1) & (points_msh["y"] == 0)].index

@@ -1,22 +1,12 @@
+import safeincave as sf
+import safeincave.PostProcessingTools as post
 import os
-import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
 import numpy as np
-import pandas as pd
-from Utils import read_json
 import matplotlib.pyplot as plt
-import meshio
-from PostProcessingTools import (read_vector_from_points,
-								find_mapping,
-								read_msh_as_pandas,
-								read_xdmf_as_pandas,
-								compute_cell_centroids,
-								read_scalar_from_cells,
-								read_tensor_from_cells)
+import pandas as pd
 
 hour = 60*60
 MPa = 1e6
-
 
 def find_closest_point(target_point: list, points: pd.DataFrame) -> int:
 	x_p, y_p, z_p = target_point
@@ -28,16 +18,16 @@ def find_closest_point(target_point: list, points: pd.DataFrame) -> int:
 
 
 def plot_strains(ax, output_folder):
-	points_xdmf, cells_xdmf = read_xdmf_as_pandas(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
-	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
+	mid_cells = post.compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
 
 	target_point = [0.5, 0.5, 0.5]
 	cell_id = find_closest_point(target_point, mid_cells)
 
-	ve_xx, ve_yy, ve_zz, ve_xy, ve_xz, ve_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
-	cr_xx, cr_yy, cr_zz, cr_xy, cr_xz, cr_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_cr", "eps_cr.xdmf"))
-	vp_xx, vp_yy, vp_zz, vp_xy, vp_xz, vp_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_vp", "eps_vp.xdmf"))
-	tot_xx, tot_yy, tot_zz, tot_xy, tot_xz, tot_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_tot", "eps_tot.xdmf"))
+	ve_xx, ve_yy, ve_zz, ve_xy, ve_xz, ve_yz = post.read_tensor_from_cells(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
+	cr_xx, cr_yy, cr_zz, cr_xy, cr_xz, cr_yz = post.read_tensor_from_cells(os.path.join(output_folder, "eps_cr", "eps_cr.xdmf"))
+	vp_xx, vp_yy, vp_zz, vp_xy, vp_xz, vp_yz = post.read_tensor_from_cells(os.path.join(output_folder, "eps_vp", "eps_vp.xdmf"))
+	tot_xx, tot_yy, tot_zz, tot_xy, tot_xz, tot_yz = post.read_tensor_from_cells(os.path.join(output_folder, "eps_tot", "eps_tot.xdmf"))
 
 	eps_ve = 100*(ve_xx - ve_zz).iloc[cell_id].values
 	eps_cr = 100*(cr_xx - cr_zz).iloc[cell_id].values
@@ -59,14 +49,14 @@ def plot_strains(ax, output_folder):
 
 
 def plot_eps_tot(ax, output_folder):
-	points_xdmf, cells_xdmf = read_xdmf_as_pandas(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
-	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
+	mid_cells = post.compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
 
 	# target_point = [0.5, 0.5, 0.5]
 	target_point = [1.0, 1.0, 1.0]
 	cell_id = find_closest_point(target_point, mid_cells)
 
-	tot_xx, tot_yy, tot_zz, tot_xy, tot_xz, tot_yz = read_tensor_from_cells(os.path.join(output_folder, "eps_tot", "eps_tot.xdmf"))
+	tot_xx, tot_yy, tot_zz, tot_xy, tot_xz, tot_yz = post.read_tensor_from_cells(os.path.join(output_folder, "eps_tot", "eps_tot.xdmf"))
 
 	# eps_tot = 100*(tot_xx - tot_zz).iloc[cell_id].values
 	eps_1 = -100*tot_zz.iloc[cell_id].values
@@ -88,14 +78,14 @@ def plot_eps_tot(ax, output_folder):
 
 
 def plot_Fvp(ax, output_folder):
-	points_xdmf, cells_xdmf = read_xdmf_as_pandas(os.path.join(output_folder, "Fvp", "Fvp.xdmf"))
-	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(os.path.join(output_folder, "Fvp", "Fvp.xdmf"))
+	mid_cells = post.compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
 
 	# target_point = [0.5, 0.5, 0.5]
 	target_point = [1.0, 1.0, 1.0]
 	cell_id = find_closest_point(target_point, mid_cells)
 
-	df_Fvp = read_scalar_from_cells(os.path.join(output_folder, "Fvp", "Fvp.xdmf"))
+	df_Fvp = post.read_scalar_from_cells(os.path.join(output_folder, "Fvp", "Fvp.xdmf"))
 	Fvp = df_Fvp.iloc[cell_id].values
 
 	t = df_Fvp.iloc[cell_id].index.values/hour

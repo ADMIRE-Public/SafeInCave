@@ -1,23 +1,17 @@
+from mpi4py import MPI
+import dolfinx as do
 import os
 import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-from Grid import GridHandlerGMSH, GridHandlerFEniCS
-from mpi4py import MPI
 import ufl
-import dolfinx as do
 import torch as to
 import numpy as np
 from petsc4py import PETSc
-import Utils as utils
-from MaterialProps import *
-from MomentumEquation import LinearMomentum
-import MomentumBC as momBC
-from OutputHandler import SaveFields
-from Simulators import Simulator_M
-from TimeHandler import TimeController
+import safeincave as sf
+import safeincave.Utils as ut
+import safeincave.MomentumBC as momBC
 import time
 
-class LinearMomentumMod(LinearMomentum):
+class LinearMomentumMod(sf.LinearMomentum):
 	def __init__(self, grid, theta):
 		super().__init__(grid, theta)
 
@@ -44,14 +38,14 @@ def main():
 
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube")
-	grid = GridHandlerGMSH("geom", grid_path)
+	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Time settings for equilibrium stage
 	unit = "hour"
 	t_0 = 0.0
 	dt = 0.5
 	t_final = 24
-	t_control = TimeController(time_step=dt, final_time=t_final, initial_time=t_0, time_unit=unit)
+	t_control = sf.TimeController(dt=dt, initial_time=t_0, final_time=t_final, time_unit=unit)
 
 	# Define momentum equation
 	mom_eq = LinearMomentumMod(grid, theta=0.5)
@@ -64,7 +58,7 @@ def main():
 	mom_eq.set_solver(mom_solver)
 
 	# Define material properties
-	mat = Material(mom_eq.n_elems)
+	mat = sf.Material(mom_eq.n_elems)
 
 	# Set material density
 	rho = 0.0*to.ones(mom_eq.n_elems, dtype=to.float64)
@@ -73,19 +67,19 @@ def main():
 	# Constitutive model
 	E = 102e9*to.ones(mom_eq.n_elems)
 	nu = 0.3*to.ones(mom_eq.n_elems)
-	spring_0 = Spring(E, nu, "spring")
+	spring_0 = sf.Spring(E, nu, "spring")
 
 	# Create Kelvin-Voigt viscoelastic element
 	eta = 105e11*to.ones(mom_eq.n_elems)
 	E = 10e9*to.ones(mom_eq.n_elems)
 	nu = 0.32*to.ones(mom_eq.n_elems)
-	kelvin = Viscoelastic(eta, E, nu, "kelvin")
+	kelvin = sf.Viscoelastic(eta, E, nu, "kelvin")
 
 	# Create creep
 	A = 1.9e-20*to.ones(mom_eq.n_elems)
 	Q = 51600*to.ones(mom_eq.n_elems)
 	n = 3.0*to.ones(mom_eq.n_elems)
-	creep_0 = DislocationCreep(A, Q, n, "creep")
+	creep_0 = sf.DislocationCreep(A, Q, n, "creep")
 
 	# Create Desai's viscoplastic model
 	mu_1 = 5.3665857009859815e-11*to.ones(mom_eq.n_elems)
@@ -99,7 +93,7 @@ def main():
 	gamma = 0.095*to.ones(mom_eq.n_elems)
 	alpha_0 = 0.0022*to.ones(mom_eq.n_elems)
 	sigma_t = 5.0*to.ones(mom_eq.n_elems)
-	desai = ViscoplasticDesai(mu_1, N_1, a_1, eta, n, beta_1, beta, m, gamma, sigma_t, alpha_0, "desai")
+	desai = sf.ViscoplasticDesai(mu_1, N_1, a_1, eta, n, beta_1, beta, m, gamma, sigma_t, alpha_0, "desai")
 
 	# Create constitutive model
 	mat.add_to_elastic(spring_0)
@@ -118,12 +112,12 @@ def main():
 
 	# Set initial temperature field
 	fun = lambda x, y, z: 273 + 20
-	T0_field = utils.create_field_elems(mom_eq.grid, fun)
+	T0_field = ut.create_field_elems(mom_eq.grid, fun)
 	mom_eq.set_T0(T0_field)
 	mom_eq.set_T(T0_field)
 
 	# Boundary conditions
-	time_values = [0*utils.hour,  2*utils.hour,  14*utils.hour, 16*utils.hour, t_control.t_final]
+	time_values = [0*ut.hour,  2*ut.hour,  14*ut.hour, 16*ut.hour, t_control.t_final]
 	nt = len(time_values)
 
 	bc_west = momBC.DirichletBC(boundary_name = "WEST", 
@@ -145,7 +139,7 @@ def main():
 						direction = 2,
 						density = 0.0,
 						ref_pos = 0.0,
-						values =      [4.0*utils.MPa, 4.0*utils.MPa],
+						values =      [4.0*ut.MPa, 4.0*ut.MPa],
 						time_values = [0.0,           t_control.t_final],
 						g = g_vec[2])
 
@@ -153,7 +147,7 @@ def main():
 						direction = 2,
 						density = 0.0,
 						ref_pos = 0.0,
-						values =      [4.0*utils.MPa, 4.0*utils.MPa],
+						values =      [4.0*ut.MPa, 4.0*ut.MPa],
 						time_values = [0.0,           t_control.t_final],
 						g = g_vec[2])
 
@@ -161,8 +155,8 @@ def main():
 						direction = 2,
 						density = 0.0,
 						ref_pos = 0.0,
-						values =      [4.1*utils.MPa, 16*utils.MPa, 16*utils.MPa,  6*utils.MPa,   6*utils.MPa],
-						time_values = [0*utils.hour,  2*utils.hour, 14*utils.hour, 16*utils.hour, 24*utils.hour],
+						values =      [4.1*ut.MPa, 16*ut.MPa, 16*ut.MPa,  6*ut.MPa,   6*ut.MPa],
+						time_values = [0*ut.hour,  2*ut.hour, 14*ut.hour, 16*ut.hour, 24*ut.hour],
 						g = g_vec[2])
 
 	bc_handler = momBC.BcHandler(mom_eq)
@@ -177,10 +171,10 @@ def main():
 	mom_eq.set_boundary_conditions(bc_handler)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0")
+	output_folder = os.path.join("output", "case_test")
 
 	# Create output handlers
-	output_mom = SaveFields(mom_eq)
+	output_mom = sf.SaveFields(mom_eq)
 	output_mom.set_output_folder(output_folder)
 	output_mom.add_output_field("u", "Displacement (m)")
 	output_mom.add_output_field("eps_tot", "Total strain (-)")
@@ -193,9 +187,10 @@ def main():
 	# Print output folder
 	if MPI.COMM_WORLD.rank == 0:
 		print(output_folder)
+		sys.stdout.flush()
 
 	# Define simulator
-	sim = Simulator_M(mom_eq, t_control, outputs, True)
+	sim = sf.Simulator_M(mom_eq, t_control, outputs, True)
 	sim.run()
 
 	# Print time

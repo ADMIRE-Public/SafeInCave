@@ -1,19 +1,14 @@
-import os
-import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-from Grid import GridHandlerGMSH
+import safeincave as sf
+import safeincave.Utils as ut
+import safeincave.HeatBC as heatBC
 from mpi4py import MPI
 import dolfinx as do
+import os
+import sys
+import ufl
 import torch as to
 import numpy as np
 from petsc4py import PETSc
-import Utils as utils
-from MaterialProps import *
-from HeatEquation import HeatDiffusion
-import HeatBC as heatBC
-from OutputHandler import SaveFields
-from Simulators import Simulator_T
-from TimeHandler import TimeController, TimeControllerParabolic
 import time
 
 
@@ -25,16 +20,16 @@ def main():
 
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube")
-	grid = GridHandlerGMSH("geom", grid_path)
+	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
 	output_folder = os.path.join("output", "case_0")
 
 	# Time settings for equilibrium stage
-	t_control = TimeControllerParabolic(final_time=5, initial_time=0.0, n_time_steps=50, time_unit="day")
+	t_control = sf.TimeControllerParabolic(n_time_steps=50, initial_time=0.0, final_time=5, time_unit="day")
 
 	# Define equation
-	heat_eq = HeatDiffusion(grid)
+	heat_eq = sf.HeatDiffusion(grid)
 
 	# Define solver
 	solver_heat = PETSc.KSP().create(grid.mesh.comm)
@@ -44,7 +39,7 @@ def main():
 	heat_eq.set_solver(solver_heat)
 
 	# Build material properties
-	mat = Material(heat_eq.n_elems)
+	mat = sf.Material(heat_eq.n_elems)
 
 	# Set material density
 	rho = 2000.0*to.ones(heat_eq.n_elems, dtype=to.float64)
@@ -83,11 +78,11 @@ def main():
 
 	# Set initial temperature field
 	fun = lambda x, y, z: 273 + 20
-	T0_field = utils.create_field_nodes(heat_eq.grid, fun)
+	T0_field = ut.create_field_nodes(heat_eq.grid, fun)
 	heat_eq.set_initial_T(T0_field)
 
 	# Create output handlers
-	output_heat = SaveFields(heat_eq)
+	output_heat = sf.SaveFields(heat_eq)
 	output_heat.set_output_folder(output_folder)
 	output_heat.add_output_field("T", "Temperature (K)")
 	outputs = [output_heat]
@@ -95,9 +90,10 @@ def main():
 	# Print output folder
 	if MPI.COMM_WORLD.rank == 0:
 		print(output_folder)
+		sys.stdout.flush()
 
 	# Define simulator
-	sim = Simulator_T(heat_eq, t_control, outputs, True)
+	sim = sf.Simulator_T(heat_eq, t_control, outputs, True)
 	sim.run()
 
 	# Print time
@@ -106,6 +102,7 @@ def main():
 		elaspsed_time = end_time - start_time
 		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
 		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
+		sys.stdout.flush()
 
 
 

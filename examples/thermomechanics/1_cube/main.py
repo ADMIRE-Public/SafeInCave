@@ -1,23 +1,36 @@
-import os
-import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-from Grid import GridHandlerGMSH
+# import os
+# import sys
+# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
+# from Grid import GridHandlerGMSH
+# from mpi4py import MPI
+# import dolfinx as do
+# import torch as to
+# import numpy as np
+# from petsc4py import PETSc
+# import Utils as utils
+# from MaterialProps import *
+# from HeatEquation import HeatDiffusion
+# from MomentumEquation import LinearMomentum
+# import HeatBC as heatBC
+# import MomentumBC as momBC
+# from OutputHandler import SaveFields
+# from Simulators import Simulator_TM
+# from TimeHandler import TimeController, TimeControllerParabolic
+# import time
+
+import safeincave as sf
+import safeincave.Utils as ut
+import safeincave.HeatBC as heatBC
+import safeincave.MomentumBC as momBC
 from mpi4py import MPI
 import dolfinx as do
+import os
+import sys
+import ufl
 import torch as to
 import numpy as np
 from petsc4py import PETSc
-import Utils as utils
-from MaterialProps import *
-from HeatEquation import HeatDiffusion
-from MomentumEquation import LinearMomentum
-import HeatBC as heatBC
-import MomentumBC as momBC
-from OutputHandler import SaveFields
-from Simulators import Simulator_TM
-from TimeHandler import TimeController, TimeControllerParabolic
 import time
-
 
 
 
@@ -29,7 +42,7 @@ def main():
 
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube")
-	grid = GridHandlerGMSH("geom", grid_path)
+	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
 	output_folder = os.path.join("output", "case_0")
@@ -40,10 +53,10 @@ def main():
 	# dt = 0.025
 	# t_final = 45*dt
 	# t_control = TimeController(time_step=dt, final_time=t_final, initial_time=t_0, time_unit=unit)
-	t_control = TimeControllerParabolic(final_time=10, initial_time=0.0, n_time_steps=100, time_unit="day")
+	t_control = sf.TimeControllerParabolic(n_time_steps=100, initial_time=0.0, final_time=10, time_unit="day")
 
 	# Define equation
-	heat_eq = HeatDiffusion(grid)
+	heat_eq = sf.HeatDiffusion(grid)
 
 	# Define solver
 	solver_heat = PETSc.KSP().create(grid.mesh.comm)
@@ -53,7 +66,7 @@ def main():
 	heat_eq.set_solver(solver_heat)
 
 	# Build material properties
-	mat = Material(heat_eq.n_elems)
+	mat = sf.Material(heat_eq.n_elems)
 
 	# Set material density
 	rho = 2000.0*to.ones(heat_eq.n_elems, dtype=to.float64)
@@ -84,13 +97,13 @@ def main():
 
 	# Set initial temperature field
 	fun = lambda x, y, z: 273 + 20
-	T0_field = utils.create_field_nodes(heat_eq.grid, fun)
+	T0_field = ut.create_field_nodes(heat_eq.grid, fun)
 	heat_eq.set_initial_T(T0_field)
 
 
 
 	# Define momentum equation
-	mom_eq = LinearMomentum(grid, 0.5)
+	mom_eq = sf.LinearMomentum(grid, 0.5)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -102,7 +115,7 @@ def main():
 	# Constitutive model
 	E = 102e9*to.ones(mom_eq.n_elems)
 	nu = 0.3*to.ones(mom_eq.n_elems)
-	spring_0 = Spring(E, nu, "spring")
+	spring_0 = sf.Spring(E, nu, "spring")
 
 	# Extract region indices
 	omega_A = grid.region_indices["OMEGA_A"]
@@ -113,7 +126,7 @@ def main():
 	alpha[omega_A] = 44e-6
 	alpha[omega_B] = 74e-6
 	# alpha = 44e-6*to.ones(mom_eq.n_elems)
-	thermo = Thermoelastic(alpha, "thermo")
+	thermo = sf.Thermoelastic(alpha, "thermo")
 
 	# Create constitutive model
 	mat.add_to_elastic(spring_0)
@@ -165,7 +178,7 @@ def main():
 	mom_eq.set_boundary_conditions(bc_handler)
 
 	# Create output handlers
-	output_mom = SaveFields(mom_eq)
+	output_mom = sf.SaveFields(mom_eq)
 	output_mom.set_output_folder(output_folder)
 	output_mom.add_output_field("u", "Displacement (m)")
 	output_mom.add_output_field("sig", "Stress (Pa)")
@@ -174,7 +187,7 @@ def main():
 	output_mom.add_output_field("q_nodes", "Von Mises stress (Pa)")
 	output_mom.add_output_field("q_elems", "Von Mises stress (Pa)")
 
-	output_heat = SaveFields(heat_eq)
+	output_heat = sf.SaveFields(heat_eq)
 	output_heat.set_output_folder(output_folder)
 	output_heat.add_output_field("T", "Temperature (K)")
 
@@ -183,9 +196,10 @@ def main():
 	# Print output folder
 	if MPI.COMM_WORLD.rank == 0:
 		print(output_folder)
+		sys.stdout.flush()
 
 	# Define simulator
-	sim = Simulator_TM(mom_eq, heat_eq, t_control, outputs, True)
+	sim = sf.Simulator_TM(mom_eq, heat_eq, t_control, outputs, True)
 	sim.run()
 
 	# Print time
@@ -194,6 +208,7 @@ def main():
 		elaspsed_time = end_time - start_time
 		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
 		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
+		sys.stdout.flush()
 
 
 if __name__ == '__main__':

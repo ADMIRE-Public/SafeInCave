@@ -1,15 +1,25 @@
+# import os
+# import sys
+# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
+# import numpy as np
+# import pandas as pd
+# import meshio
+# import time
+# import matplotlib.pyplot as plt
+# from matplotlib.gridspec import GridSpec
+# from matplotlib.widgets import Button, Slider
+# from PostProcessingTools import read_xdmf_as_pandas, read_msh_as_pandas, read_vector_from_points, read_scalar_from_cells, find_mapping, compute_cell_centroids
+# import json
+
+import safeincave as sf
+import safeincave.PostProcessingTools as post
 import os
-import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
 import numpy as np
 import pandas as pd
-import meshio
-import time
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.widgets import Button, Slider
-from PostProcessingTools import read_xdmf_as_pandas, read_msh_as_pandas, read_vector_from_points, read_scalar_from_cells, find_mapping, compute_cell_centroids
-import json
+import meshio
 
 def read_json(file_name):
 	with open(file_name, "r") as j_file:
@@ -270,21 +280,21 @@ def plot_results_panel(results_folder, stage="operation"):
 
 	# Read mesh
 	msh_file_name = os.path.join(output_path, "mesh", "geom.msh")
-	points_msh, cells_msh = read_msh_as_pandas(msh_file_name)
+	points_msh, cells_msh = post.read_msh_as_pandas(msh_file_name)
 
 	# Build mapping
 	xdmf_file_name = os.path.join(output_path, "u", "u.xdmf")
-	mapping = find_mapping(points_msh, xdmf_file_name)
+	mapping = post.find_mapping(points_msh, xdmf_file_name)
 
 	# Displacement data
-	df_ux, df_uy, df_uz = read_vector_from_points(xdmf_file_name, mapping)
+	df_ux, df_uy, df_uz = post.read_vector_from_points(xdmf_file_name, mapping)
 	displacement_data = points_msh, df_ux, df_uy, df_uz
 
 	# Stress data
-	points_xdmf, cells_xdmf = read_xdmf_as_pandas(xdmf_file_name)
-	mid_cells = compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
-	df_p = read_scalar_from_cells(os.path.join(output_path, "p_elems", "p_elems.xdmf"))
-	df_q = read_scalar_from_cells(os.path.join(output_path, "q_elems", "q_elems.xdmf"))
+	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(xdmf_file_name)
+	mid_cells = post.compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
+	df_p = post.read_scalar_from_cells(os.path.join(output_path, "p_elems", "p_elems.xdmf"))
+	df_q = post.read_scalar_from_cells(os.path.join(output_path, "q_elems", "q_elems.xdmf"))
 	stress_data = (mid_cells, -df_p.values/MPa, df_q.values/MPa)
 
 	# Read simulation time steps
@@ -337,7 +347,7 @@ def plot_results_panel(results_folder, stage="operation"):
 	plot_cavern_shape(ax0, xi, zi, xf, zf)
 	plot_convergence(ax32, times, volumes)
 
-	img = plt.imread(os.path.join("..", "..", "docs", "source", "_static", "logo_2.png"))
+	img = plt.imread(os.path.join("..", "..", "..", "docs_archive", "source", "_static", "logo_2.png"))
 	ax_logo.imshow(img)
 	ax_logo.text(910, 295, "Version 1.2.0")
 	ax_logo.axis('off')

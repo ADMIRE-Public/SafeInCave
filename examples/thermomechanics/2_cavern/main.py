@@ -1,24 +1,36 @@
-import os
-import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-from Grid import GridHandlerGMSH
+# import os
+# import sys
+# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
+# from Grid import GridHandlerGMSH
+# from mpi4py import MPI
+# import dolfinx as do
+# import torch as to
+# import numpy as np
+# from petsc4py import PETSc
+# import Utils as utils
+# from MaterialProps import *
+# from HeatEquation import HeatDiffusion
+# from MomentumEquation import LinearMomentum
+# import HeatBC as heatBC
+# import MomentumBC as momBC
+# from OutputHandler import SaveFields
+# from Simulators import Simulator_TM, Simulator_M
+# from TimeHandler import TimeController, TimeControllerParabolic
+# import time
+
+import safeincave as sf
+import safeincave.Utils as ut
+import safeincave.HeatBC as heatBC
+import safeincave.MomentumBC as momBC
 from mpi4py import MPI
 import dolfinx as do
+import os
+import sys
+import ufl
 import torch as to
 import numpy as np
 from petsc4py import PETSc
-import Utils as utils
-from MaterialProps import *
-from HeatEquation import HeatDiffusion
-from MomentumEquation import LinearMomentum
-import HeatBC as heatBC
-import MomentumBC as momBC
-from OutputHandler import SaveFields
-from Simulators import Simulator_TM, Simulator_M
-from TimeHandler import TimeController, TimeControllerParabolic
 import time
-
-
 
 
 def main():
@@ -29,13 +41,13 @@ def main():
 
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_irregular")
-	grid = GridHandlerGMSH("geom", grid_path)
+	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
 	output_folder = os.path.join("output", "case_2")
 
 	# Define momentum equation
-	mom_eq = LinearMomentum(grid, theta=0.5)
+	mom_eq = sf.LinearMomentum(grid, theta=0.5)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -45,7 +57,7 @@ def main():
 	mom_eq.set_solver(mom_solver)
 
 	# Define material properties
-	mat = Material(mom_eq.n_elems)
+	mat = sf.Material(mom_eq.n_elems)
 
 	# Set material density
 	salt_density = 2000
@@ -53,25 +65,25 @@ def main():
 	mat.set_density(rho)
 
 	# Constitutive model
-	E0 = 102*utils.GPa*to.ones(mom_eq.n_elems)
+	E0 = 102*ut.GPa*to.ones(mom_eq.n_elems)
 	nu0 = 0.3*to.ones(mom_eq.n_elems)
-	spring_0 = Spring(E0, nu0, "spring")
+	spring_0 = sf.Spring(E0, nu0, "spring")
 
 	# Create Kelvin-Voigt viscoelastic element
 	eta = 105e11*to.ones(mom_eq.n_elems)
-	E1 = 10*utils.GPa*to.ones(mom_eq.n_elems)
+	E1 = 10*ut.GPa*to.ones(mom_eq.n_elems)
 	nu1 = 0.32*to.ones(mom_eq.n_elems)
-	kelvin = Viscoelastic(eta, E1, nu1, "kelvin")
+	kelvin = sf.Viscoelastic(eta, E1, nu1, "kelvin")
 
 	# Create creep
 	A = 1.9e-20*to.ones(mom_eq.n_elems)
 	Q = 51600*to.ones(mom_eq.n_elems)
 	n = 3.0*to.ones(mom_eq.n_elems)
-	creep_0 = DislocationCreep(A, Q, n, "creep")
+	creep_0 = sf.DislocationCreep(A, Q, n, "creep")
 
 	# Thermo-elastic element
 	alpha = 44e-6*to.ones(mom_eq.n_elems)
-	thermo = Thermoelastic(alpha, "thermo")
+	thermo = sf.Thermoelastic(alpha, "thermo")
 
 	# Create constitutive model
 	mat.add_to_elastic(spring_0)
@@ -92,15 +104,15 @@ def main():
 	dTdZ = 27/km
 	T_top = 273 + 20
 	T_field_fun = lambda x,y,z: T_top + dTdZ*(660 - z)
-	T0_field_elems = utils.create_field_elems(grid, T_field_fun)
+	T0_field_elems = ut.create_field_elems(grid, T_field_fun)
 	mom_eq.set_T0(T0_field_elems)
 	mom_eq.set_T(T0_field_elems)
 
 	# Time settings for equilibrium stage
-	tc_equilibrium = TimeController(time_step=0.5, final_time=10, initial_time=0.0, time_unit="hour")
+	tc_equilibrium = sf.TimeController(dt=0.5, initial_time=0.0, final_time=10, time_unit="hour")
 
 	# Boundary conditions
-	time_values = [0*utils.hour,  1*utils.hour]
+	time_values = [0*ut.hour,  1*ut.hour]
 	nt = len(time_values)
 
 	bc_west = momBC.DirichletBC(boundary_name = "West", 
@@ -118,13 +130,13 @@ def main():
 					 	  values = [0.0, 0.0],
 					 	  time_values = [0.0, tc_equilibrium.t_final])
 
-	side_burden = 10.0*utils.MPa
+	side_burden = 10.0*ut.MPa
 	bc_east = momBC.NeumannBC(boundary_name = "East",
 						direction = 2,
 						density = salt_density,
 						ref_pos = 660.0,
 						values =      [side_burden, side_burden],
-						time_values = [0.0,            tc_equilibrium.t_final],
+						time_values = [0.0, tc_equilibrium.t_final],
 						g = g_vec[2])
 
 	bc_north = momBC.NeumannBC(boundary_name = "North",
@@ -132,20 +144,20 @@ def main():
 						density = salt_density,
 						ref_pos = 660.0,
 						values =      [side_burden, side_burden],
-						time_values = [0.0,            tc_equilibrium.t_final],
+						time_values = [0.0, tc_equilibrium.t_final],
 						g = g_vec[2])
 
-	over_burden = 10.0*utils.MPa
+	over_burden = 10.0*ut.MPa
 	bc_top = momBC.NeumannBC(boundary_name = "Top",
 						direction = 2,
 						density = 0.0,
 						ref_pos = 0.0,
 						values =      [over_burden, over_burden],
-						time_values = [0.0,            tc_equilibrium.t_final],
+						time_values = [0.0, tc_equilibrium.t_final],
 						g = g_vec[2])
 
 	gas_density = 0.082
-	p_gas = 10.0*utils.MPa
+	p_gas = 10.0*ut.MPa
 	bc_cavern = momBC.NeumannBC(boundary_name = "Cavern",
 						direction = 2,
 						density = gas_density,
@@ -175,7 +187,7 @@ def main():
 		print(ouput_folder_equilibrium)
 
 	# Create output handlers
-	output_mom = SaveFields(mom_eq)
+	output_mom = sf.SaveFields(mom_eq)
 	output_mom.set_output_folder(ouput_folder_equilibrium)
 	output_mom.add_output_field("u", "Displacement (m)")
 	output_mom.add_output_field("eps_tot", "Total strain (-)")
@@ -185,7 +197,7 @@ def main():
 	outputs = [output_mom]
 
 	# Define simulator
-	sim = Simulator_M(mom_eq, tc_equilibrium, outputs, True)
+	sim = sf.Simulator_M(mom_eq, tc_equilibrium, outputs, True)
 	sim.run()
 
 	# Print time
@@ -194,16 +206,17 @@ def main():
 		elaspsed_time = end_time - start_time
 		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
 		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
+		sys.stdout.flush()
 
 
 
 
 
 	# Time settings for operation stage
-	tc_operation = TimeController(time_step=1, final_time=240, initial_time=0.0, time_unit="day")
+	tc_operation = sf.TimeController(dt=1, initial_time=0.0, final_time=240, time_unit="day")
 
 	# Define heat diffusion equation
-	heat_eq = HeatDiffusion(grid)
+	heat_eq = sf.HeatDiffusion(grid)
 
 	# Define solver
 	solver_heat = PETSc.KSP().create(grid.mesh.comm)
@@ -224,7 +237,7 @@ def main():
 	heat_eq.set_material(mat)
 
 	# Set initial temperature
-	T0_field_nodes = utils.create_field_nodes(grid, T_field_fun)
+	T0_field_nodes = ut.create_field_nodes(grid, T_field_fun)
 	heat_eq.set_initial_T(T0_field_nodes)
 
 	# Define boundary conditions for heat diffusion
@@ -272,8 +285,8 @@ def main():
 	bc_north = momBC.NeumannBC("North", 2, salt_density, 660.0, [side_burden, side_burden], [0.0, tc_operation.t_final], g_vec[2])
 	bc_top = momBC.NeumannBC("Top", 2, 0.0, 0.0, [over_burden, over_burden], [0.0, tc_operation.t_final], g_vec[2])
 
-	time_list = [0.0, 2.0*utils.hour, 14*utils.hour, 16*utils.hour, 24*utils.hour]
-	p_list = [10.0*utils.MPa, 7.0*utils.MPa, 7.0*utils.MPa, 10.0*utils.MPa, 10.0*utils.MPa]
+	time_list = [0.0, 2.0*ut.hour, 14*ut.hour, 16*ut.hour, 24*ut.hour]
+	p_list = [10.0*ut.MPa, 7.0*ut.MPa, 7.0*ut.MPa, 10.0*ut.MPa, 10.0*ut.MPa]
 	bc_cavern = momBC.NeumannBC("Cavern", 2, gas_density, 430.0, p_list, time_list, g_vec[2])
 
 	bc_operation = momBC.BcHandler(mom_eq)
@@ -294,22 +307,23 @@ def main():
 	# Print output folder
 	if MPI.COMM_WORLD.rank == 0:
 		print(output_folder_operation)
+		sys.stdout.flush()
 
 	# Create output handlers
-	output_mom = SaveFields(mom_eq)
+	output_mom = sf.SaveFields(mom_eq)
 	output_mom.set_output_folder(output_folder_operation)
 	output_mom.add_output_field("u", "Displacement (m)")
 	output_mom.add_output_field("p_elems", "Mean stress (Pa)")
 	output_mom.add_output_field("q_elems", "Von Mises stress (Pa)")
 
-	output_heat = SaveFields(heat_eq)
+	output_heat = sf.SaveFields(heat_eq)
 	output_heat.set_output_folder(output_folder_operation)
 	output_heat.add_output_field("T", "Temperature (K)")
 
 	outputs = [output_mom, output_heat]
 
 	# Define simulator
-	sim = Simulator_TM(mom_eq, heat_eq, tc_operation, outputs, False)
+	sim = sf.Simulator_TM(mom_eq, heat_eq, tc_operation, outputs, False)
 	sim.run()
 
 	# Print time
@@ -318,6 +332,7 @@ def main():
 		elaspsed_time = end_time - start_time
 		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
 		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
+		sys.stdout.flush()
 
 
 if __name__ == '__main__':

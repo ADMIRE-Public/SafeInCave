@@ -1,22 +1,11 @@
-import os
-import sys
-sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-from Grid import GridHandlerGMSH, GridHandlerFEniCS
+from safeincave import *
+import safeincave.Utils as ut
+import safeincave.MomentumBC as momBC
 from mpi4py import MPI
-import ufl
-import dolfinx as do
-import torch as to
-import numpy as np
 from petsc4py import PETSc
-import Utils as utils
-from MaterialProps import *
-from MomentumEquation import LinearMomentum
-import MomentumBC as momBC
-from OutputHandler import SaveFields
-from Simulators import Simulator_M
-from TimeHandler import TimeController
+import torch as to
+import os
 import time
-
 
 
 def main():
@@ -26,7 +15,7 @@ def main():
 	    start_time = MPI.Wtime()
 
 	# Read grid
-	grid_path = os.path.join("..", "..", "grids", "cube")
+	grid_path = os.path.join("..", "..", "..", "grids", "cube")
 	grid = GridHandlerGMSH("geom", grid_path)
 
 	# Time settings for equilibrium stage
@@ -34,7 +23,7 @@ def main():
 	t_0 = 0.0
 	dt = 0.01
 	t_final = 1
-	t_control = TimeController(time_step=dt, final_time=t_final, initial_time=t_0, time_unit=unit)
+	t_control = TimeController(dt=dt, initial_time=t_0, final_time=t_final, time_unit=unit)
 
 	# Define momentum equation
 	mom_eq = LinearMomentum(grid, theta=0.5)
@@ -60,8 +49,8 @@ def main():
 	# Constitutive model
 	E0 = to.zeros(mom_eq.n_elems)
 	nu0 = to.zeros(mom_eq.n_elems)
-	E0[omega_A] = 8*utils.GPa
-	E0[omega_B] = 10*utils.GPa
+	E0[omega_A] = 8*ut.GPa
+	E0[omega_B] = 10*ut.GPa
 	nu0[omega_A] = 0.2
 	nu0[omega_B] = 0.3
 	spring_0 = Spring(E0, nu0, "spring")
@@ -72,8 +61,8 @@ def main():
 	nu1 = to.zeros(mom_eq.n_elems)
 	eta[omega_A] = 105e11
 	eta[omega_B] = 38e11
-	E1[omega_A] = 8*utils.GPa
-	E1[omega_B] = 5*utils.GPa
+	E1[omega_A] = 8*ut.GPa
+	E1[omega_B] = 5*ut.GPa
 	nu1[omega_A] = 0.35
 	nu1[omega_B] = 0.28
 	kelvin = Viscoelastic(eta, E1, nu1, "kelvin")
@@ -96,7 +85,7 @@ def main():
 	mom_eq.set_T(T0_field)
 
 	# Boundary conditions
-	time_values = [0*utils.hour,  1*utils.hour]
+	time_values = [0*ut.hour,  1*ut.hour]
 	nt = len(time_values)
 
 	bc_west = momBC.DirichletBC(boundary_name = "WEST", 
@@ -118,7 +107,7 @@ def main():
 						direction = 2,
 						density = 0.0,
 						ref_pos = 0.0,
-						values =      [5.0*utils.MPa, 5.0*utils.MPa],
+						values =      [5.0*ut.MPa, 5.0*ut.MPa],
 						time_values = [0.0,           t_control.t_final],
 						g = g_vec[2])
 
@@ -126,7 +115,7 @@ def main():
 						direction = 2,
 						density = 0.0,
 						ref_pos = 0.0,
-						values =      [5.0*utils.MPa, 5.0*utils.MPa],
+						values =      [5.0*ut.MPa, 5.0*ut.MPa],
 						time_values = [0.0,           t_control.t_final],
 						g = g_vec[2])
 
@@ -134,7 +123,7 @@ def main():
 						direction = 2,
 						density = 0.0,
 						ref_pos = 0.0,
-						values =      [8.0*utils.MPa, 8.0*utils.MPa],
+						values =      [8.0*ut.MPa, 8.0*ut.MPa],
 						time_values = [0.0,           t_control.t_final],
 						g = g_vec[2])
 
