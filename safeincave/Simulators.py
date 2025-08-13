@@ -19,6 +19,7 @@ Implementation of the simulators
 from abc import ABC, abstractmethod
 import torch as to
 import numpy as np
+import sys
 from mpi4py import MPI
 from .Utils import numpy2torch
 from .HeatEquation import HeatDiffusion
@@ -237,6 +238,7 @@ class Simulator_TM(Simulator):
 			# Print stuff
 			if self.eq_mom.grid.mesh.comm.rank == 0:
 				print(t/self.t_control.time_unit, ite, error)
+				sys.stdout.flush()
 
 			# Save fields
 			self.eq_mom.compute_p_elems()
@@ -422,8 +424,10 @@ class Simulator_M(Simulator):
 			# Print stuff
 			if self.eq_mom.grid.mesh.comm.rank == 0:
 				print(t/self.t_control.time_unit, ite, error)
+				sys.stdout.flush()
 				try:
 					print(float(self.eq_mom.mat.elems_ne[-1].Fvp.max()))
+					sys.stdout.flush()
 				except:
 					pass
 
@@ -508,6 +512,7 @@ class Simulator_T(Simulator):
 			# Print stuff
 			if self.eq_heat.grid.mesh.comm.rank == 0:
 				print(t/self.t_control.time_unit)
+				sys.stdout.flush()
 
 			# Save fields
 			for output in self.outputs:
