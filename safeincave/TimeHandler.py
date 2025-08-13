@@ -131,23 +131,23 @@ class TimeController(TimeControllerBase):
 
     Parameters
     ----------
-    time_step : float
+    dt : float
         Time-step size expressed in the units given by `time_unit`.
     initial_time : float
         Start time expressed in the units given by `time_unit`.
     final_time : float
         Final time expressed in the units given by `time_unit`.
     time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
-        Unit used to interpret `time_step`, `initial_time`, and `final_time`.
+        Unit used to interpret `dt`, `initial_time`, and `final_time`.
 
     Attributes
     ----------
     dt : float
         Fixed time-step size in **seconds**.
     """
-	def __init__(self, time_step: float, initial_time: float, final_time: float, time_unit: str="second"):
+	def __init__(self, dt: float, initial_time: float, final_time: float, time_unit: str="second"):
 		super().__init__(initial_time, final_time, time_unit)
-		self.dt = time_step*self.time_unit
+		self.dt = dt*self.time_unit
 
 	def advance_time(self) -> None:
 		"""
@@ -161,7 +161,7 @@ class TimeController(TimeControllerBase):
 
 
 
-class TimeControllerParabolic():
+class TimeControllerParabolic(TimeControllerBase):
     """
     Nonuniform (parabolic) time controller.
 
@@ -196,14 +196,14 @@ class TimeControllerParabolic():
     - This class expects attributes like :attr:`t_initial`, :attr:`t_final`,
       and :attr:`time_unit` to be available (typically provided by a base
       initializer). Ensure those are set before use.
-    - Advance logic uses an internal index ``self.time_step``; initialize it
-      (e.g., to ``0``) before calling :meth:`advance_time`.
+    - Advance logic uses an internal index ``self.step_counter``.
     """
     def __init__(self, n_time_steps: int, initial_time: float, final_time: float, time_unit: str="second"):
         super().__init__(initial_time, final_time, time_unit)
         self.n_time_steps = n_time_steps
         self.time_list = self.calculate_varying_times(self.fun_parabolic)
         self.dt = self.time_list[1] - self.time_list[0]
+        self.step_counter = 0
 
     def fun_parabolic(self, t_array: np.ndarray) -> np.ndarray:
         """
@@ -257,16 +257,8 @@ class TimeControllerParabolic():
         Returns
         -------
         None
-
-        Notes
-        -----
-        Uses an internal counter ``self.time_step`` that should be initialized
-        (e.g., ``self.time_step = 0``) before the first call. After advancing,
-        sets:
-        - ``self.t = time_list[time_step]``
-        - ``self.dt = time_list[time_step] - time_list[time_step-1]``
         """
-        self.time_step += 1
-        self.t = self.time_list[self.time_step]
-        self.dt = self.time_list[self.time_step] - self.time_list[self.time_step-1]
+        self.step_counter += 1
+        self.t = self.time_list[self.step_counter]
+        self.dt = self.time_list[self.step_counter] - self.time_list[self.step_counter-1]
 
