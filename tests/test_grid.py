@@ -1,12 +1,18 @@
-import unittest
+# import unittest
+# import os
+# import sys
+# sys.path.append(os.path.join("..", "safeincave"))
+# import torch as to
+# import numpy as np
+# from Grid import GridHandlerGMSH, GridHandlerFEniCS
+# import dolfinx as do
+# from mpi4py import MPI
+
 import os
-import sys
-sys.path.append(os.path.join("..", "safeincave"))
-import torch as to
+from safeincave import GridHandlerGMSH
 import numpy as np
-from Grid import GridHandlerGMSH, GridHandlerFEniCS
+import unittest
 import dolfinx as do
-from mpi4py import MPI
 
 class Test1(unittest.TestCase):
 	def setUp(self):
@@ -25,7 +31,6 @@ class Test1(unittest.TestCase):
 		self.assertIsInstance(self.grid.get_boundaries(), do.mesh.MeshTags)
 
 		boundary_names = self.grid.get_boundary_names()
-		print(boundary_names)
 
 		self.assertEqual(boundary_names[0], self.expected_bNames[0])
 		self.assertEqual(boundary_names[1], self.expected_bNames[1])

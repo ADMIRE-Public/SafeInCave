@@ -1,17 +1,22 @@
-import unittest
-import os
-import sys
-sys.path.append(os.path.join("..", "safeincave"))
+# import unittest
+# import os
+# import sys
+# sys.path.append(os.path.join("..", "safeincave"))
+# import torch as to
+# import numpy as np
+# from MaterialProps import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
+
+import safeincave as sc
 import torch as to
 import numpy as np
-from MaterialProps import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
+import unittest
 
 class TestSpring(unittest.TestCase):
 	def setUp(self):
 		self.n_elems = 2
 		E = to.tensor(102e9*np.ones(self.n_elems))
 		nu = to.tensor(0.3*np.ones(self.n_elems))
-		self.elem = Spring(E, nu, name="spring")
+		self.elem = sc.Spring(E, nu, name="spring")
 		self.elem.initialize()
 
 		self.stress = 1e6*to.tensor([[  [1., 4., 5.],
@@ -44,7 +49,7 @@ class TestViscoelastic(unittest.TestCase):
 		E = to.tensor(10e9*np.ones(self.n_elems))
 		nu = to.tensor(0.32*np.ones(self.n_elems))
 		eta = to.tensor(105e11*np.ones(self.n_elems))
-		self.elem = Viscoelastic(eta, E, nu)
+		self.elem = sc.Viscoelastic(eta, E, nu)
 
 		self.stress = 1e6*to.tensor([[  [1., 4., 5.],
 	                                 	[4., 2., 6.],
@@ -102,7 +107,7 @@ class TestDislocationCreep(unittest.TestCase):
 		A = 1.9e-20*to.ones(self.n_elems)
 		n = 3.0*to.ones(self.n_elems)
 		Q = 51600*to.ones(self.n_elems)
-		self.elem = DislocationCreep(A, Q, n, name="creep")
+		self.elem = sc.DislocationCreep(A, Q, n, name="creep")
 
 		self.stress = 1e6*to.tensor([[  [1., 4., 5.],
 	                                 	[4., 2., 6.],
@@ -168,7 +173,7 @@ class TestViscoplasticDesai(unittest.TestCase):
 		gamma = 0.095*to.ones(self.n_elems, dtype=to.float64)
 		alpha_0 = 0.0022*to.ones(self.n_elems, dtype=to.float64)
 		sigma_t = 5.0*to.ones(self.n_elems, dtype=to.float64)
-		self.elem = ViscoplasticDesai(mu_1, N_1, a_1, eta, n, beta_1, beta, m, gamma, sigma_t, alpha_0, name="desai")
+		self.elem = sc.ViscoplasticDesai(mu_1, N_1, a_1, eta, n, beta_1, beta, m, gamma, sigma_t, alpha_0, name="desai")
 
 		self.stress = -1e7*to.tensor([[ [1., 0., 0.],
 	                                 	[0., 1., 0.],
