@@ -18,7 +18,7 @@ Classes responsible for time management (time stepping, controlling final time, 
 # the License.
 from abc import ABC, abstractmethod
 from typing import Callable
-from Utils import minute, hour, day, year
+from .Utils import minute, hour, day, year
 import numpy as np
 
 # Type alias

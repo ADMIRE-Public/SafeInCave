@@ -17,16 +17,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from HeatBC import BcHandler
+    from .HeatBC import BcHandler
 
 from abc import ABC, abstractmethod
 import dolfinx as do
 import ufl
 from petsc4py import PETSc
 import torch as to
-from MaterialProps import Material
-from Grid import GridHandlerGMSH
-import Utils as utils
+from .MaterialProps import Material
+from .Grid import GridHandlerGMSH
+from .Utils import numpy2torch, project
 
 
 
@@ -296,8 +296,8 @@ class HeatDiffusion():
         Uses :func:`Utils.project` to project `T` onto `DG0_1` and
         :func:`Utils.numpy2torch` to convert to a Torch tensor.
         """
-        T_elems = utils.project(self.T, self.DG0_1)
-        return utils.numpy2torch(T_elems.x.array)
+        T_elems = project(self.T, self.DG0_1)
+        return numpy2torch(T_elems.x.array)
 
 
     def solve(self, t: float, dt: float) -> None:

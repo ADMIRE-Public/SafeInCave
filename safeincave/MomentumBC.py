@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from MomentumEquation import LinearMomentum
+    from .MomentumEquation import LinearMomentum
     
 from abc import ABC
 import numpy as np

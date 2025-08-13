@@ -29,9 +29,9 @@ import basix
 import ufl
 from petsc4py import PETSc
 import torch as to
-from MaterialProps import Material
-from Grid import GridHandlerGMSH
-import Utils as ut
+from .MaterialProps import Material
+from .Grid import GridHandlerGMSH
+from .Utils import numpy2torch, project, epsilon, dotdot_torch, dotdot_ufl
 
 class LinearMomentumBase(ABC):
     """
@@ -277,12 +277,12 @@ class LinearMomentumBase(ABC):
 	# def compute_q_nodes(self) -> do.fem.Function:
 	# 	dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
 	# 	q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
-	# 	self.q_nodes = ut.project(q_form, self.CG1_1)
+	# 	self.q_nodes = project(q_form, self.CG1_1)
 
 	# def compute_q_elems(self) -> do.fem.Function:
 	# 	dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
 	# 	q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
-	# 	self.q_elems = ut.project(q_form, self.DG0_1)
+	# 	self.q_elems = project(q_form, self.DG0_1)
 
     def compute_q_nodes(self) -> None:
         """
@@ -297,7 +297,7 @@ class LinearMomentumBase(ABC):
         Sets :attr:`q_nodes` by applying a node-element averaging matrix
         (:attr:`grid.A_csr`) to the element-wise von Mises values.
         """
-        stress = ut.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+        stress = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
         I1 = stress[:,0,0] + stress[:,1,1] + stress[:,2,2]
         I2 = stress[:,0,0]*stress[:,1,1] + stress[:,1,1]*stress[:,2,2] + stress[:,0,0]*stress[:,2,2] - stress[:,0,1]**2 - stress[:,0,2]**2 - stress[:,1,2]**2
         J2 = (1/3)*I1**2 - I2
@@ -316,7 +316,7 @@ class LinearMomentumBase(ABC):
         ------------
         Sets :attr:`q_elems` by applying :attr:`grid.smoother` to nodal values.
         """
-        stress = ut.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+        stress = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
         I1 = stress[:,0,0] + stress[:,1,1] + stress[:,2,2]
         I2 = stress[:,0,0]*stress[:,1,1] + stress[:,1,1]*stress[:,2,2] + stress[:,0,0]*stress[:,2,2] - stress[:,0,1]**2 - stress[:,0,2]**2 - stress[:,1,2]**2
         J2 = (1/3)*I1**2 - I2
@@ -334,10 +334,10 @@ class LinearMomentumBase(ABC):
 
         Notes
         -----
-        Uses :func:`ut.project` on ``ε(u)``.
+        Uses :func:`project` on ``ε(u)``.
         """
-        self.eps_tot = ut.project(ut.epsilon(self.u), self.DG0_3x3)
-        eps_to = ut.numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
+        self.eps_tot = project(epsilon(self.u), self.DG0_3x3)
+        eps_to = numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
         return eps_to
 
     def compute_eps_th(self) -> to.Tensor:
@@ -797,7 +797,7 @@ class LinearMomentum(LinearMomentumBase):
         ------------
         Copies the stress into :attr:`sig`.
         """
-        stress_to = ut.dotdot_torch(self.mat.C, eps_e)
+        stress_to = dotdot_torch(self.mat.C, eps_e)
         self.sig.x.array[:] = to.flatten(stress_to)
         return stress_to
 
@@ -821,7 +821,7 @@ class LinearMomentum(LinearMomentumBase):
         ------------
         Copies the stress into :attr:`sig`.
         """
-        stress_to = ut.dotdot_torch(self.mat.CT, eps_tot_to - self.eps_rhs_to)
+        stress_to = dotdot_torch(self.mat.CT, eps_tot_to - self.eps_rhs_to)
         self.sig.x.array[:] = to.flatten(stress_to)
         return stress_to
 
@@ -846,7 +846,7 @@ class LinearMomentum(LinearMomentumBase):
         """
         eps_ne_k = self.compute_eps_ne_k(dt)
         eps_th = self.compute_eps_th()
-        self.eps_rhs_to = eps_ne_k + eps_th - dt*(1 - self.theta)*(self.mat.B + ut.dotdot_torch(self.mat.G, stress_k))
+        self.eps_rhs_to = eps_ne_k + eps_th - dt*(1 - self.theta)*(self.mat.B + dotdot_torch(self.mat.G, stress_k))
         self.eps_rhs.x.array[:] = to.flatten(self.eps_rhs_to)
 
     def solve_elastic_response(self) -> None:
@@ -863,7 +863,7 @@ class LinearMomentum(LinearMomentumBase):
         - Updates :attr:`X` and calls :meth:`split_solution`.
         """
         # Build bilinear form
-        a = ufl.inner(ut.dotdot_ufl(self.C, ut.epsilon(self.du)), ut.epsilon(self.u_))*self.dx
+        a = ufl.inner(dotdot_ufl(self.C, epsilon(self.du)), epsilon(self.u_))*self.dx
         bilinear_form = do.fem.form(a)
         A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
         A.assemble()
@@ -893,11 +893,11 @@ class LinearMomentum(LinearMomentumBase):
         self.u = self.X
 
 	# def compute_p_nodes(self) -> do.fem.Function:
-	# 	self.p_nodes = ut.project(ufl.tr(self.sig)/3, self.CG1_1)
+	# 	self.p_nodes = project(ufl.tr(self.sig)/3, self.CG1_1)
 
 	# def compute_p_elems(self) -> do.fem.Function:
-	# 	# self.p_elems = ut.project(ufl.tr(self.sig)/3, self.DG0_1)
-	# 	stress_to = ut.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+	# 	# self.p_elems = project(ufl.tr(self.sig)/3, self.DG0_1)
+	# 	stress_to = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
 	# 	p_to = to.einsum("kii->k", stress_to)
 	# 	self.p_elems.x.array[:] = to.flatten(p_to)
 
@@ -913,7 +913,7 @@ class LinearMomentum(LinearMomentumBase):
         ------------
         Writes to :attr:`p_nodes`.
         """
-        stress = ut.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+        stress = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
         I1 = stress[:,0,0] + stress[:,1,1] + stress[:,2,2]
         p_to = I1/3
         self.p_nodes.x.array[:] = self.grid.A_csr.dot(p_to)
@@ -930,7 +930,7 @@ class LinearMomentum(LinearMomentumBase):
         ------------
         Writes to :attr:`p_elems`.
         """
-        stress_to = ut.numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+        stress_to = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
         p_to = to.einsum("kii->k", stress_to)
         p_to = self.grid.smoother.dot(p_to.numpy())
         self.p_elems.x.array[:] = p_to
@@ -965,13 +965,13 @@ class LinearMomentum(LinearMomentumBase):
         self.compute_eps_rhs(dt, stress_k_to)
 
         # Build bilinear form
-        a = ufl.inner(ut.dotdot_ufl(self.CT, ut.epsilon(self.du)), ut.epsilon(self.u_))*self.dx
+        a = ufl.inner(dotdot_ufl(self.CT, epsilon(self.du)), epsilon(self.u_))*self.dx
         bilinear_form = do.fem.form(a)
         A = fem_petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
         A.assemble()
 
         # Build linear form
-        b_rhs = ufl.inner(ut.dotdot_ufl(self.CT, self.eps_rhs), ut.epsilon(self.u_))*self.dx
+        b_rhs = ufl.inner(dotdot_ufl(self.CT, self.eps_rhs), epsilon(self.u_))*self.dx
         linear_form = do.fem.form(self.b_body + sum(self.bc.neumann_bcs) + b_rhs)
         b = fem_petsc.assemble_vector(linear_form)
         fem_petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])

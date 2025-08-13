@@ -24,8 +24,8 @@ import shutil
 import os
 
 if TYPE_CHECKING:
-    from MomentumEquation import LinearMomentum
-    from HeatEquation import HeatDiffusion
+    from .MomentumEquation import LinearMomentum
+    from .HeatEquation import HeatDiffusion
     EqType = LinearMomentum | HeatDiffusion
 else:
     from typing import Any as EqType  # avoid runtime imports/cycles

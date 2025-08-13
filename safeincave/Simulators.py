@@ -20,11 +20,11 @@ from abc import ABC, abstractmethod
 import torch as to
 import numpy as np
 from mpi4py import MPI
-from Utils import numpy2torch
-from HeatEquation import HeatDiffusion
-from MomentumEquation import LinearMomentum
-from TimeHandler import TimeControllerBase
-from OutputHandler import SaveFields
+from .Utils import numpy2torch
+from .HeatEquation import HeatDiffusion
+from .MomentumEquation import LinearMomentum
+from .TimeHandler import TimeControllerBase
+from .OutputHandler import SaveFields
 
 class Simulator(ABC):
 	"""

@@ -19,7 +19,7 @@ Useful functions used in safeincave.
 
 from numpy.typing import NDArray
 from typing import Callable
-from Grid import GridHandlerGMSH
+from .Grid import GridHandlerGMSH
 import numpy as np
 import torch as to
 import dolfinx as do
