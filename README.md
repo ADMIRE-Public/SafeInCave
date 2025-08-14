@@ -1,4 +1,4 @@
-![alt text](<./docs/source/_static/logo_2.png>){width=35%}
+![alt text](<./docs_archive/source/_static/logo_2.png>){width=35%}
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://gitlab.tudelft.nl/ADMIRE_Public/safeincave)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
