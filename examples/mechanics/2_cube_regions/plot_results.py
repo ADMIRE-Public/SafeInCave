@@ -87,12 +87,12 @@ def main():
 	
 
 	# Plot pressure schedule
-	fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3.5))
-	fig.subplots_adjust(top=0.970, bottom=0.135, left=0.093, right=0.980, hspace=0.35, wspace=0.225)
+	fig, ax1 = plt.subplots(1, 1, figsize=(5, 3.5))
+	fig.subplots_adjust(top=0.970, bottom=0.135, left=0.138, right=0.980, hspace=0.35, wspace=0.225)
 
 	plot_displacements(ax1, results_folder)
 	# plot_q(ax2, results_folder)
-	# apply_grey_theme(fig, [ax1, ax2], transparent=True, grid_color="0.92", back_color='0.85')
+	apply_grey_theme(fig, [ax1], transparent=True, grid_color="0.92", back_color='0.85')
 
 	plt.show()
 

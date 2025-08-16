@@ -18,7 +18,7 @@ def find_closest_point(target_point: list, points: pd.DataFrame) -> int:
 
 
 def plot_strains(ax, output_folder):
-	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
+	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(os.path.join(output_folder, "eps_tot", "eps_tot.xdmf"))
 	mid_cells = post.compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
 
 	target_point = [0.5, 0.5, 0.5]
@@ -49,7 +49,7 @@ def plot_strains(ax, output_folder):
 
 
 def plot_eps_tot(ax, output_folder):
-	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(os.path.join(output_folder, "eps_ve", "eps_ve.xdmf"))
+	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(os.path.join(output_folder, "eps_tot", "eps_tot.xdmf"))
 	mid_cells = post.compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
 
 	# target_point = [0.5, 0.5, 0.5]

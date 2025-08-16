@@ -35,6 +35,9 @@ def main():
 	grid_path = os.path.join("..", "..", "..", "grids", "cube")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
+	# Define output folder
+	output_folder = os.path.join("output", "case_0")
+
 	# Time settings for equilibrium stage
 	unit = "hour"
 	t_0 = 0.0
@@ -164,9 +167,6 @@ def main():
 
 	# Set boundary conditions
 	mom_eq.set_boundary_conditions(bc_handler)
-
-	# Define output folder
-	output_folder = os.path.join("output", "case_test")
 
 	# Create output handlers
 	output_mom = sf.SaveFields(mom_eq)

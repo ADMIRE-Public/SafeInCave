@@ -16,10 +16,10 @@ dependencies = [
   "torch==2.4.0",
   "meshio==3.3.1",
   "pandas==1.4.3",
-  "mpi4py>=3.1.3",
+  # "mpi4py>=3.1.3",
   "gmsh>=4.14.0",
   "lxml",
-  "pytz"
+  "pytz",
   "h5py",
   "petsc4py"
 ]

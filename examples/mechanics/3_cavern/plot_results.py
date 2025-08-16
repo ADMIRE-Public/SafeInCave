@@ -475,7 +475,7 @@ def plot_results_panel(results_folder, stage="operation"):
 	plt.show()
 
 def main():
-	plot_results_panel("case_1", "operation")
+	plot_results_panel("case_2", "operation")
 
 if __name__ == '__main__':
 	main()
