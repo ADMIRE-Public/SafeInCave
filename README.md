@@ -19,8 +19,6 @@ SafeInCave is a 3D finite element simulator based on FEniCSx. It is designed to 
 
 - **MPI-powered parallelism**: Scale simulations efficiently with mpi4py for distributed computing
 - **Thermal effects**: Solve heat diffusion equation and include thermal strains and creep thermal responses
-- **Pressure solution creep**: Easily add pressure solution creep to your simulations
-- **Cavern abandonment**: Brine thermodynamic model and specific BC's for abandonment phase
 - **Cyclic operations**: Impose fast cyclic pressure loads to the cavern walls
 - **Constitutive model**: Include transient creep, reverse transient creep, and steady-state creep
 - **Robust linearization**: Provides robustness and flexibility to include new constitutive models
