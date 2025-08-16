@@ -1,4 +1,5 @@
-![alt text](<./docs_archive/source/_static/logo_2.png>){width=35%}
+<!-- ![alt text](<./docs_archive/source/_static/logo_2.png>){width=35%} -->
+![alt text](<https://gitlab.tudelft.nl/ADMIRE_Public/safeincave/-/raw/v2/assets/logo_2.png?ref_type=heads>){width=35%}
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://gitlab.tudelft.nl/ADMIRE_Public/safeincave)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
@@ -57,6 +58,8 @@ See the [LICENSE](LICENSE) file for full terms, or review the [official GPLv3 te
 [3] Kumar, K.R., Makhmutov, A., Spiers, C.J., Hajibeygi, H. Geomechanical simulation of energy storage in salt formations. Scientific Reports, 2022 (https://doi.org/10.1038/s41598-021-99161-8)
 
 [4] Kumar, K.R., Hajibeygi, H. Influence of pressure solution and evaporate heterogeneity on the geo-mechanical behavior of salt caverns. The Mechanical Behavior of Salt X, 2022 (https://doi.org/10.1201/9781003295808)
+
+---
 
 ## Acknowledgements
 We would like to thank:
