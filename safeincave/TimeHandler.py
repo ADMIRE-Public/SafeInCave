@@ -30,30 +30,36 @@ Fn = Callable[[float], float]
 
 class TimeControllerBase(ABC):
     """
-    Base class for advancing and tracking simulation time.
+    Base class for time-stepping controllers.
 
-    Converts user-provided times into a chosen unit (seconds, minutes, hours,
-    days, or years) and keeps common state used by concrete controllers.
+    Converts user-provided time units (e.g., minutes, hours) into **seconds**
+    for internal bookkeeping, stores the current time, and provides a
+    loop-termination predicate. Concrete subclasses implement how time
+    advances each step.
 
     Parameters
     ----------
     initial_time : float
-        Start time expressed in the units given by `time_unit`.
+        Start time expressed in the unit given by ``time_unit``.
     final_time : float
-        Final time expressed in the units given by `time_unit`.
+        End time expressed in the unit given by ``time_unit``.
     time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
-        Unit used to interpret `initial_time` and `final_time`.
+        Unit of the input times. Internally, times are stored in seconds.
 
     Attributes
     ----------
-    time_unit : float
-        Conversion factor to seconds for the selected unit (e.g., 60 for "minute").
+    time_unit : str
+        The time unit specified by the user.
+    time_conversion : float
+        Multiplicative factor to convert the chosen unit into seconds.
     t_initial : float
-        Initial time in **seconds**.
+        Initial time in seconds.
     t_final : float
-        Final time in **seconds**.
+        Final time in seconds.
     t : float
-        Current time in **seconds**.
+        Current time in seconds.
+    step_counter : int
+        Number of completed steps (starts at 0).
     """
     def __init__(self, initial_time: float, final_time: float, time_unit: str="second"):
         self.time_unit = time_unit
@@ -197,13 +203,8 @@ class TimeControllerParabolic(TimeControllerBase):
     dt : float
         Current time step size (in **seconds**); initialized as
         ``time_list[1] - time_list[0]``.
-
-    Notes
-    -----
-    - This class expects attributes like :attr:`t_initial`, :attr:`t_final`,
-      and :attr:`time_unit` to be available (typically provided by a base
-      initializer). Ensure those are set before use.
-    - Advance logic uses an internal index ``self.step_counter``.
+    step_counter : int
+        Index of the most recently advanced step (starts at 0).
     """
     def __init__(self, n_time_steps: int, initial_time: float, final_time: float, time_unit: str="second"):
         super().__init__(initial_time, final_time, time_unit)
@@ -259,11 +260,20 @@ class TimeControllerParabolic(TimeControllerBase):
 
     def advance_time(self) -> None:
         """
-        Advance to the next time in :attr:`time_list` and update `dt`.
+        Advance to the next time in :attr:`time_list`.
+
+        Increments :attr:`step_counter`, sets :attr:`t` to the corresponding
+        entry of :attr:`time_list`, and updates :attr:`dt` as the difference
+        between the current and previous times.
 
         Returns
         -------
         None
+
+        Notes
+        -----
+        No bounds checking is performed. Ensure
+        ``step_counter < n_time_steps - 1`` before advancing.
         """
         self.step_counter += 1
         self.t = self.time_list[self.step_counter]

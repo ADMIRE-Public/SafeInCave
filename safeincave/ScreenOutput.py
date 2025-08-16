@@ -39,6 +39,53 @@ def singleton(cls):
 
 @singleton
 class ScreenPrinter():
+	"""
+	Pretty, MPI-aware console logger for simulation metadata and progress.
+
+	Prints a formatted header (mesh, partitions, solver settings, material
+	model, and outputs) and a live table of time-stepping information.
+	Only **rank 0** writes to stdout; all printed lines are also appended to
+	an internal log buffer and persisted to ``log.txt`` in each output folder
+	on :meth:`close`.
+
+	Parameters
+	----------
+	grid : GridHandlerGMSH
+	    Mesh/grid handler used to query number of nodes/elements and partition
+	    information.
+	solver : petsc4py.PETSc.KSP
+	    Configured linear solver; its type and tolerances are reported.
+	material : Material
+	    Material container; its elastic, non-elastic, and thermoelastic
+	    elements are listed.
+	outputs : list[SaveFields]
+	    Output handlers to extract output directories and registered field
+	    names/labels.
+	time_unit : {"second", "minute", "hour", "day", "year"}, default="hour"
+	    Unit label used in the progress table headings (purely cosmetic).
+
+	Attributes
+	----------
+	log : str
+	    Accumulated text printed to screen.
+	header_columns : list[str]
+	    Column headers for the live progress table.
+	row_formats : list[str]
+	    C-printf format strings for each column value (e.g., ``"%.3f"``).
+	row_align : list[str]
+	    Alignment for each column: ``"left"`` or ``"center"`` (``"right"``
+	    is accepted by :meth:`format_cell`).
+	max_width : int
+	    Width used to pad and cap the table rows (derived from ASCII banner).
+	output_folders : list[str]
+	    Paths collected from the provided :class:`SaveFields` objects.
+
+	Notes
+	-----
+	- Construction performs side effects: prints welcome screen, mesh/partition
+	  info, solver and material summaries, output info, and begins the table.
+	- Use :meth:`close` when the run ends to finalize timing and write logs.
+	"""
 	def __init__(self, grid: GridHandlerGMSH, solver: PETSc.KSP, material: Material, outputs: list[SaveFields], time_unit: str="hour"):
 		self.master_division_plus = "+-----------------------------------------------------------------------------------------------+"
 		self.master_division = "-----------------------------------------------------------------------------------------------"
@@ -58,7 +105,18 @@ class ScreenPrinter():
 		self.print_output_info()
 		self.begin()
 
-	def begin(self):
+	def begin(self) -> None:
+		"""
+		Initialize the progress table and start timing.
+
+		Sets default column headers and formats for the step counter, time
+		increment, normalized time, nonlinear iterations, and residual error,
+		then prints the table header.
+
+		Returns
+		-------
+		None
+		"""
 		self.start_timer()
 		self.set_header_columns([	
 									"Step counter",
@@ -76,7 +134,17 @@ class ScreenPrinter():
 							], ["center" for i in range(5)])
 		self.print_header()
 
-	def print_solver_info(self):
+	def print_solver_info(self) -> None:
+		"""
+		Print PETSc KSP/PC configuration and tolerances.
+
+		Extracts KSP type, PC type, relative tolerance, and maximum
+		iterations, then renders a small table.
+
+		Returns
+		-------
+		None
+		"""
 		ksp_type = self.solver.getType()
 		pc_type = self.solver.getPC().getType()
 		rtol, atol, divtol, max_it = self.solver.getTolerances()
@@ -89,7 +157,17 @@ class ScreenPrinter():
 		self.print_comment(" ")
 
 
-	def print_mesh_info(self):
+	def print_mesh_info(self) -> None:
+		"""
+		Print global mesh size (elements, nodes) and location on disk.
+
+		Gathers counts across MPI ranks and displays a one-row table with the
+		mesh path.
+
+		Returns
+		-------
+		None
+		"""
 		size = len(self.grid.grid_folder) - len("Location")
 		self.print_comment(" Mesh info:")
 		self.set_header_columns(["# of elements", "# of nodes", "Location"+size*" "], "left")
@@ -101,7 +179,17 @@ class ScreenPrinter():
 		self.print_on_screen(self.divider)
 		self.print_comment(" ")
 
-	def print_partition_info(self):
+	def print_partition_info(self) -> None:
+		"""
+		Print per-partition (MPI rank) local element/node counts.
+
+		Rank 0 collects local sizes from all ranks and renders a table
+		listing each partition with its local element and node counts.
+
+		Returns
+		-------
+		None
+		"""
 		size = len(self.grid.grid_folder) - len("Location")
 		self.print_comment(" Partition(s) info:")
 		self.set_header_columns(["Partition #", "# of elements", "# of nodes"], "left")
@@ -123,7 +211,17 @@ class ScreenPrinter():
 		self.print_on_screen(self.divider)
 		self.print_comment(" ")
 
-	def print_constitutive_model(self):
+	def print_constitutive_model(self) -> None:
+		"""
+		Print a summary of elastic, non-elastic, and thermoelastic elements.
+
+		Aggregates element names from the material container and displays
+		them grouped by type.
+
+		Returns
+		-------
+		None
+		"""
 		elems_e_list = ""
 		for elem_e in self.mat.elems_e:
 			elems_e_list += elem_e.name if len(elems_e_list) == 0 else ", " + elem_e.name
@@ -148,7 +246,17 @@ class ScreenPrinter():
 			self.print_on_screen(self.divider)
 			self.print_comment(" ")
 
-	def print_output_info(self):
+	def print_output_info(self) -> None:
+		"""
+		Print output destinations and the registered output fields.
+
+		Shows, for each :class:`SaveFields` object, its output directory and
+		the field name/label pairs that will be written.
+
+		Returns
+		-------
+		None
+		"""
 		self.print_comment(" Output info:")
 		output_folder = self.outputs[0].output_folder
 		size = len(output_folder)
@@ -166,7 +274,17 @@ class ScreenPrinter():
 
 
 
-	def set_welcome(self):
+	def set_welcome(self) -> None:
+		"""
+		Build the ASCII-art banner and capture width for table formatting.
+
+		The banner determines :attr:`max_width`, which is used to pad header
+		and row strings uniformly.
+
+		Returns
+		-------
+		None
+		"""
 		# Generated at https://www.asciiart.eu/text-to-ascii-art with Standard font
 		self.max_width = len(self.master_division_plus)
 		self.welcome_text =  "+===============================================================================================+\n"
@@ -178,24 +296,78 @@ class ScreenPrinter():
 		self.welcome_text += "|                                                                                               |\n"
 		self.welcome_text += "+===============================================================================================+"
 
-	def set_row_formats(self, row_formats, row_align):
+	def set_row_formats(self, row_formats: list[str], row_align: list[str]) -> None:
+		"""
+		Set value format strings and alignment for subsequent table rows.
+
+		Parameters
+		----------
+		row_formats : list[str]
+		    Format strings (printf-like) for each column value.
+		row_align : list[str]
+		    Alignments per column (``"left"``, ``"center"``, or ``"right"``).
+
+		Returns
+		-------
+		None
+		"""
 		self.row_formats = row_formats
 		self.row_align = row_align
 
-	def add_to_log(self, message):
+	def add_to_log(self, message: str) -> None:
+		"""
+		Append a line to the internal log buffer.
+
+		Parameters
+		----------
+		message : str
+		    Line to append. A newline is prepended automatically.
+
+		Returns
+		-------
+		None
+		"""
 		self.log += "\n" + message
 
-	def print_welcome(self):
+	def print_welcome(self) -> None:
+		"""
+		Print the welcome banner and a blank spacer line.
+
+		Returns
+		-------
+		None
+		"""
 		self.print_on_screen(self.welcome_text)
 		self.print_comment(" ")
 
-	def start_timer(self):
+	def start_timer(self) -> None:
+		"""
+		Synchronize MPI ranks and start the wall-clock timer.
+
+		On rank 0, stores :attr:`start` using :func:`MPI.Wtime`.
+
+		Returns
+		-------
+		None
+		"""
 		comm = MPI.COMM_WORLD
 		comm.Barrier()
 		if MPI.COMM_WORLD.rank == 0:
 		    self.start = MPI.Wtime()
 
-	def close(self):
+	def close(self) -> None:
+		"""
+		Finalize logging: print total runtime and save logs to disk.
+
+		Prints a closing divider and, on rank 0, computes wall time since
+		:meth:`start_timer`, formats it as ``HH:MM:SS`` and seconds, and
+		writes the accumulated :attr:`log` to ``log.txt`` in each output
+		folder recorded during :meth:`print_output_info`.
+
+		Returns
+		-------
+		None
+		"""
 		self.print_on_screen(self.divider)
 		if MPI.COMM_WORLD.rank == 0:
 			self.final = MPI.Wtime()
@@ -207,23 +379,75 @@ class ScreenPrinter():
 			for output_folder in self.output_folders:
 				self.save_log(output_folder)
 
-	def save_log(self, output_folder):
+	def save_log(self, output_folder: str) -> None:
+		"""
+		Write the accumulated log to ``log.txt`` inside ``output_folder``.
+
+		Parameters
+		----------
+		output_folder : str
+		    Destination directory. Created beforehand elsewhere.
+
+		Returns
+		-------
+		None
+		"""
 		with open(os.path.join(output_folder, "log.txt"), 'w') as output:
 			output.write(self.log)
 
-	def print_comment(self, comment, align="left"):
+	def print_comment(self, comment: str, align: str="left") -> None:
+		"""
+		Print a single comment line boxed to the full table width.
+
+		Parameters
+		----------
+		comment : str or None
+		    Text to print. If ``None``, nothing is printed.
+		align : {"left", "center", "right"}, default="left"
+		    Horizontal alignment of the text within the box.
+
+		Returns
+		-------
+		None
+		"""
 		if comment != None:
 			full_width = len(self.master_division_plus)
 			message = "|" + self.format_cell(comment, full_width-2, align) + "|"
 			self.print_on_screen(message)
 
-	def print_on_screen(self, raw_comment):
+	def print_on_screen(self, raw_comment: str) -> None:
+		"""
+		Print a raw string to stdout on rank 0 and add it to the log.
+
+		Parameters
+		----------
+		raw_comment : str
+		    A full line to print (including any box characters).
+
+		Returns
+		-------
+		None
+		"""
 		if MPI.COMM_WORLD.rank == 0:
 			print(raw_comment)
 			sys.stdout.flush()
 			self.add_to_log(raw_comment)
 
-	def set_header_columns(self, header_columns, align):
+	def set_header_columns(self, header_columns: str, align: str) -> None:
+		"""
+		Configure table header columns and compute the divider line.
+
+		Parameters
+		----------
+		header_columns : list[str]
+		    Column titles to display in the header row.
+		align : {"left", "center", "right"}
+		    Alignment to apply to **all** header columns.
+
+		Returns
+		-------
+		None
+		"""
 		self.header_columns = header_columns
 		self.header_align = [align for i in range(len(header_columns))]
 		self.widths = []
@@ -231,9 +455,13 @@ class ScreenPrinter():
 			self.widths.append(len(header_column))
 		self.divider = self.make_divider(self.widths, "+")
 
-	def print_header(self):
+	def print_header(self) -> None:
 		"""
-		Print the top divider, a header row (using alignments), and a divider beneath.
+		Print the top divider, a formatted header row, and a divider below.
+
+		Returns
+		-------
+		None
 		"""
 		# Print header row
 		self.print_on_screen(self.divider)
@@ -251,9 +479,21 @@ class ScreenPrinter():
 		self.print_on_screen(header_line)
 		self.print_on_screen(self.divider)
 
-	def print_row(self, values):
+	def print_row(self, values: str) -> None:
 		"""
-		Print a single row of values, using the provided alignment rules.
+		Print a single row of values under the current header.
+
+		Values are formatted with :attr:`row_formats` and aligned by
+		:attr:`row_align`.
+
+		Parameters
+		----------
+		values : list[object]
+		    One value per column.
+
+		Returns
+		-------
+		None
 		"""
 		row_line = "| " + " | ".join(
 			self.format_cell(val, w, align, text_format) 
@@ -268,10 +508,25 @@ class ScreenPrinter():
 			row_line += "|"
 		self.print_on_screen(row_line)
 
-	def make_divider(self, widths, middle="+"):
+	def make_divider(self, widths: list[int], middle: str="+") -> None:
 		"""
-		Return a string for the horizontal divider line.
-		Example: +--------+--------+
+		Build a horizontal divider string matching the current column widths.
+
+		Example
+		-------
+		``+--------+--------+``
+
+		Parameters
+		----------
+		widths : list[int]
+		    Content widths for each column (without padding).
+		middle : str, default="+"
+		    String used between column segments.
+
+		Returns
+		-------
+		str
+		    Divider line capped/padded to :attr:`max_width`.
 		"""
 		segments = [ "-" * (w + 2) for w in widths ]
 		divider = "+" + middle.join(segments) + "+"
@@ -283,10 +538,26 @@ class ScreenPrinter():
 		return divider
 
 
-	def format_cell(self, text, width, alignment, text_format=None):
+	def format_cell(self, text, width: int, alignment: str, text_format: str=None) -> None:
 		"""
-		Format a cell according to the width and alignment.
-		alignment can be 'left' or 'center' (extendable to 'right').
+		Format a cell string with width, alignment, and optional printf-format.
+
+		Parameters
+		----------
+		text : object
+		    Value to render. Converted to string (or via ``text_format``).
+		width : int
+		    Visible width reserved for the cell (without border chars).
+		alignment : {"left", "center", "right"}
+		    Horizontal alignment.
+		text_format : str or None, default=None
+		    If provided, a printf-like format string applied to ``text``
+		    before alignment (e.g., ``\"%.3f\"``).
+
+		Returns
+		-------
+		str
+		    Formatted cell string of length at most ``width``.
 		"""
 		if alignment == 'left':
 		    if text_format != None: 
