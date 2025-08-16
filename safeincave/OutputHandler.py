@@ -1,6 +1,3 @@
-"""
-Class responsible for saving results
-"""
 # Copyright 2025 The safeincave community.
 #
 # This file is part of safeincave.

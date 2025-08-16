@@ -18,11 +18,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .HeatEquation import HeatDiffusion
-    # try:
-    #     from .HeatEquation import HeatDiffusion
-    # except:
-    #     from HeatEquation import HeatDiffusion
-
     
 from abc import ABC
 import numpy as np

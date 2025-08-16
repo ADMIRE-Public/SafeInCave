@@ -18,10 +18,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .MomentumEquation import LinearMomentum
-    # try:
-    #     from .MomentumEquation import LinearMomentum
-    # except:
-    #     from MomentumEquation import LinearMomentum
     
 from abc import ABC
 import numpy as np

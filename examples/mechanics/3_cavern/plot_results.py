@@ -347,9 +347,9 @@ def plot_results_panel(results_folder, stage="operation"):
 	plot_cavern_shape(ax0, xi, zi, xf, zf)
 	plot_convergence(ax32, times, volumes)
 
-	img = plt.imread(os.path.join("..", "..", "..", "docs_archive", "source", "_static", "logo_2.png"))
+	img = plt.imread(os.path.join("..", "..", "..", "assets", "logo_2.png"))
 	ax_logo.imshow(img)
-	ax_logo.text(910, 295, "Version 1.2.0")
+	ax_logo.text(910, 295, "Version 2.0.0")
 	ax_logo.axis('off')
 
 	# Plot grid info

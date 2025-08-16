@@ -1,6 +1,3 @@
-"""
-It reads gmsh grids and gives access to relevant mesh information.
-"""
 # Copyright 2025 The safeincave community.
 #
 # This file is part of safeincave.

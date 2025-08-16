@@ -18,10 +18,6 @@ from abc import ABC, abstractmethod
 import torch as to
 import numpy as np
 from .Utils import dotdot_torch, MPa
-# try:
-#     from .Utils import dotdot_torch, MPa
-# except:
-#     from Utils import dotdot_torch, MPa
 
 class Material():
 	"""

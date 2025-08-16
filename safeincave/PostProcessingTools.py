@@ -1,6 +1,3 @@
-"""
-Useful to read xdmf files and post-process results.
-"""
 # Copyright 2025 The safeincave community.
 #
 # This file is part of safeincave.

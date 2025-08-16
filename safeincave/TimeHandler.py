@@ -1,6 +1,3 @@
-"""
-Classes responsible for time management (time stepping, controlling final time, etc)
-"""
 # Copyright 2025 The safeincave community.
 #
 # This file is part of safeincave.
@@ -19,10 +16,6 @@ Classes responsible for time management (time stepping, controlling final time, 
 from abc import ABC, abstractmethod
 from typing import Callable
 from .Utils import minute, hour, day, year
-# try:
-#     from .Utils import minute, hour, day, year
-# except:
-#     from Utils import minute, hour, day, year
 import numpy as np
 
 # Type alias

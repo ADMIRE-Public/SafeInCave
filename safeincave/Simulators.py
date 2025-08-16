@@ -1,6 +1,3 @@
-"""
-Implementation of the simulators
-"""
 # Copyright 2025 The safeincave community.
 #
 # This file is part of safeincave.
@@ -29,20 +26,6 @@ from .MomentumEquation import LinearMomentum
 from .TimeHandler import TimeControllerBase
 from .OutputHandler import SaveFields
 from .ScreenOutput import ScreenPrinter
-# try:
-# 	from .Utils import numpy2torch
-# 	from .HeatEquation import HeatDiffusion
-# 	from .MomentumEquation import LinearMomentum
-# 	from .TimeHandler import TimeControllerBase
-# 	from .OutputHandler import SaveFields
-# 	# from .ScreenOutput import ScreenPrinter
-# except:
-# 	from Utils import numpy2torch
-# 	from HeatEquation import HeatDiffusion
-# 	from MomentumEquation import LinearMomentum
-# 	from TimeHandler import TimeControllerBase
-# 	from OutputHandler import SaveFields
-# 	from ScreenOutput import ScreenPrinter
 
 class Simulator(ABC):
 	"""
