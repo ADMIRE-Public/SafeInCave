@@ -19,13 +19,17 @@ Classes responsible for time management (time stepping, controlling final time, 
 from abc import ABC, abstractmethod
 from typing import Callable
 from .Utils import minute, hour, day, year
+# try:
+#     from .Utils import minute, hour, day, year
+# except:
+#     from Utils import minute, hour, day, year
 import numpy as np
 
 # Type alias
 Fn = Callable[[float], float]
 
 class TimeControllerBase(ABC):
-	"""
+    """
     Base class for advancing and tracking simulation time.
 
     Converts user-provided times into a chosen unit (seconds, minutes, hours,
@@ -51,14 +55,16 @@ class TimeControllerBase(ABC):
     t : float
         Current time in **seconds**.
     """
-	def __init__(self, initial_time: float, final_time: float, time_unit: str="second"):
-		self.__decide_time_unit(time_unit)
-		self.t_final = final_time*self.time_unit
-		self.t_initial = initial_time*self.time_unit
-		self.t = initial_time*self.time_unit
+    def __init__(self, initial_time: float, final_time: float, time_unit: str="second"):
+        self.time_unit = time_unit
+        self.__decide_time_unit()
+        self.t_final = final_time*self.time_conversion
+        self.t_initial = initial_time*self.time_conversion
+        self.t = initial_time*self.time_conversion
+        self.step_counter = 0
 
-	def __decide_time_unit(self, time_unit: str) -> None:
-		"""
+    def __decide_time_unit(self) -> None:
+        """
         Map a textual time unit to its conversion factor to seconds.
 
         Parameters
@@ -79,21 +85,21 @@ class TimeControllerBase(ABC):
         -----
         This is an internal helper that sets :attr:`time_unit` to a scalar factor.
         """
-		if time_unit == "second":
-			self.time_unit = 1
-		elif time_unit == "minute":
-			self.time_unit = minute
-		elif time_unit == "hour":
-			self.time_unit = hour
-		elif time_unit == "day":
-			self.time_unit = day
-		elif time_unit == "year":
-			self.time_unit = year
-		else:
-			raise Exception(f"Time unit {time_unit} not supported.")
+        if self.time_unit == "second":
+            self.time_conversion = 1
+        elif self.time_unit == "minute":
+            self.time_conversion = minute
+        elif self.time_unit == "hour":
+            self.time_conversion = hour
+        elif self.time_unit == "day":
+            self.time_conversion = day
+        elif self.time_unit == "year":
+            self.time_conversion = year
+        else:
+            raise Exception(f"Time unit {self.time_unit} not supported.")
 
-	def keep_looping(self) -> None:
-		"""
+    def keep_looping(self) -> None:
+        """
         Check whether the controller should continue advancing time.
 
         Returns
@@ -102,11 +108,11 @@ class TimeControllerBase(ABC):
             ``True`` while the current time `t` is strictly less than `t_final`,
             otherwise ``False``.
         """
-		return self.t < self.t_final
+        return self.t < self.t_final
 
-	@abstractmethod
-	def advance_time(self) -> None:
-		"""
+    @abstractmethod
+    def advance_time(self) -> None:
+        """
         Advance the internal time by one step.
 
         Returns
@@ -118,46 +124,47 @@ class TimeControllerBase(ABC):
         Subclasses must implement the time-update rule (e.g., add a fixed `dt`
         or follow a varying schedule).
         """
-		pass
+        pass
 
 
 
 class TimeController(TimeControllerBase):
-	"""
-    Fixed-step time controller.
+        """
+        Fixed-step time controller.
 
-    Advances the current time by a constant step `dt` expressed in the chosen
-    unit.
+        Advances the current time by a constant step `dt` expressed in the chosen
+        unit.
 
-    Parameters
-    ----------
-    dt : float
+        Parameters
+        ----------
+        dt : float
         Time-step size expressed in the units given by `time_unit`.
-    initial_time : float
+        initial_time : float
         Start time expressed in the units given by `time_unit`.
-    final_time : float
+        final_time : float
         Final time expressed in the units given by `time_unit`.
-    time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
+        time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
         Unit used to interpret `dt`, `initial_time`, and `final_time`.
 
-    Attributes
-    ----------
-    dt : float
+        Attributes
+        ----------
+        dt : float
         Fixed time-step size in **seconds**.
-    """
-	def __init__(self, dt: float, initial_time: float, final_time: float, time_unit: str="second"):
-		super().__init__(initial_time, final_time, time_unit)
-		self.dt = dt*self.time_unit
+        """
+        def __init__(self, dt: float, initial_time: float, final_time: float, time_unit: str="second"):
+            super().__init__(initial_time, final_time, time_unit)
+            self.dt = dt*self.time_conversion
 
-	def advance_time(self) -> None:
-		"""
+        def advance_time(self) -> None:
+            """
         Increment the current time by the fixed step `dt`.
 
         Returns
         -------
         None
-        """
-		self.t += self.dt
+            """
+            self.step_counter += 1
+            self.t += self.dt
 
 
 

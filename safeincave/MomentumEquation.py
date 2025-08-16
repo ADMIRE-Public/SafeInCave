@@ -32,6 +32,14 @@ import torch as to
 from .MaterialProps import Material
 from .Grid import GridHandlerGMSH
 from .Utils import numpy2torch, project, epsilon, dotdot_torch, dotdot_ufl
+# try:
+#     from .MaterialProps import Material
+#     from .Grid import GridHandlerGMSH
+#     from .Utils import numpy2torch, project, epsilon, dotdot_torch, dotdot_ufl
+# except:
+#     from MaterialProps import Material
+#     from Grid import GridHandlerGMSH
+#     from Utils import numpy2torch, project, epsilon, dotdot_torch, dotdot_ufl
 
 class LinearMomentumBase(ABC):
     """

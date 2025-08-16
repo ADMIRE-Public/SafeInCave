@@ -1,8 +1,8 @@
 """
-mypackage
+SafeInCave
 =========
 
-A short description of your package goes here.
+SafeInCave is a 3D finite element simulator based on FEniCSx. It is designed to simulate the mechanical behavior of salt caverns under different operational conditions.
 
 This module exposes the public API for the package and
 sets version information.
@@ -17,6 +17,7 @@ from .MomentumEquation import LinearMomentumBase, LinearMomentum
 from .MaterialProps import Material, NonElasticElement, Spring, Thermoelastic, Viscoelastic, DislocationCreep, ViscoplasticDesai
 from .OutputHandler import SaveFields
 from .Simulators import Simulator_TM, Simulator_T, Simulator_M
+from .ScreenOutput import ScreenPrinter
 from .TimeHandler import TimeControllerBase, TimeController, TimeControllerParabolic
 from . import MomentumBC
 from . import HeatBC
@@ -41,6 +42,7 @@ __all__ = [
     "Simulator_TM",
     "Simulator_T",
     "Simulator_M",
+    "ScreenPrinter",
     "TimeControllerBase",
     "TimeController",
     "TimeControllerParabolic",

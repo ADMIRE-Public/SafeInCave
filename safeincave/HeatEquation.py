@@ -18,15 +18,28 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .HeatBC import BcHandler
+    # try:
+    #     from .HeatBC import BcHandler
+    # except:
+    #     from HeatBC import BcHandler
 
 from abc import ABC, abstractmethod
 import dolfinx as do
 import ufl
 from petsc4py import PETSc
 import torch as to
-from .MaterialProps import Material
-from .Grid import GridHandlerGMSH
-from .Utils import numpy2torch, project
+# from .MaterialProps import Material
+# from .Grid import GridHandlerGMSH
+# from .Utils import numpy2torch, project
+try:
+    from .MaterialProps import Material
+    from .Grid import GridHandlerGMSH
+    from .Utils import numpy2torch, project
+except:
+    from MaterialProps import Material
+    from Grid import GridHandlerGMSH
+    from Utils import numpy2torch, project
+
 
 
 

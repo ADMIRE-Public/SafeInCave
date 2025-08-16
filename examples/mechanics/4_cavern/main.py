@@ -47,11 +47,6 @@ def get_geometry_parameters(path_to_grid):
 
 
 def main():
-	comm = MPI.COMM_WORLD
-	comm.Barrier()
-	if MPI.COMM_WORLD.rank == 0:
-	    start_time = MPI.Wtime()
-
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_overburden_coarse")
 	# grid_path = os.path.join("..", "..", "grids", "cavern_overburden")
@@ -223,15 +218,6 @@ def main():
 	sim = sf.Simulator_M(mom_eq, tc_eq, outputs, True)
 	sim.run()
 
-	# Print time
-	if MPI.COMM_WORLD.rank == 0:
-		end_time = MPI.Wtime()
-		elaspsed_time = end_time - start_time
-		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
-		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
-		sys.stdout.flush()
-
-
 
 
 
@@ -304,15 +290,6 @@ def main():
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_op, outputs, False)
 	sim.run()
-
-	# Print time
-	if MPI.COMM_WORLD.rank == 0:
-		end_time = MPI.Wtime()
-		elaspsed_time = end_time - start_time
-		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
-		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
-		sys.stdout.flush()
-
 
 if __name__ == '__main__':
 	main()

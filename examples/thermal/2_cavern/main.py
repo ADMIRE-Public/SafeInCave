@@ -12,11 +12,6 @@ from petsc4py import PETSc
 import time
 
 def main():
-	comm = MPI.COMM_WORLD
-	comm.Barrier()
-	if MPI.COMM_WORLD.rank == 0:
-	    start_time = MPI.Wtime()
-
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_regular")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
@@ -25,7 +20,7 @@ def main():
 	output_folder = os.path.join("output", "case_0")
 
 	# Time settings for equilibrium stage
-	t_control = sf.TimeControllerParabolic(n_time_steps=100, initial_time=0, final_time=5*365, time_unit="day")
+	t_control = sf.TimeControllerParabolic(n_time_steps=100, initial_time=0, final_time=5, time_unit="year")
 
 	# Define equation
 	heat_eq = sf.HeatDiffusion(grid)
@@ -109,15 +104,6 @@ def main():
 	# Define simulator
 	sim = sf.Simulator_T(heat_eq, t_control, outputs, True)
 	sim.run()
-
-	# Print time
-	if MPI.COMM_WORLD.rank == 0:
-		end_time = MPI.Wtime()
-		elaspsed_time = end_time - start_time
-		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
-		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
-		sys.stdout.flush()
-
 
 
 if __name__ == '__main__':

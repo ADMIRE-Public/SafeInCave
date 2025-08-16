@@ -52,11 +52,6 @@ class LinearMomentumMod(sf.LinearMomentum):
 
 
 def main():
-	comm = MPI.COMM_WORLD
-	comm.Barrier()
-	if MPI.COMM_WORLD.rank == 0:
-	    start_time = MPI.Wtime()
-
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_irregular")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
@@ -140,17 +135,6 @@ def main():
 					 	  values = [0.0, 0.0],
 					 	  time_values = [0.0, tc_equilibrium.t_final])
 
-	
-	# bc_east = momBC.DirichletBC(boundary_name = "East", 
-	# 				 		component = 0,
-	# 						values = [0.0, 0.0],
-	# 						time_values = [0.0, tc_equilibrium.t_final])
-
-	# bc_north = momBC.DirichletBC(boundary_name = "North", 
-	# 				 	  component = 1,
-	# 				 	  values = [0.0, 0.0],
-	# 				 	  time_values = [0.0, tc_equilibrium.t_final])
-
 	side_burden = 10.0*ut.MPa
 	bc_east = momBC.NeumannBC(boundary_name = "East",
 						direction = 2,
@@ -221,16 +205,6 @@ def main():
 	sim = sf.Simulator_M(mom_eq, tc_equilibrium, outputs, True)
 	sim.run()
 
-	# Print time
-	if MPI.COMM_WORLD.rank == 0:
-		end_time = MPI.Wtime()
-		elaspsed_time = end_time - start_time
-		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
-		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
-
-
-
-
 
 
 
@@ -254,7 +228,7 @@ def main():
 	desai.compute_initial_hardening(stress_to, Fvp_0=0.0)
 
 	# Add viscoplastic element to constitutive model
-	# mom_eq.mat.add_to_non_elastic(desai)
+	mom_eq.mat.add_to_non_elastic(desai)
 
 	# Time settings for operation stage
 	tc_operation = sf.TimeController(dt=0.1, initial_time=0.0, final_time=24, time_unit="hour")
@@ -274,16 +248,6 @@ def main():
 					 	  component = 1,
 					 	  values = [0.0, 0.0],
 					 	  time_values = [0.0, tc_operation.t_final])
-
-	# bc_east = momBC.DirichletBC(boundary_name = "East", 
-	# 				 		component = 0,
-	# 						values = [0.0, 0.0],
-	# 						time_values = [0.0, tc_operation.t_final])
-
-	# bc_north = momBC.DirichletBC(boundary_name = "North", 
-	# 				 	  component = 1,
-	# 				 	  values = [0.0, 0.0],
-	# 				 	  time_values = [0.0, tc_operation.t_final])
 
 	bc_east = momBC.NeumannBC(boundary_name = "East",
 						direction = 2,
@@ -351,14 +315,6 @@ def main():
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_operation, outputs, False)
 	sim.run()
-
-	# Print time
-	if MPI.COMM_WORLD.rank == 0:
-		end_time = MPI.Wtime()
-		elaspsed_time = end_time - start_time
-		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
-		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
-
 
 if __name__ == '__main__':
 	main()
