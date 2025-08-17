@@ -36,10 +36,10 @@ def plot_strains(ax, output_folder):
 
 	t = tot_xx.iloc[cell_id].index.values/hour
 
-	ax.plot(t, eps_tot, "-", label=r"$\varepsilon_\text{tot}$")
-	ax.plot(t, eps_ve, "-", label=r"$\varepsilon_\text{ve}$")
-	ax.plot(t, eps_cr, "-", label=r"$\varepsilon_\text{cr}$")
-	ax.plot(t, eps_vp, "-", label=r"$\varepsilon_\text{vp}$")
+	ax.plot(t, eps_tot, "-", label=r"$\varepsilon_\mathrm{tot}$")
+	ax.plot(t, eps_ve, "-", label=r"$\varepsilon_\mathrm{ve}$")
+	ax.plot(t, eps_cr, "-", label=r"$\varepsilon_\mathrm{cr}$")
+	ax.plot(t, eps_vp, "-", label=r"$\varepsilon_\mathrm{vp}$")
 	ax.set_xlabel("Time (h)", size=12, fontname="serif")
 	ax.set_ylabel(r"$\varepsilon_1 - \varepsilon_3$ (%)", size=12, fontname="serif")
 	ax.legend(loc=0, shadow=True, fancybox=True, prop={"size": 8})

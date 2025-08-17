@@ -1,22 +1,3 @@
-# import os
-# import sys
-# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-# from Grid import GridHandlerGMSH, GridHandlerFEniCS
-# from mpi4py import MPI
-# import ufl
-# import dolfinx as do
-# import torch as to
-# import numpy as np
-# from petsc4py import PETSc
-# import Utils as utils
-# from MaterialProps import *
-# from MomentumEquation import LinearMomentum
-# import MomentumBC as momBC
-# from OutputHandler import SaveFields
-# from Simulators import Simulator_M
-# from TimeHandler import TimeController, TimeControllerParabolic
-# import time
-
 import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.MomentumBC as momBC

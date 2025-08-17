@@ -1,23 +1,3 @@
-# import os
-# import sys
-# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-# from Grid import GridHandlerGMSH
-# from mpi4py import MPI
-# import dolfinx as do
-# import torch as to
-# import numpy as np
-# from petsc4py import PETSc
-# import Utils as utils
-# from MaterialProps import *
-# from HeatEquation import HeatDiffusion
-# from MomentumEquation import LinearMomentum
-# import HeatBC as heatBC
-# import MomentumBC as momBC
-# from OutputHandler import SaveFields
-# from Simulators import Simulator_TM, Simulator_M
-# from TimeHandler import TimeController, TimeControllerParabolic
-# import time
-
 import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.HeatBC as heatBC
@@ -34,11 +14,6 @@ import time
 
 
 def main():
-	comm = MPI.COMM_WORLD
-	comm.Barrier()
-	if MPI.COMM_WORLD.rank == 0:
-	    start_time = MPI.Wtime()
-
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_irregular")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
@@ -200,13 +175,6 @@ def main():
 	sim = sf.Simulator_M(mom_eq, tc_equilibrium, outputs, True)
 	sim.run()
 
-	# Print time
-	if MPI.COMM_WORLD.rank == 0:
-		end_time = MPI.Wtime()
-		elaspsed_time = end_time - start_time
-		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
-		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
-		sys.stdout.flush()
 
 
 
@@ -325,14 +293,6 @@ def main():
 	# Define simulator
 	sim = sf.Simulator_TM(mom_eq, heat_eq, tc_operation, outputs, False)
 	sim.run()
-
-	# Print time
-	if MPI.COMM_WORLD.rank == 0:
-		end_time = MPI.Wtime()
-		elaspsed_time = end_time - start_time
-		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
-		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
-		sys.stdout.flush()
 
 
 if __name__ == '__main__':

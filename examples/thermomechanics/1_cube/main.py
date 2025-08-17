@@ -1,23 +1,3 @@
-# import os
-# import sys
-# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-# from Grid import GridHandlerGMSH
-# from mpi4py import MPI
-# import dolfinx as do
-# import torch as to
-# import numpy as np
-# from petsc4py import PETSc
-# import Utils as utils
-# from MaterialProps import *
-# from HeatEquation import HeatDiffusion
-# from MomentumEquation import LinearMomentum
-# import HeatBC as heatBC
-# import MomentumBC as momBC
-# from OutputHandler import SaveFields
-# from Simulators import Simulator_TM
-# from TimeHandler import TimeController, TimeControllerParabolic
-# import time
-
 import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.HeatBC as heatBC
@@ -35,11 +15,6 @@ import time
 
 
 def main():
-	comm = MPI.COMM_WORLD
-	comm.Barrier()
-	if MPI.COMM_WORLD.rank == 0:
-	    start_time = MPI.Wtime()
-
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
@@ -48,11 +23,6 @@ def main():
 	output_folder = os.path.join("output", "case_0")
 
 	# Time settings for equilibrium stage
-	# unit = "hour"
-	# t_0 = 0.0
-	# dt = 0.025
-	# t_final = 45*dt
-	# t_control = TimeController(time_step=dt, final_time=t_final, initial_time=t_0, time_unit=unit)
 	t_control = sf.TimeControllerParabolic(n_time_steps=100, initial_time=0.0, final_time=10, time_unit="day")
 
 	# Define equation
@@ -161,18 +131,11 @@ def main():
 					 	  values = nt*[0.0],
 					 	  time_values = time_values)
 
-	bc_south = momBC.DirichletBC(boundary_name = "SOUTH", 
-					 	  component = 1,
-					 	  values = nt*[0.0],
-					 	  time_values = time_values)
-
 	bc_handler = momBC.BcHandler(mom_eq)
 	bc_handler.add_boundary_condition(bc_west_0)
 	bc_handler.add_boundary_condition(bc_west_1)
 	bc_handler.add_boundary_condition(bc_west_2)
 	bc_handler.add_boundary_condition(bc_bottom)
-	# bc_handler.add_boundary_condition(bc_south)
-	# bc_handler.add_boundary_condition(bc_east)
 
 	# Set boundary conditions
 	mom_eq.set_boundary_conditions(bc_handler)
@@ -202,13 +165,6 @@ def main():
 	sim = sf.Simulator_TM(mom_eq, heat_eq, t_control, outputs, True)
 	sim.run()
 
-	# Print time
-	if MPI.COMM_WORLD.rank == 0:
-		end_time = MPI.Wtime()
-		elaspsed_time = end_time - start_time
-		formatted_time = time.strftime("%H:%M:%S", time.gmtime(elaspsed_time))
-		print(f"Time: {formatted_time} ({elaspsed_time} seconds)\n")
-		sys.stdout.flush()
 
 
 if __name__ == '__main__':

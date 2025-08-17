@@ -56,13 +56,13 @@ def main():
 	nt = len(time_values)
 
 	bc_east = heatBC.DirichletBC(boundary_name = "EAST", 
-							values = nt*[273 + 1.0],
-							time_values = time_values)
+							values = 2*[273 + 1.0],
+							time_values = [t_control.t_initial, t_control.t_final])
 
 	bc_west = heatBC.RobinBC(boundary_name = "WEST", 
-							values = nt*[273 + 1.0],
+							values = 2*[273 + 1.0],
 							h = 5.0,
-							time_values = time_values)
+							time_values = [t_control.t_initial, t_control.t_final])
 
 	bc_handler = heatBC.BcHandler(heat_eq)
 	bc_handler.add_boundary_condition(bc_east)

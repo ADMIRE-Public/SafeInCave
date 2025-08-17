@@ -59,7 +59,7 @@ def main():
 	mat = sf.Material(mom_eq.n_elems)
 
 	# Set material density
-	rho = 0.0*to.ones(mom_eq.n_elems, dtype=to.float64)
+	rho = 2000.0*to.ones(mom_eq.n_elems, dtype=to.float64)
 	mat.set_density(rho)
 
 	# Constitutive model
@@ -95,7 +95,6 @@ def main():
 
 	# Create constitutive model
 	mat.add_to_elastic(spring_0)
-	# mat.add_to_thermoelastic(thermo)
 	mat.add_to_non_elastic(kelvin)
 	mat.add_to_non_elastic(creep_0)
 	mat.add_to_non_elastic(desai)
@@ -104,20 +103,15 @@ def main():
 	mom_eq.set_material(mat)
 
 	# Set body forces
-	g = -9.81
-	g_vec = [0.0, 0.0, g]
+	g_vec = [0.0, 0.0, 0.0]
 	mom_eq.build_body_force(g_vec)
 
 	# Set initial temperature field
-	fun = lambda x, y, z: 273 + 20
-	T0_field = ut.create_field_elems(mom_eq.grid, fun)
+	T0_field = 293*to.ones(mom_eq.n_elems)
 	mom_eq.set_T0(T0_field)
 	mom_eq.set_T(T0_field)
 
 	# Boundary conditions
-	time_values = [0*ut.hour,  2*ut.hour,  14*ut.hour, 16*ut.hour, t_control.t_final]
-	nt = len(time_values)
-
 	bc_west = momBC.DirichletBC(boundary_name = "WEST", 
 					 		component = 0,
 							values = [0.0, 0.0],
@@ -138,7 +132,7 @@ def main():
 						density = 0.0,
 						ref_pos = 0.0,
 						values =      [4.0*ut.MPa, 4.0*ut.MPa],
-						time_values = [0.0,           t_control.t_final],
+						time_values = [0.0, t_control.t_final],
 						g = g_vec[2])
 
 	bc_north = momBC.NeumannBC(boundary_name = "NORTH",
@@ -146,7 +140,7 @@ def main():
 						density = 0.0,
 						ref_pos = 0.0,
 						values =      [4.0*ut.MPa, 4.0*ut.MPa],
-						time_values = [0.0,           t_control.t_final],
+						time_values = [0.0, t_control.t_final],
 						g = g_vec[2])
 
 	bc_top = momBC.NeumannBC(boundary_name = "TOP",

@@ -9,7 +9,7 @@ sets version information.
 """
 
 # Version info
-__version__ = "2.0.1"
+__version__ = "2.0.0"
 
 from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
