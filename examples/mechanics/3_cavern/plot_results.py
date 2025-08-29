@@ -1,16 +1,3 @@
-# import os
-# import sys
-# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-# import numpy as np
-# import pandas as pd
-# import meshio
-# import time
-# import matplotlib.pyplot as plt
-# from matplotlib.gridspec import GridSpec
-# from matplotlib.widgets import Button, Slider
-# from PostProcessingTools import read_xdmf_as_pandas, read_msh_as_pandas, read_vector_from_points, read_scalar_from_cells, find_mapping, compute_cell_centroids
-# import json
-
 import safeincave as sf
 import safeincave.PostProcessingTools as post
 import os

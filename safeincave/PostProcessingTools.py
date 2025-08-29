@@ -189,40 +189,6 @@ def read_xdmf_as_pandas(file_name: str) -> tuple[DataFrameType, DataFrameType]:
         df_cells = pd.DataFrame({'p1': p1, 'p2': p2, 'p3': p3, 'p4': p4})
     return df_points, df_cells
 
-def read_scalar_from_cells(file_name: str) -> DataFrameType:
-    """
-    Read a cell-wise scalar field time series from an XDMF file.
-
-    Parameters
-    ----------
-    file_name : str
-        Path to the XDMF file containing cell data over multiple time steps.
-
-    Returns
-    -------
-    pandas.DataFrame
-        DataFrame of shape ``(n_cells, n_steps)`` where columns are time
-        values (as read from the file) and rows correspond to cells.
-
-    Notes
-    -----
-    - Assumes tetrahedral cells under key ``'tetra'``.
-    - Uses the **first** available cell field at each time step.
-    """
-    with ms.xdmf.TimeSeriesReader(file_name) as reader:
-        points, cells = reader.read_points_cells()
-        n = cells["tetra"].data.shape[0]
-        m = reader.num_steps
-        A = np.zeros((n, m))
-        time_list = []
-        for k in range(reader.num_steps):
-            time, _, cell_data = reader.read_data(k)
-            time_list.append(time)
-            field_name = list(cell_data["tetra"].keys())[0]
-            A[:,k] = cell_data["tetra"][field_name].flatten()
-        df_scalar = pd.DataFrame(A, columns=time_list)
-    return df_scalar
-
 def read_scalar_from_points(file_name: str, mapping: np.ndarray) -> DataFrameType:
     """
     Read a nodal scalar field time series from an XDMF file and reorder rows.
@@ -256,7 +222,12 @@ def read_scalar_from_points(file_name: str, mapping: np.ndarray) -> DataFrameTyp
             time_list.append(time)
             field_name = list(point_data.keys())[0]
             A[:,k] = point_data[field_name][:,0]
-        df_scalar = pd.DataFrame(A[mapping], columns=time_list)
+        # print()
+        # print(A)
+        # print()
+        # print(A[mapping])
+        # df_scalar = pd.DataFrame(A[mapping], columns=time_list)
+        df_scalar = pd.DataFrame(A, columns=time_list)
     return df_scalar
 
 def read_vector_from_points(file_name: str, point_mapping: np.ndarray) -> tuple[DataFrameType, DataFrameType, DataFrameType]:
@@ -301,6 +272,40 @@ def read_vector_from_points(file_name: str, point_mapping: np.ndarray) -> tuple[
         df_uz = pd.DataFrame(Az[point_mapping], columns=time_list)
     return df_ux, df_uy, df_uz
 
+def read_scalar_from_cells(file_name: str) -> DataFrameType:
+    """
+    Read a cell-wise scalar field time series from an XDMF file.
+
+    Parameters
+    ----------
+    file_name : str
+        Path to the XDMF file containing cell data over multiple time steps.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame of shape ``(n_cells, n_steps)`` where columns are time
+        values (as read from the file) and rows correspond to cells.
+
+    Notes
+    -----
+    - Assumes tetrahedral cells under key ``'tetra'``.
+    - Uses the **first** available cell field at each time step.
+    """
+    with ms.xdmf.TimeSeriesReader(file_name) as reader:
+        points, cells = reader.read_points_cells()
+        n = cells["tetra"].data.shape[0]
+        m = reader.num_steps
+        A = np.zeros((n, m))
+        time_list = []
+        for k in range(reader.num_steps):
+            time, _, cell_data = reader.read_data(k)
+            time_list.append(time)
+            field_name = list(cell_data["tetra"].keys())[0]
+            A[:,k] = cell_data["tetra"][field_name].flatten()
+        df_scalar = pd.DataFrame(A, columns=time_list)
+    return df_scalar
+
 
 def read_tensor_from_cells(file_name: str) -> tuple[
         DataFrameType, DataFrameType, DataFrameType, DataFrameType, DataFrameType, DataFrameType
@@ -331,6 +336,7 @@ def read_tensor_from_cells(file_name: str) -> tuple[
     """
     with ms.xdmf.TimeSeriesReader(file_name) as reader:
         points, cells = reader.read_points_cells()
+        print(cells)
         n = cells["tetra"].data.shape[0]
         m = reader.num_steps
         sxx = np.zeros((n, m))
@@ -341,15 +347,17 @@ def read_tensor_from_cells(file_name: str) -> tuple[
         syz = np.zeros((n, m))
         time_list = []
         for k in range(reader.num_steps):
-            time, _, cell_data = reader.read_data(k)
+            time, point_data, cell_data = reader.read_data(k)
+            # mesh = ms.Mesh(points=point_data, cells=cell_data)
+
             time_list.append(time)
             field_name = list(cell_data["tetra"].keys())[0]
-            sxx[:,k] = cell_data["tetra"][field_name][:,0]
-            syy[:,k] = cell_data["tetra"][field_name][:,4]
-            szz[:,k] = cell_data["tetra"][field_name][:,8]
-            sxy[:,k] = cell_data["tetra"][field_name][:,1]
-            sxz[:,k] = cell_data["tetra"][field_name][:,2]
-            syz[:,k] = cell_data["tetra"][field_name][:,5]
+            sxx[:,k] = cell_data["tetra"][field_name][:,0].flatten()
+            syy[:,k] = cell_data["tetra"][field_name][:,4].flatten()
+            szz[:,k] = cell_data["tetra"][field_name][:,8].flatten()
+            sxy[:,k] = cell_data["tetra"][field_name][:,1].flatten()
+            sxz[:,k] = cell_data["tetra"][field_name][:,2].flatten()
+            syz[:,k] = cell_data["tetra"][field_name][:,5].flatten()
         df_sxx = pd.DataFrame(sxx, columns=time_list)
         df_syy = pd.DataFrame(syy, columns=time_list)
         df_szz = pd.DataFrame(szz, columns=time_list)
