@@ -15,357 +15,360 @@
 # the License.
 
 import meshio as ms
-import pandas as pd
 import numpy as np
 import os
+from scipy.sparse import csr_matrix
 
-# Type alias
-DataFrameType = pd.core.frame.DataFrame
 
-def find_point_mapping(original_points: np.ndarray, new_points: np.ndarray) -> np.ndarray:
+def build_smoother(points: np.ndarray, conn: np.ndarray) -> np.ndarray:
     """
-    Find an index mapping from `new_points` to `original_points`.
+    Build a node–cell smoothing operator for tetrahedral meshes.
 
-    Each point in `new_points` is matched to its unique equal (within a
-    tolerance) point in `original_points`. The result `idx` satisfies
-    `original_points[idx[i]] ≈ new_points[i]`.
+    Given node coordinates and tetrahedral connectivities, this constructs a
+    (sparse) smoothing matrix that averages cell-centered quantities to nodes
+    and back to cells via a volume-weighted scheme.
 
     Parameters
     ----------
-    original_points : numpy.ndarray, shape (N, 3)
-        Reference coordinate array.
-    new_points : numpy.ndarray, shape (N, 3)
-        Coordinate array to be mapped into the reference indexing.
+    points : (n_nodes, 3) ndarray of float
+        Node coordinates (x, y, z).
+    conn : (n_elems, 4) ndarray of int
+        Tetrahedral connectivity (node indices per element).
 
     Returns
     -------
-    numpy.ndarray, shape (N,)
-        Integer indices such that `original_points[indices]` reorders
-        the reference points to align with `new_points`.
-
-    Raises
-    ------
-    ValueError
-        If a point in `new_points` is not found **exactly once** in
-        `original_points` (within the tolerance).
+    smoother : (n_elems, n_elems) scipy.sparse.csr_matrix
+        Sparse smoothing operator mapping cell fields to smoothed cell fields.
+        (Note: although the annotation says ``np.ndarray``, the returned
+        object is a CSR sparse matrix.)
 
     Notes
     -----
-    A fixed absolute tolerance of ``1e-10`` is used per coordinate.
-    """
-    tol = 1e-10
-    point_mapping = np.empty(len(new_points), dtype=int)
-    for i, node in enumerate(new_points):
-        match = np.where(np.all(np.abs(original_points - node) < tol, axis=1))[0]
-        if len(match) == 1:
-            point_mapping[i] = match[0]
-        else:
-            raise ValueError(f"Node {i} not found uniquely in the new mesh.")
-    return point_mapping
+    The operator is assembled as ``B * A`` where:
+    - ``A`` distributes cell values to nodes using volume weights of incident
+      cells.
+    - ``B`` averages nodal values back to cells with uniform weights over the
+      element's nodes.
 
-def find_mapping(msh_points: DataFrameType, xdmf_file: str) -> np.ndarray:
+    See Also
+    --------
+    scipy.sparse.csr_matrix
     """
-    Build a point index mapping between an XDMF mesh and points from a MSH file.
+    def tetrahedron_volume(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4):
+        """Compute signed volume of a tetrahedron given its four vertices."""
+        volume = abs((1/6) * ((x2 - x1) * ((y3 - y1)*(z4 - z1) - (z3 - z1)*(y4 - y1)) + 
+                     (y2 - y1) * ((z3 - z1)*(x4 - x1) - (x3 - x1)*(z4 - z1)) + 
+                     (z2 - z1) * ((x3 - x1)*(y4 - y1) - (y3 - y1)*(x4 - x1))))
+        return volume
+
+    def build_node_elem_stencil(conn, coord):
+        """Build node-to-incident-element adjacency lists."""
+        stencil = [[] for i in range(n_nodes)]
+        for elem, elem_conn in enumerate(conn):
+            for node in elem_conn:
+                if elem not in stencil[node]:
+                    stencil[node].append(elem)
+        return stencil
+
+    # Initialize
+    n_elems = conn.shape[0]
+    n_nodes = points.shape[0]
+
+    # Calculate volumes of all tetrahedra
+    volumes = np.zeros(n_elems)
+    for i in range(n_elems):
+        nodes = conn[i]
+        x1, y1, z1 = points[nodes[0], 0], points[nodes[0], 1], points[nodes[0], 2]
+        x2, y2, z2 = points[nodes[1], 0], points[nodes[1], 1], points[nodes[1], 2]
+        x3, y3, z3 = points[nodes[2], 0], points[nodes[2], 1], points[nodes[2], 2]
+        x4, y4, z4 = points[nodes[3], 0], points[nodes[3], 1], points[nodes[3], 2]
+        volumes[i] = tetrahedron_volume(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4)
+
+    stencil = build_node_elem_stencil(conn, points)
+
+    A_row, A_col, A_data = [], [], []
+    for node in range(n_nodes):
+        vol = volumes[stencil[node]].sum()
+        for elem in stencil[node]:
+            A_row.append(node)
+            A_col.append(elem)
+            A_data.append(volumes[elem]/vol)
+    A_csr = csr_matrix((A_data, (A_row, A_col)), shape=(n_nodes, n_elems))
+
+    B_row, B_col, B_data = [], [], []
+    for elem, nodes in enumerate(conn):
+        for node in nodes:
+            B_row.append(elem)
+            B_col.append(node)
+            B_data.append(1/len(nodes))
+    B_csr = csr_matrix((B_data, (B_row, B_col)), shape=(n_elems, n_nodes))
+    smoother = B_csr.dot(A_csr)
+
+    return smoother
+
+def build_mapping(nodes_xdmf: np.ndarray, nodes_msh: np.ndarray) -> list[int]:
+    """
+    Build an index mapping from XDMF node order to MSH node order.
+
+    For each coordinate triplet in ``nodes_xdmf``, finds the row index in
+    ``nodes_msh`` with the exact same coordinates and returns the list of
+    corresponding indices.
 
     Parameters
     ----------
-    msh_points : pandas.DataFrame
-        DataFrame with columns ``['x', 'y', 'z']`` describing the MSH point
-        coordinates (row order defines the desired ordering).
-    xdmf_file : str
-        Path to an XDMF file. The first mesh (points/cells) is read.
+    nodes_xdmf : (n_nodes, 3) ndarray of float
+        Node coordinates as read from an XDMF file.
+    nodes_msh : (n_nodes, 3) ndarray of float
+        Node coordinates as read from a .msh file.
 
     Returns
     -------
-    numpy.ndarray, shape (N,)
-        Mapping indices such that ``xdmf_points[indices]`` reorders the XDMF
-        points to match the order in ``msh_points``.
+    mapping : list of int
+        For each row in ``nodes_xdmf``, the index of the identical row in
+        ``nodes_msh``.
 
     Notes
     -----
-    Assumes a tetrahedral mesh (cell type ``'tetra'``) exists in the XDMF.
+    This uses exact floating-point equality. If the two sources differ by
+    round-off, consider a tolerance-based nearest matching instead.
     """
-    with ms.xdmf.TimeSeriesReader(xdmf_file) as reader:
-        points, cells = reader.read_points_cells()
-        mesh = ms.Mesh(points=points, cells=cells)
-        x = mesh.points[:,0]
-        y = mesh.points[:,1]
-        z = mesh.points[:,2]
-        xdmf_points = pd.DataFrame({'x': x, 'y': y, 'z': z})
-        p1 = mesh.cells["tetra"][:,0]
-        p2 = mesh.cells["tetra"][:,1]
-        p3 = mesh.cells["tetra"][:,2]
-        p4 = mesh.cells["tetra"][:,3]
-        xdmf_cells = pd.DataFrame({'p1': p1, 'p2': p2, 'p3': p3, 'p4': p4})
-    mapping = find_point_mapping(xdmf_points.values, msh_points.values)
-    return mapping
+    return [np.where((nodes_msh == row).all(axis=1))[0][0] for row in nodes_xdmf]
 
-
-def read_msh_as_pandas(file_name: str) -> tuple[DataFrameType, DataFrameType]:
+def find_closest_point(target_point: np.ndarray, points: np.ndarray) -> int:
     """
-    Read a Gmsh ``.msh`` file into pandas DataFrames.
+    Find the index of the closest point in a set to a target point.
 
     Parameters
     ----------
-    file_name : str
-        Path to the MSH file.
+    target_point : (3,) ndarray of float
+        Query point (x, y, z).
+    points : (n_points, 3) ndarray of float
+        Candidate points.
 
     Returns
     -------
-    (df_points, df_cells) : tuple of pandas.DataFrame
-        - ``df_points`` with columns ``['x', 'y', 'z']``.
-        - ``df_cells`` with columns ``['p1', 'p2', 'p3', 'p4']`` (tetra connectivity).
+    idx : int
+        Index of the closest point in ``points`` (Euclidean distance).
+    """
+    x_p, y_p, z_p = target_point
+    d = np.sqrt(  (points[:,0] - x_p)**2
+                + (points[:,1] - y_p)**2
+                + (points[:,2] - z_p)**2 )
+    p_idx = d.argmin()
+    return p_idx
+
+
+def compute_cell_centroids(cells: np.ndarray, points: np.ndarray) -> np.ndarray:
+    """
+    Compute centroids of tetrahedral cells.
+
+    Parameters
+    ----------
+    cells : (n_cells, 4) ndarray of int
+        Tetrahedral connectivity (node indices per cell).
+    points : (n_nodes, 3) ndarray of float
+        Node coordinates (x, y, z).
+
+    Returns
+    -------
+    centroids : (n_cells, 3) ndarray of float
+        Centroid coordinates for each cell, computed as the arithmetic mean
+        of its four vertex coordinates.
+    """
+    n_cells = cells.shape[0]
+    centroids = np.zeros((n_cells, 3))
+    for i, cell in enumerate(cells):
+        p0 = points[cell[0]]
+        p1 = points[cell[1]]
+        p2 = points[cell[2]]
+        p3 = points[cell[3]]
+        x = (p0[0] + p1[0] + p2[0] + p3[0])/4
+        y = (p0[1] + p1[1] + p2[1] + p3[1])/4
+        z = (p0[2] + p1[2] + p2[2] + p3[2])/4
+        centroids[i,:] = np.array([x, y, z])
+    return centroids
+
+
+def read_cell_tensor(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Read a time series of cell-centered 3x3 tensor fields from an XDMF file.
+
+    Parameters
+    ----------
+    xdmf_field_path : str
+        Path to the XDMF file containing cell data (``cells['tetra']``).
+
+    Returns
+    -------
+    centroids : (n_cells, 3) ndarray of float
+        Centroid coordinates of the tetrahedral cells.
+    time_list : (n_steps,) ndarray of float
+        Time values for each time step.
+    tensor_field : (n_steps, n_cells, 3, 3) ndarray of float
+        Tensor values per time step and cell.
 
     Notes
     -----
-    Expects tetrahedral cells under key ``'tetra'``.
+    The function assumes a single tensor field is present under
+    ``cell_data['tetra']`` at each time step, and reshapes it to (3, 3) per cell.
     """
-    msh = ms.read(file_name)
-    df_points = pd.DataFrame(msh.points, columns=["x", "y", "z"])
-    df_cells = pd.DataFrame(msh.cells["tetra"], columns=["p1", "p2", "p3", "p4"])
-    return df_points, df_cells
+    reader = ms.xdmf.TimeSeriesReader(xdmf_field_path)
+    points, cells = reader.read_points_cells()
+    n_cells = cells["tetra"].shape[0]
+    n_steps = reader.num_steps
 
-def compute_cell_centroids(points: np.ndarray, cells: np.ndarray) -> DataFrameType:
+    centroids = compute_cell_centroids(cells["tetra"], points)
+    tensor_field = np.zeros((n_steps, n_cells, 3, 3))
+    time_list = np.zeros(n_steps)
+
+    for k in range(reader.num_steps):
+        # Read data
+        time, point_data, cell_data = reader.read_data(k)
+
+        # Add time
+        time_list[k] = time
+
+        # Add tensor
+        field_name = list(cell_data["tetra"].keys())[0]
+        tensor_field[k,:,:] = cell_data["tetra"][field_name].reshape((n_cells, 3, 3))
+
+    return centroids, time_list, tensor_field
+
+
+def read_cell_scalar(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Compute cell centroids as the arithmetic mean of vertex coordinates.
+    Read a time series of cell-centered scalar fields from an XDMF file.
 
     Parameters
     ----------
-    points : numpy.ndarray, shape (N, 3)
-        Point coordinates.
-    cells : numpy.ndarray, shape (M, 4)
-        Tetrahedral cell connectivity (indices into ``points``).
+    xdmf_field_path : str
+        Path to the XDMF file containing cell data (``cells['tetra']``).
 
     Returns
     -------
-    pandas.DataFrame
-        DataFrame with columns ``['x', 'y', 'z']`` containing centroids
-        for each cell (row-wise).
-    """
-    n, _ = cells.shape
-    x_mid = np.zeros(n)
-    y_mid = np.zeros(n)
-    z_mid = np.zeros(n)
-    x = points[:,0]
-    y = points[:,1]
-    z = points[:,2]
-    for i in range(n):
-        x_mid[i] = np.average(x[cells[i]])
-        y_mid[i] = np.average(y[cells[i]])
-        z_mid[i] = np.average(z[cells[i]])
-    df_mid = pd.DataFrame({'x': x_mid, 'y': y_mid, 'z': z_mid})
-    return df_mid
-
-def read_xdmf_as_pandas(file_name: str) -> tuple[DataFrameType, DataFrameType]:
-    """
-    Read an XDMF mesh into pandas DataFrames (points and tetra cells).
-
-    Parameters
-    ----------
-    file_name : str
-        Path to the XDMF file. The first mesh (points/cells) is read.
-
-    Returns
-    -------
-    (df_points, df_cells) : tuple of pandas.DataFrame
-        - ``df_points`` with columns ``['x', 'y', 'z']``.
-        - ``df_cells`` with columns ``['p1', 'p2', 'p3', 'p4']``.
+    centroids : (n_cells, 3) ndarray of float
+        Centroid coordinates of the tetrahedral cells.
+    time_list : (n_steps,) ndarray of float
+        Time values for each time step.
+    scalar_field : (n_steps, n_cells) ndarray of float
+        Scalar values per time step and cell.
 
     Notes
     -----
-    Assumes tetrahedral cells under key ``'tetra'``.
+    The function assumes a single scalar field is present under
+    ``cell_data['tetra']`` at each time step.
     """
-    with ms.xdmf.TimeSeriesReader(file_name) as reader:
-        points, cells = reader.read_points_cells()
-        mesh = ms.Mesh(points=points, cells=cells)
-        x = mesh.points[:,0]
-        y = mesh.points[:,1]
-        z = mesh.points[:,2]
-        df_points = pd.DataFrame({'x': x, 'y': y, 'z': z})
-        p1 = mesh.cells["tetra"][:,0]
-        p2 = mesh.cells["tetra"][:,1]
-        p3 = mesh.cells["tetra"][:,2]
-        p4 = mesh.cells["tetra"][:,3]
-        df_cells = pd.DataFrame({'p1': p1, 'p2': p2, 'p3': p3, 'p4': p4})
-    return df_points, df_cells
+    reader = ms.xdmf.TimeSeriesReader(xdmf_field_path)
 
-def read_scalar_from_points(file_name: str, mapping: np.ndarray) -> DataFrameType:
+    points, cells = reader.read_points_cells()
+    n_cells = cells["tetra"].shape[0]
+    n_steps = reader.num_steps
+
+    centroids = compute_cell_centroids(cells["tetra"], points)
+    scalar_field = np.zeros((n_steps, n_cells))
+    time_list = np.zeros(n_steps)
+
+    for k in range(reader.num_steps):
+        # Read data
+        time, point_data, cell_data = reader.read_data(k)
+
+        # Add time
+        time_list[k] = time
+
+        # Add scalar
+        field_name = list(cell_data["tetra"].keys())[0]
+        scalar_field[k] = cell_data["tetra"][field_name].flatten()
+
+    return centroids, time_list, scalar_field
+
+
+def read_node_scalar(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Read a nodal scalar field time series from an XDMF file and reorder rows.
+    Read a time series of node-based scalar fields from an XDMF file.
 
     Parameters
     ----------
-    file_name : str
-        Path to the XDMF file containing point data over multiple time steps.
-    mapping : numpy.ndarray, shape (n_points,)
-        Index mapping to reorder the XDMF point order into a target order
-        (e.g., MSH order). The result is ``A[mapping]``.
+    xdmf_field_path : str
+        Path to the XDMF file containing point data.
 
     Returns
     -------
-    pandas.DataFrame
-        DataFrame of shape ``(n_points, n_steps)`` with columns as time values.
+    points : (n_nodes, 3) ndarray of float
+        Node coordinates (x, y, z).
+    time_list : (n_steps,) ndarray of float
+        Time values for each time step.
+    scalar_field : (n_steps, n_nodes) ndarray of float
+        Scalar values at nodes for each time step.
 
     Notes
     -----
-    Uses the **first** available point field at each time step and the first
-    component (column 0) of that field.
+    The function assumes a single scalar field exists in ``point_data`` at
+    each time step and flattens it to 1D per step.
     """
-    with ms.xdmf.TimeSeriesReader(file_name) as reader:
-        points, cells = reader.read_points_cells()
-        n = points.shape[0]
-        m = reader.num_steps
-        A = np.zeros((n, m))
-        time_list = []
-        for k in range(reader.num_steps):
-            time, point_data, _ = reader.read_data(k)
-            time_list.append(time)
-            field_name = list(point_data.keys())[0]
-            A[:,k] = point_data[field_name][:,0]
-        # print()
-        # print(A)
-        # print()
-        # print(A[mapping])
-        # df_scalar = pd.DataFrame(A[mapping], columns=time_list)
-        df_scalar = pd.DataFrame(A, columns=time_list)
-    return df_scalar
+    reader = ms.xdmf.TimeSeriesReader(xdmf_field_path)
 
-def read_vector_from_points(file_name: str, point_mapping: np.ndarray) -> tuple[DataFrameType, DataFrameType, DataFrameType]:
+    points, cells = reader.read_points_cells()
+    n_nodes = points.shape[0]
+    n_steps = reader.num_steps
+
+    scalar_field = np.zeros((n_steps, n_nodes))
+    time_list = np.zeros(n_steps)
+
+    for k in range(reader.num_steps):
+        # Read data
+        time, point_data, cell_data = reader.read_data(k)
+
+        # Add time
+        time_list[k] = time
+
+        # Add scalar
+        field_name = list(point_data.keys())[0]
+        scalar_field[k] = point_data[field_name].flatten()
+
+    return points, time_list, scalar_field
+
+
+def read_node_vector(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Read a nodal 3D vector field time series from an XDMF file and reorder rows.
+    Read a time series of node-based 3D vector fields from an XDMF file.
 
     Parameters
     ----------
-    file_name : str
-        Path to the XDMF file containing point data over multiple time steps.
-    point_mapping : numpy.ndarray, shape (n_points,)
-        Index mapping to reorder the XDMF point order into a target order.
+    xdmf_field_path : str
+        Path to the XDMF file containing point data.
 
     Returns
     -------
-    (df_ux, df_uy, df_uz) : tuple of pandas.DataFrame
-        One DataFrame per component, each of shape ``(n_points, n_steps)``,
-        with columns as time values.
+    points : (n_nodes, 3) ndarray of float
+        Node coordinates (x, y, z).
+    time_list : (n_steps,) ndarray of float
+        Time values for each time step.
+    vector_field : (n_steps, n_nodes, 3) ndarray of float
+        Vector values (vx, vy, vz) at nodes for each time step.
 
     Notes
     -----
-    Uses the **first** available point field at each time step and splits
-    its three components into separate DataFrames.
+    The function assumes a single vector field exists in ``point_data`` at
+    each time step with shape ``(n_nodes, 3)``.
     """
-    with ms.xdmf.TimeSeriesReader(file_name) as reader:
-        points, cells = reader.read_points_cells()
-        n = points.shape[0]
-        m = reader.num_steps
-        Ax = np.zeros((n, m))
-        Ay = np.zeros((n, m))
-        Az = np.zeros((n, m))
-        time_list = []
-        for k in range(reader.num_steps):
-            time, point_data, _ = reader.read_data(k)
-            time_list.append(time)
-            field_name = list(point_data.keys())[0]
-            Ax[:,k] = point_data[field_name][:,0]
-            Ay[:,k] = point_data[field_name][:,1]
-            Az[:,k] = point_data[field_name][:,2]
-        df_ux = pd.DataFrame(Ax[point_mapping], columns=time_list)
-        df_uy = pd.DataFrame(Ay[point_mapping], columns=time_list)
-        df_uz = pd.DataFrame(Az[point_mapping], columns=time_list)
-    return df_ux, df_uy, df_uz
+    reader = ms.xdmf.TimeSeriesReader(xdmf_field_path)
 
-def read_scalar_from_cells(file_name: str) -> DataFrameType:
-    """
-    Read a cell-wise scalar field time series from an XDMF file.
+    points, cells = reader.read_points_cells()
+    n_nodes = points.shape[0]
+    n_steps = reader.num_steps
 
-    Parameters
-    ----------
-    file_name : str
-        Path to the XDMF file containing cell data over multiple time steps.
+    vector_field = np.zeros((n_steps, n_nodes, 3))
+    time_list = np.zeros(n_steps)
 
-    Returns
-    -------
-    pandas.DataFrame
-        DataFrame of shape ``(n_cells, n_steps)`` where columns are time
-        values (as read from the file) and rows correspond to cells.
+    for k in range(reader.num_steps):
+        # Read data
+        time, point_data, cell_data = reader.read_data(k)
 
-    Notes
-    -----
-    - Assumes tetrahedral cells under key ``'tetra'``.
-    - Uses the **first** available cell field at each time step.
-    """
-    with ms.xdmf.TimeSeriesReader(file_name) as reader:
-        points, cells = reader.read_points_cells()
-        n = cells["tetra"].data.shape[0]
-        m = reader.num_steps
-        A = np.zeros((n, m))
-        time_list = []
-        for k in range(reader.num_steps):
-            time, _, cell_data = reader.read_data(k)
-            time_list.append(time)
-            field_name = list(cell_data["tetra"].keys())[0]
-            A[:,k] = cell_data["tetra"][field_name].flatten()
-        df_scalar = pd.DataFrame(A, columns=time_list)
-    return df_scalar
+        # Add time
+        time_list[k] = time
 
+        # Add scalar
+        field_name = list(point_data.keys())[0]
+        vector_field[k,:,:] = point_data[field_name]
 
-def read_tensor_from_cells(file_name: str) -> tuple[
-        DataFrameType, DataFrameType, DataFrameType, DataFrameType, DataFrameType, DataFrameType
-    ]:
-    """
-    Read a symmetric 3×3 tensor field (per cell) from an XDMF file over time.
-
-    The tensor is split into six component DataFrames using the ordering:
-    ``sxx, syy, szz, sxy, sxz, syz``.
-
-    Parameters
-    ----------
-    file_name : str
-        Path to the XDMF file containing cell data over multiple time steps.
-
-    Returns
-    -------
-    tuple of pandas.DataFrame
-        ``(df_sxx, df_syy, df_szz, df_sxy, df_sxz, df_syz)``, each of shape
-        ``(n_cells, n_steps)`` with columns as time values.
-
-    Notes
-    -----
-    - Assumes tetrahedral cells under key ``'tetra'``.
-    - The component extraction uses the flattened 3×3 storage in row-major
-      order: indices ``[0,4,8,1,2,5]`` map to
-      ``(xx, yy, zz, xy, xz, yz)`` respectively.
-    """
-    with ms.xdmf.TimeSeriesReader(file_name) as reader:
-        points, cells = reader.read_points_cells()
-        print(cells)
-        n = cells["tetra"].data.shape[0]
-        m = reader.num_steps
-        sxx = np.zeros((n, m))
-        syy = np.zeros((n, m))
-        szz = np.zeros((n, m))
-        sxy = np.zeros((n, m))
-        sxz = np.zeros((n, m))
-        syz = np.zeros((n, m))
-        time_list = []
-        for k in range(reader.num_steps):
-            time, point_data, cell_data = reader.read_data(k)
-            # mesh = ms.Mesh(points=point_data, cells=cell_data)
-
-            time_list.append(time)
-            field_name = list(cell_data["tetra"].keys())[0]
-            sxx[:,k] = cell_data["tetra"][field_name][:,0].flatten()
-            syy[:,k] = cell_data["tetra"][field_name][:,4].flatten()
-            szz[:,k] = cell_data["tetra"][field_name][:,8].flatten()
-            sxy[:,k] = cell_data["tetra"][field_name][:,1].flatten()
-            sxz[:,k] = cell_data["tetra"][field_name][:,2].flatten()
-            syz[:,k] = cell_data["tetra"][field_name][:,5].flatten()
-        df_sxx = pd.DataFrame(sxx, columns=time_list)
-        df_syy = pd.DataFrame(syy, columns=time_list)
-        df_szz = pd.DataFrame(szz, columns=time_list)
-        df_sxy = pd.DataFrame(sxy, columns=time_list)
-        df_sxz = pd.DataFrame(sxz, columns=time_list)
-        df_syz = pd.DataFrame(syz, columns=time_list)
-    return df_sxx, df_syy, df_szz, df_sxy, df_sxz, df_syz
-
-
-
-
+    return points, time_list, vector_field
