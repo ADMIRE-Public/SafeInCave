@@ -20,7 +20,6 @@ def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color=
 			ax.xaxis.label.set_color('black')
 			ax.set_facecolor(back_color)
 
-
 def main():
 	# Choose results folder
 	results_folder = os.path.join("output", "case_0")
@@ -30,30 +29,20 @@ def main():
 	fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3.5))
 	fig.subplots_adjust(top=0.92, bottom=0.155, left=0.093, right=0.980, hspace=0.35, wspace=0.295)
 
-	# Read mesh
-	msh_file_name = os.path.join(results_folder, "mesh", "geom.msh")
-	points_msh, cells_msh = post.read_msh_as_pandas(msh_file_name)
+	points, time_list, u_field = post.read_node_vector(os.path.join(results_folder, "u", "u.xdmf"))
 
-	# Read displacements
-	xdmf_file_name = os.path.join(results_folder, "u", "u.xdmf")
-	mapping = post.find_mapping(points_msh, xdmf_file_name)
-	u, v, w = post.read_vector_from_points(xdmf_file_name, mapping)
+	point_1 = post.find_closest_point([1,1,1], points)
+	point_2 = post.find_closest_point([1,0,1], points)
 
-	point_1 = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 1) & (points_msh["y"] == 1)].index[0]
-	point_2 = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 1) & (points_msh["y"] == 0)].index[0]
-	print(point_1, point_2)
-	print("Point 1: ", points_msh.iloc[point_1].values)
-	print("Point 2: ", points_msh.iloc[point_2].values)
+	ux_1 = u_field[:,point_1,0]*1000
+	uy_1 = u_field[:,point_1,1]*1000
+	uz_1 = u_field[:,point_1,2]*1000
 
-	ux_1 = u.iloc[point_1].values*1000
-	uy_1 = v.iloc[point_1].values*1000
-	uz_1 = w.iloc[point_1].values*1000
+	ux_2 = u_field[:,point_2,0]*1000
+	uy_2 = u_field[:,point_2,1]*1000
+	uz_2 = u_field[:,point_2,2]*1000
 
-	ux_2 = u.iloc[point_2].values*1000
-	uy_2 = v.iloc[point_2].values*1000
-	uz_2 = w.iloc[point_2].values*1000
-
-	t = w.iloc[point_2].index.values/60/60/24
+	t = time_list/60/60/24
 
 	ax1.semilogx(t, ux_1, "-", color="#377eb8", label=r"$u_x$")
 	ax1.semilogx(t, uy_1, "-", color="#ff7f00", label=r"$u_y$")
@@ -74,6 +63,7 @@ def main():
 	apply_grey_theme(fig, [ax1, ax2], transparent=True, grid_color="0.92", back_color='0.85')
 
 	plt.show()
+
 
 
 if __name__ == '__main__':

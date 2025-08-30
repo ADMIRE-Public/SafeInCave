@@ -22,77 +22,38 @@ def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color=
 			ax.xaxis.label.set_color('black')
 			ax.set_facecolor(back_color)
 
-def plot_displacements(ax, results_folder):
-	# Read mesh
-	msh_file_name = os.path.join(results_folder, "mesh", "geom.msh")
-	points_msh, cells_msh = post.read_msh_as_pandas(msh_file_name)
+def main():
+	results_folder = os.path.join("output", "case_0")
 
-	# Read displacements
-	xdmf_file_name = os.path.join(results_folder, "u", "u.xdmf")
-	mapping = post.find_mapping(points_msh, xdmf_file_name)
-	u, v, w = post.read_vector_from_points(xdmf_file_name, mapping)
+	# Plot pressure schedule
+	fig, ax = plt.subplots(1, 1, figsize=(5, 3.5))
+	fig.subplots_adjust(top=0.970, bottom=0.135, left=0.138, right=0.980, hspace=0.35, wspace=0.225)
 
-	point_A = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 0) & (points_msh["y"] == 0)].index[0]
-	point_B = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 0) & (points_msh["y"] == 1)].index[0]
-	point_C = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 1) & (points_msh["y"] == 1)].index[0]
-	point_D = points_msh[(points_msh["z"] == 1) & (points_msh["x"] == 1) & (points_msh["y"] == 0)].index[0]
-	print(point_A, point_B, point_C, point_D)
-	print("Point A: ", points_msh.iloc[point_A].values)
-	print("Point B: ", points_msh.iloc[point_B].values)
-	print("Point C: ", points_msh.iloc[point_C].values)
-	print("Point D: ", points_msh.iloc[point_D].values)
 
-	w_A = w.iloc[point_A].values[1:]
-	w_B = w.iloc[point_B].values[1:]
-	w_C = w.iloc[point_C].values[1:]
-	w_D = w.iloc[point_D].values[1:]
+	points, time_list, u_field = post.read_node_vector(os.path.join(results_folder, "u", "u.xdmf"))
 
-	t = w.iloc[point_A].index.values[1:]/60
+	point_A = post.find_closest_point([0,0,1], points)
+	point_B = post.find_closest_point([0,1,1], points)
+	point_C = post.find_closest_point([1,1,1], points)
+	point_D = post.find_closest_point([1,0,1], points)
 
-	ax.plot(t, w_A*1000, ".-", color="#377eb8", label="Point A")
-	ax.plot(t, w_B*1000, ".-", color="#ff7f00", label="Point B")
-	ax.plot(t, w_C*1000, ".-", color="#4daf4a", label="Point C")
-	ax.plot(t, w_D*1000, ".-", color="#f781bf", label="Point D")
+	uz_A = u_field[:,point_A,2]*1000
+	uz_B = u_field[:,point_B,2]*1000
+	uz_C = u_field[:,point_C,2]*1000
+	uz_D = u_field[:,point_D,2]*1000
+
+	time_list /= 60
+
+	ax.plot(time_list, uz_A, ".-", color="#377eb8", label="Point A")
+	ax.plot(time_list, uz_B, ".-", color="#ff7f00", label="Point B")
+	ax.plot(time_list, uz_C, ".-", color="#4daf4a", label="Point C")
+	ax.plot(time_list, uz_D, ".-", color="#f781bf", label="Point D")
 	ax.set_xlabel("Time (minutes)", size=12, fontname="serif")
 	ax.set_ylabel("Displacement (mm)", size=12, fontname="serif")
 	ax.grid(True)
 	ax.legend(loc=0, shadow=True, fancybox=True)
-
-
-def plot_q(ax, results_folder):
-	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(os.path.join(results_folder, "q_elems", "q_elems.xdmf"))
-	mid_cells = post.compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
-
-	ind_A = mid_cells.index[mid_cells["y"] < 0.5]
-	ind_B = mid_cells.index[mid_cells["y"] > 0.5]
-
-	q_df = post.read_scalar_from_cells(os.path.join(results_folder, "q_elems", "q_elems.xdmf"))
-
-	q_A = np.average(q_df.iloc[ind_A].values, axis=0)[1:]/MPa
-	q_B = np.average(q_df.iloc[ind_B].values, axis=0)[1:]/MPa
-
-	t = q_df.iloc[0].index.values[1:]/60
-
-	ax.plot(t, q_A, ".-", color="steelblue", label=r"$\Omega_A$")
-	ax.plot(t, q_B, ".-", color="lightcoral", label=r"$\Omega_B$")
-	ax.set_xlabel("Time (minutes)", size=12, fontname="serif")
-	ax.set_ylabel("Average Von Mises stress (MPa)", size=12, fontname="serif")
-	ax.legend(loc=0, fancybox=True, shadow=True)
-
-
-
-def main():
-	results_folder = os.path.join("output", "case_0")
-
-	
-
-	# Plot pressure schedule
-	fig, ax1 = plt.subplots(1, 1, figsize=(5, 3.5))
-	fig.subplots_adjust(top=0.970, bottom=0.135, left=0.138, right=0.980, hspace=0.35, wspace=0.225)
-
-	plot_displacements(ax1, results_folder)
-	# plot_q(ax2, results_folder)
-	apply_grey_theme(fig, [ax1], transparent=True, grid_color="0.92", back_color='0.85')
+	ax.grid(True, color="0.92")
+	ax.set_facecolor("0.85")
 
 	plt.show()
 

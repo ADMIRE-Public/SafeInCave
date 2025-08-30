@@ -19,7 +19,7 @@ def main():
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_2")
+	output_folder = os.path.join("output", "case_0")
 
 	# Define momentum equation
 	mom_eq = sf.LinearMomentum(grid, theta=0.5)

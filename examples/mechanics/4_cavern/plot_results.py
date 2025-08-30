@@ -8,14 +8,10 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.widgets import Button, Slider
 import meshio
 
-def read_json(file_name):
-	with open(file_name, "r") as j_file:
-		data = json.load(j_file)
-	return data
-
 hour = 60*60
 day = 24*hour
 MPa = 1e6
+
 
 def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color='0.85'):
 	fig.patch.set_facecolor("#212121ff")
@@ -35,8 +31,73 @@ def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color=
 			ax.xaxis.label.set_color('black')
 			ax.set_facecolor(back_color)
 
-def calculate_convergence_data(displacement_data, mesh):
-	def trapezoidal_volume(x, y):
+
+def create_layout():
+	fig = plt.figure(figsize=(16, 9))
+	fig.subplots_adjust(top=0.975, bottom=0.120, left=0.060, right=0.986, hspace=0.44, wspace=0.64)
+	gs = GridSpec(18, 19, figure=fig)
+	ax_logo = fig.add_subplot(gs[0:2,0:4])
+	ax_info_1 = fig.add_subplot(gs[0:2,5:9])
+	ax_info_2 = fig.add_subplot(gs[0:2,10:14])
+	ax_info_3 = fig.add_subplot(gs[0:2,15:])
+	ax0 = fig.add_subplot(gs[3:12,0:4])
+	ax00 = fig.add_subplot(gs[3:7,5:9])
+	ax01 = fig.add_subplot(gs[3:7,10:14])
+	ax02 = fig.add_subplot(gs[3:7,15:])
+	ax10 = fig.add_subplot(gs[8:12,5:9])
+	ax11 = fig.add_subplot(gs[8:12,10:14])
+	ax12 = fig.add_subplot(gs[8:12,15:])
+	ax30 = fig.add_subplot(gs[14:,0:5])
+	ax31 = fig.add_subplot(gs[14:,6:12])
+	ax32 = fig.add_subplot(gs[14:,13:19])
+	apply_grey_theme(fig, [ax0, ax00, ax01, ax02, ax10, ax11, ax12, ax30, ax31, ax32], transparent=True)
+	return fig, ax_logo, ax_info_1, ax_info_2, ax_info_3, ax0, ax00, ax01, ax02, ax10, ax11, ax12, ax30, ax31, ax32
+
+
+class WallProfileData():
+	def __init__(self, output_folder, scale=1):
+		# Read displacements from xdmf
+		points, self.time_list, u_field = post.read_node_vector(os.path.join(output_folder, "u", "u.xdmf"))
+
+		# Read msh node coordinates from msh file
+		reader_msh = meshio.read(os.path.join(output_folder, "mesh", "geom.msh"))
+		points_msh = reader_msh.points
+
+		# Get wall indices from msh file and remap it to xdmf data
+		wall_idx = np.unique(reader_msh.cells["line"].flatten())
+		mapping = post.build_mapping(points_msh, points)
+		for i in range(len(wall_idx)):
+			wall_idx[i] = mapping[wall_idx[i]]
+
+		# Get coordinates from wall nodes
+		self.wall_points = points[wall_idx]
+
+		# Extract displacements from wall nodes
+		self.wall_u = u_field[:,wall_idx]
+
+		# Reorder wall nodes and displacements according to z coordinate
+		sorted_idx = np.argsort(self.wall_points[:,2])
+		self.wall_points = self.wall_points[sorted_idx]
+		self.wall_u = self.wall_u[:,sorted_idx]
+
+		# Calculate initial cavern shape
+		self.scale = scale
+
+		self.compute_volumes()
+
+	def get_wall_coordinates(self, time_step: int):
+		return self.wall_points + self.scale*self.wall_u[time_step,:]
+
+	def compute_volumes(self):
+		wall_t0 = self.get_wall_coordinates(time_step=0)
+		vol_0 = self.__trapezoidal_volume(wall_t0[:,2], wall_t0[:,0])
+		self.volumes = []
+		for t_step in range(len(self.time_list)):
+			wall_t = self.get_wall_coordinates(time_step=t_step)
+			vol = self.__trapezoidal_volume(wall_t[:,2], wall_t[:,0])
+			self.volumes.append(100*abs(vol_0 - vol)/vol_0)
+
+	def __trapezoidal_volume(self, x, y):
 		""" This function calculates the volume of a solid of revolution (around y=0 axis) based on the trapezoidal rule. """
 		volume = 0.0
 		area = 0.0
@@ -49,85 +110,103 @@ def calculate_convergence_data(displacement_data, mesh):
 			volume += A*d
 		return volume
 
-	def reorder_data(df_coord, u, v, w, wall_ind):
-		# Initial cavern shape
-		x0 = df_coord.iloc[wall_ind]["x"]
-		y0 = df_coord.iloc[wall_ind]["y"]
-		z0 = df_coord.iloc[wall_ind]["z"]
-		# Reorder all coordinates according to coordinate z
-		sorted_z0_ind = z0.sort_values().index
-		x0 = x0[sorted_z0_ind]
-		y0 = y0[sorted_z0_ind]
-		z0 = z0[sorted_z0_ind]
-		# Reorder all displacements according to coordinate z
-		u = u.iloc[wall_ind].loc[sorted_z0_ind]
-		v = v.iloc[wall_ind].loc[sorted_z0_ind]
-		w = w.iloc[wall_ind].loc[sorted_z0_ind]
-		return x0, y0, z0, u, v, w
 
-	df_coord, u, v, w = displacement_data
+def plot_cavern_shape(ax, wall: WallProfileData, t_step: int):
+	wall_t0 = wall.get_wall_coordinates(time_step=0)
+	wall_tf = wall.get_wall_coordinates(time_step=t_step)
 
-	# Get indices of wall profile
-	# wall_ind = np.unique(mesh.cells_dict["line"].flatten())
-	wall_ind = np.unique(mesh.cells["line"].flatten())
+	ax.plot(wall_t0[:,0], wall_t0[:,2], "-", color="black", label="Initial shape")
+	ax.plot(wall_tf[:,0], wall_tf[:,2], "-", color="steelblue", label="Final shape")
+	ax.set_xlabel("x (m)", size=12, fontname="serif")
+	ax.set_ylabel("z (m)", size=12, fontname="serif")
+	ax.legend(loc=1, shadow=True, fancybox=True, prop={"size": 8})
+	ax.axis("equal")
 
-	# Get reordered data over cavern wall
-	x0, y0, z0, u, v, w = reorder_data(df_coord, u, v, w, wall_ind)
 
-	# Get times
-	times = u.columns.values
-	t_final = times[-1]
-	t_initial = times[1]
-
-	# Compute cavern volumes over time
-	vol_0 = trapezoidal_volume(z0.values, x0.values)
-	volumes = []
-	for t in times[1:]:
-		z = z0.values + w[t].values
-		x = x0.values + u[t].values
-		vol = trapezoidal_volume(z, x)
-		volumes.append(100*abs(vol_0 - vol)/vol_0)
-
-	# Plot cavern shape
-	expansion_factor = 5
-	xi = x0 + 0*expansion_factor*u[t_initial]
-	yi = y0 + 0*expansion_factor*v[t_initial]
-	zi = z0 + 0*expansion_factor*w[t_initial]
-	xf = x0 + expansion_factor*u[t_final]
-	yf = y0 + expansion_factor*v[t_final]
-	zf = z0 + expansion_factor*w[t_final]
-
-	return xi, zi, xf, zf, times, volumes
-
-def plot_subsidence(ax, displacement_data, index=0):
-	df_coord, u, v, w = displacement_data
-	point_A = df_coord[(df_coord["z"] == 0) & (df_coord["x"] == 0) & (df_coord["y"] == 0)].index[0]
-	w_A = w.iloc[point_A].values[0:] - w.iloc[point_A].values[0]
-	t = w.iloc[point_A].index.values[0:]
-	max_val = len(t)
-	i = min(max_val, max(0, index))
-	ax.plot(t/day, w_A*100, "-", color="#377eb8", linewidth="2.0")
-	ax.scatter(t[i]/day, w_A[i]*100, c="white", edgecolors="black", zorder=10000)
-	ax.set_xlabel("Time (days)", size=12, fontname="serif")
-	ax.set_ylabel("Subsidence (cm)", size=12, fontname="serif")
-	ax.grid(True)
-
-def plot_convergence(ax, times, volumes, index=0):
-	max_val = len(times[2:])
-	i = min(max_val, max(1, index))
-	ax.plot(times[2:]/day, volumes[1:], "-", color="#377eb8", linewidth="2.0")
-	ax.scatter(times[i+1]/day, volumes[i], c="white", edgecolors="black", zorder=10000)
+def plot_convergence(ax, wall: WallProfileData, t_step: int):
+	ax.plot(wall.time_list/day, wall.volumes, "-", color="#377eb8", linewidth="2.0")
+	ax.scatter(wall.time_list[t_step]/day, wall.volumes[t_step], c="white", edgecolors="black", zorder=10000)
 	ax.set_xlabel("Time (days)", size=12, fontname="serif")
 	ax.set_ylabel("Convergence (%)", size=12, fontname="serif")
 
-def plot_cavern_shape(ax, xi, zi, xf, zf):
-	ax.plot(xi, zi, "-", color="black", linewidth=2.0, label="Initial shape")
-	ax.plot(xf, zf, "-", color="#377eb8", linewidth=2.0, label=f"Final shape")
-	ax.set_xlabel("x (m)", size=12, fontname="serif")
-	ax.set_ylabel("z (m)", size=12, fontname="serif")
-	ax.legend(loc=1, shadow=True, fancybox=True)
-	ax.axis("equal")
-	ax.legend(loc=0, ncol=1, prop={"size": 8})
+
+def plot_logo(ax):
+	img = plt.imread(os.path.join("..", "..", "..", "assets", "logo_2.png"))
+	ax.imshow(img)
+	ax.text(910, 295, "Version 2.0.0")
+	ax.axis('off')
+
+
+def show_metadata(ax_mesh, ax_model, ax_solver, output_folder):
+	# reader_msh = meshio.read(os.path.join(output_folder, "mesh", "geom.msh"))
+	with open(os.path.join(output_folder, "log.txt")) as f:
+		log = f.readlines()
+
+	dh = 0.3
+	h = 0.8
+
+	for i, line in enumerate(log):
+		if "| Mesh info:" in line:
+			line_split = log[i+4].split("|")
+			n_elems = int(line_split[1])
+			n_nodes = int(line_split[2])
+			location = line_split[3].strip(" ")
+			ax_mesh.text(0, h-0*dh, "Mesh info:", size=12, fontname="serif")
+			ax_mesh.text(0, h-1*dh, f"- Location: {location}", size=10, fontname="serif")
+			ax_mesh.text(0, h-2*dh, f"- Number of elems: {n_elems}", size=10, fontname="serif")
+			ax_mesh.text(0, h-3*dh, f"- Number of nodes: {n_nodes}", size=10, fontname="serif")
+			ax_mesh.axis('off')
+		elif "| Solver info:" in line:
+			line_split = log[i+4].split("|")
+			ksp_solver = line_split[1].strip(" ")
+			ksp_pc = line_split[2].strip(" ")
+			tol = float(line_split[3])
+			max_ite = int(line_split[4])
+			cpu_time = log[-1].strip(" ").strip("Total time: ")[:8]
+			ax_solver.text(0, h-0*dh, "Simulation Info: ", size=12, fontname="serif")
+			ax_solver.text(0, h-1*dh, f"- Solver: {ksp_solver}, PC: {ksp_pc}", size=10, fontname="serif")
+			# ax_solver.text(0, h-2*dh, f"- PC: {ksp_pc}", size=10, fontname="serif")
+			ax_solver.text(0, h-2*dh, f"- tol: {tol}, max_ite: {max_ite}", size=10, fontname="serif")
+			ax_solver.text(0, h-3*dh, f"- CPU Time: {cpu_time}", size=10, fontname="serif")
+			ax_solver.axis('off')
+		elif "| Constitutive model:" in line:
+			# line_split = log[i+4].split("|")
+			elastic_elems = log[i+4].split("|")[2].strip(" ")
+			nonelastic_elems = log[i+5].split("|")[2].strip(" ")
+			thermoelastic_elems = log[i+6].split("|")[2].strip(" ")
+			ax_model.text(0, h-0*dh, "Constitutive model: ", size=12, fontname="serif")
+			ax_model.text(0, h-1*dh, f"- Elastic: {elastic_elems}", size=10, fontname="serif")
+			ax_model.text(0, h-2*dh, f"- Non-elastic: {nonelastic_elems}", size=10, fontname="serif")
+			ax_model.text(0, h-3*dh, f"- Thermoelastic: {thermoelastic_elems}", size=10, fontname="serif")
+			ax_model.axis('off')
+
+
+class SubsidenceData():
+	def __init__(self, output_folder, probe=[0,0,0]):
+		points, self.time_list, u_field = post.read_node_vector(os.path.join(output_folder, "u", "u.xdmf"))
+		top_idx = post.find_closest_point(probe, points)
+		self.subsidence = u_field[:,top_idx,2] - u_field[0,top_idx,2]
+
+
+def plot_subsidence(ax, sub: SubsidenceData, t_step: int):
+	ax.plot(sub.time_list/day, 100*sub.subsidence, "-")
+	ax.scatter(sub.time_list[t_step]/day, 100*sub.subsidence[t_step], c="white", edgecolors="black", zorder=10000)
+	ax.set_xlabel("Time (days)", size=12, fontname="serif")
+	ax.set_ylabel("Subsidence (cm)", size=12, fontname="serif")
+
+
+class StressPath():
+	def __init__(self, output_folder, probes):
+		self.probes = probes
+		self.points, self.time_list, self.p_elems = post.read_cell_scalar(os.path.join(output_folder, "p_elems", "p_elems.xdmf"))
+		self.points, self.time_list, self.q_elems = post.read_cell_scalar(os.path.join(output_folder, "q_elems", "q_elems.xdmf"))
+
+		self.p_probes = np.zeros((probes.shape[0], self.time_list.size))
+		self.q_probes = np.zeros((probes.shape[0], self.time_list.size))
+		for i, probe in enumerate(probes):
+			idx = post.find_closest_point(probe, self.points)
+			self.p_probes[i,:] = -self.p_elems[:,idx]/MPa
+			self.q_probes[i,:] = self.q_elems[:,idx]/MPa
 
 def plot_dilatancy_boundary(ax):
 	dilation_points = np.array([
@@ -164,297 +243,83 @@ def plot_dilatancy_boundary(ax):
 	ax.plot(p_points, q_points, "-", color="black")
 
 
+COLORS = ["deepskyblue", "tomato", "orange", "steelblue", "purple", "magenta"]
 
-def rotate_z(coord, angle):
-	rotation_matrix_z = np.array([
-	    [np.cos(angle), -np.sin(angle), 0],
-	    [np.sin(angle), np.cos(angle), 0],
-	    [0, 0, 1]
-	])
-	return np.dot(coord, rotation_matrix_z.T)
-
-def get_selected_points(point_base, point_coords):
-	selected_idx = []
-	thetas = np.linspace(0, np.pi/2, 80)
-	for theta in thetas:
-		rotating_point = rotate_z(point_base, theta)
-		x_p, y_p, z_p = rotating_point
-		d = np.sqrt(  (point_coords[:,0] - x_p)**2
-		            + (point_coords[:,1] - y_p)**2
-		            + (point_coords[:,2] - z_p)**2 )
-		point_idx = d.argmin()
-		if abs(point_coords[point_idx,2] - z_p) < 0.1:
-			if point_idx not in selected_idx:
-				selected_idx.append(point_idx)
-	return selected_idx
-
-def get_p_q(point_base, point_coords, df_p, df_q):
-	# Get selected points
-	selected_idxs = get_selected_points(point_base, point_coords)
-
-	# Calculate average mean stress along selected points
-	p_selected = df_p[selected_idxs]
-	p_avg = np.average(p_selected, axis=0)
-
-	# Calculate average von Mises stress along selected points
-	q_selected = df_q[selected_idxs]
-	q_avg = np.average(q_selected, axis=0)
-
-	return p_avg, q_avg
-
-def plot_paths(ax, stress_data, point_color, index=0):
-	cells_coord, p, q = stress_data
-	p_avg, q_avg = get_p_q(point_color[0], cells_coord.values, p, q)
-
+def plot_stress_paths(ax, stress_path: StressPath, i: int, t_step: int):
+	ax.plot(stress_path.p_probes[i], stress_path.q_probes[i], "-", color=COLORS[i])
+	ax.scatter(stress_path.p_probes[i,t_step], stress_path.q_probes[i,t_step], c="white", edgecolors="black", zorder=10000)
 	plot_dilatancy_boundary(ax)
-	ax.plot(p_avg, q_avg, "-", color=point_color[1])
-	ax.scatter(p_avg[index], q_avg[index], c="white", edgecolors="black", zorder=10000)
 	ax.set_xlabel("Mean stress (MPa)", size=10, fontname="serif")
 	ax.set_ylabel("Von Mises stress (MPa)", size=10, fontname="serif")
 
-	ax.plot(p_avg[0], q_avg[0], "o", color="blue", label="Start")
-	ax.plot(p_avg[-1], q_avg[-1], "^", color="red", label="Finish")
-	ax.legend(loc=2, ncol=2, prop={"size": 8})
+def plot_probes(ax, probes):
+	for i, probe in enumerate(probes):
+		ax.scatter(probe[0], probe[2], c=COLORS[i], edgecolors="black", zorder=10000)
 
 
-def plot_probe_points(ax, points):
-	for point, color in points:
-		ax.scatter(point[0], point[2], marker="o", alpha=1.0, edgecolors="k", color=color, zorder=10000)
+def main():
+	fig, ax_logo, ax_info_1, ax_info_2, ax_info_3, ax0, ax00, ax01, ax02, ax10, ax11, ax12, ax30, ax31, ax32 = create_layout()
 
-def plot_gas_pressure(ax, time_steps, time, pressure, index=0):
-	max_val = len(time[2:])
-	i = min(max_val, max(1, index))
-	t_interp = time_steps[max(0,index-1)]
-	p_interp = np.interp(t_interp, time, pressure)
-	ax.scatter(t_interp/day, p_interp/MPa, c="white", edgecolors="black")
-	# ax.scatter(time[i+1]/day, pressure[i]/MPa, c="white", edgecolors="black")
-	ax.plot(time/day, pressure/MPa, "-", color="black")
-	ax.set_xlabel("Time (days)", size=10, fontname="serif")
-	ax.set_ylabel("Gas pressure (MPa)", size=10, fontname="serif")
+	# Specify folder to load the results from
+	output_folder = os.path.join("output", "case_0", "operation")
 
-def get_relevant_points():
+	# Probe points around the cavern wall
 	depth = 800 + 430
+	probes = np.array([
+		[0, 	0,	430 - depth],
+		[42.8, 	0,	393.4 - depth],
+		[45, 	0,	345 - depth],
+		[57.62, 0,	301.3 - depth],
+		[74.63, 0,	267.4 - depth],
+		[0, 	0,	205.1 - depth],
+	])
 
-	point_1 = (0.0, 	0.0, 	430.0 - depth)
-	point_2 = (0.0, 	0.0, 	205.1 - depth)
-	point_3 = (74.63, 	0.0, 	267.4 - depth)
-	point_4 = (57.62, 	0.0, 	301.3 - depth)
-	point_5 = (45.0, 	0.0, 	345.0 - depth)
-	point_6 = (42.8, 	0.0, 	393.4 - depth)
+	wall_profile = WallProfileData(output_folder, scale=15)
+	subsidence_data = SubsidenceData(output_folder, probe=[0,0,0])
+	stress_path = StressPath(output_folder, probes[:,[1,0,2]])
 
-	points = [
-		(point_1, "deepskyblue"),
-		(point_2, "tomato"),
-		(point_3, "orange"),
-		(point_4, "steelblue"),
-		(point_5, "purple"),
-		(point_6, "magenta"),
-	]
-	return points
+	n_steps = stress_path.time_list.size
 
-def get_simulation_times(log_file):
-	lines = log_file.split("\n")
-	times = []
-	for line in lines:
-		if "seconds)" in line:
-			i1 = line.find("(") + 1
-			i2 = line.find(" seconds)")
-			time = float(line[i1:i2])
-			times.append(time)
-	return sum(times)
+	plot_logo(ax_logo)
+	show_metadata(ax_info_1, ax_info_2, ax_info_3, output_folder)
 
+	plot_cavern_shape(ax0, wall_profile, t_step=-1)
+	plot_convergence(ax31, wall_profile, t_step=0)
+	plot_subsidence(ax32, subsidence_data, t_step=0)
+	plot_stress_paths(ax00, stress_path, i=0, t_step=0)
+	plot_stress_paths(ax01, stress_path, i=1, t_step=0)
+	plot_stress_paths(ax02, stress_path, i=2, t_step=0)
+	plot_stress_paths(ax10, stress_path, i=3, t_step=0)
+	plot_stress_paths(ax11, stress_path, i=4, t_step=0)
+	plot_stress_paths(ax12, stress_path, i=5, t_step=0)
+	plot_probes(ax0, probes)
 
-
-def plot_results_panel(results_folder, stage="operation"):
-	# Define paths
-	output_path = os.path.join("output", results_folder, stage)
-
-	# # Read log file
-	# with open(os.path.join("output", results_folder, "log.txt"), "r") as file:
-	#     log_file = file.read()
-
-	# # Read CPU time
-	# cpu_time = get_simulation_times(log_file)
-	# cpu_gmtime = time.strftime("%H:%M:%S", time.gmtime(cpu_time))
-
-	# Read mesh
-	msh_file_name = os.path.join(output_path, "mesh", "geom.msh")
-	points_msh, cells_msh = post.read_msh_as_pandas(msh_file_name)
-
-	# Build mapping
-	xdmf_file_name = os.path.join(output_path, "u", "u.xdmf")
-	mapping = post.find_mapping(points_msh, xdmf_file_name)
-
-	# Displacement data
-	df_ux, df_uy, df_uz = post.read_vector_from_points(xdmf_file_name, mapping)
-	displacement_data = points_msh, df_ux, df_uy, df_uz
-
-	# Stress data
-	points_xdmf, cells_xdmf = post.read_xdmf_as_pandas(xdmf_file_name)
-	# mid_cells = post.compute_cell_centroids(points_xdmf.values, cells_xdmf.values)
-	mid_cells = post.compute_cell_centroids(points_msh.values, cells_msh.values)
-	# df_p = read_scalar_from_cells(os.path.join(output_path, "p_elems", "p_elems.xdmf"))
-	# df_q = read_scalar_from_cells(os.path.join(output_path, "q_elems", "q_elems.xdmf"))
-	df_p = post.read_scalar_from_points(os.path.join(output_path, "p_nodes", "p_nodes.xdmf"), mapping)
-	df_q = post.read_scalar_from_points(os.path.join(output_path, "q_nodes", "q_nodes.xdmf"), mapping)
-	# stress_data = (mid_cells, -df_p.values/MPa, df_q.values/MPa)
-	stress_data = (points_xdmf, -df_p.values/MPa, df_q.values/MPa)
-	# stress_data = (points_xdmf, df_p.values, df_q.values)
-
-	print()
-
-	# Read simulation time steps
-	time_steps = df_ux.columns.values
-	n_time = len(time_steps)
-
-	# # Read input file
-	# input_file = read_json(os.path.join("output", results_folder, stage, "input_file.json"))
-	# grid_path = input_file["grid"]["path"]
-
-	# Get indices of wall profile
-	# mesh = meshio.read(os.path.join(grid_path, "geom.msh"))
-	mesh = meshio.read(msh_file_name)
-
-	# # Read gas pressure
-	# gas_time = np.array(input_file["time_settings"]["time_list"])
-	# gas_pressure = np.array(input_file["boundary_conditions"]["Cavern"]["values"])
-
-	# Calculate cavern convergence results
-	xi, zi, xf, zf, times, volumes = calculate_convergence_data(displacement_data, mesh)
-
-	# Plot pressure schedule
-	fig = plt.figure(figsize=(16, 9))
-	fig.subplots_adjust(top=0.975, bottom=0.120, left=0.060, right=0.986, hspace=0.44, wspace=0.64)
-
-	gs = GridSpec(18, 19, figure=fig)
-	ax_logo = fig.add_subplot(gs[0:2,0:4])
-	ax_info_1 = fig.add_subplot(gs[0:2,5:9])
-	ax_info_2 = fig.add_subplot(gs[0:2,10:14])
-	ax_info_3 = fig.add_subplot(gs[0:2,15:])
-
-	ax0 = fig.add_subplot(gs[3:12,0:4])
-
-	ax00 = fig.add_subplot(gs[3:7,5:9])
-	ax01 = fig.add_subplot(gs[3:7,10:14])
-	ax02 = fig.add_subplot(gs[3:7,15:])
-
-	ax10 = fig.add_subplot(gs[8:12,5:9])
-	ax11 = fig.add_subplot(gs[8:12,10:14])
-	ax12 = fig.add_subplot(gs[8:12,15:])
-
-	ax30 = fig.add_subplot(gs[14:,0:5])
-	ax31 = fig.add_subplot(gs[14:,6:12])
-	ax32 = fig.add_subplot(gs[14:,13:19])
-
-	apply_grey_theme(fig, [ax0, ax00, ax01, ax02, ax10, ax11, ax12, ax30, ax31, ax32], transparent=True)
-
-	# plot_gas_pressure(ax30, time_steps, gas_time, gas_pressure)
-	plot_subsidence(ax31, displacement_data)
-	plot_cavern_shape(ax0, xi, zi, xf, zf)
-	plot_convergence(ax32, times, volumes)
-
-	img = plt.imread(os.path.join("..", "..", "..", "assets", "logo_2.png"))
-	ax_logo.imshow(img)
-	ax_logo.text(910, 295, "Version 1.2.0")
-	ax_logo.axis('off')
-
-	# Plot grid info
-	# n_elems = mesh.cells[0].data.shape[0]
-	n_elems = mesh.cells["tetra"].shape[0]
-	n_nodes = len(mesh.points)
-
-	region_names = ""
-	for field_name in mesh.field_data.keys():
-		dimension = mesh.field_data[field_name][1]
-		if dimension == 3:
-			region_names += field_name + ", "
-	region_names = region_names[:-2]
-
-	# region_names = ""
-	# for region_name in input_file["grid"]["regions"].keys():
-	# 	region_names += region_name + ", "
-	# region_names = region_names[:-2]
-
-	ax_info_1.text(0, 0.8, "Mesh info:", size=12, fontname="serif")
-	# ax_info_1.text(0, 0.5, f"- Location: {grid_path}", size=10, fontname="serif")
-	ax_info_1.text(0, 0.2, f"- Number of elems: {n_elems}", size=10, fontname="serif")
-	ax_info_1.text(0, -0.1, f"- Number of nodes: {n_nodes}", size=10, fontname="serif")
-	ax_info_1.text(0, -0.4, f"- Regions: {region_names}", size=10, fontname="serif")
-	ax_info_1.axis('off')
-
-	# # Plot constitutive model info
-	# elements = []
-	# for elem_type in ["elastic", "viscoelastic", "inelastic"]:
-	# 	for elem_name in input_file["constitutive_model"][elem_type].keys():
-	# 		if input_file["constitutive_model"][elem_type][elem_name]["active"] == True:
-	# 			elements.append(elem_name)
-
-	# dh = 0.3
-	# h = 0.8
-	# i = 1
-	# ax_info_2.text(0, h, "Constitutive model: ", size=12, fontname="serif")
-	# for element in elements:
-	# 	ax_info_2.text(0, h-i*dh, f"- {element}", size=10, fontname="serif")
-	# 	i += 1
-	ax_info_2.axis('off')
-
-	# ax_info_3.text(0, 0.8, "Simulation info:", size=12, fontname="serif")
-	# ax_info_3.text(0, 0.5, f"- CPU time: {cpu_gmtime}", size=10, fontname="serif")
-	ax_info_3.axis('off')
-
-	points = get_relevant_points()
-
-	plot_paths(ax00, stress_data, points[0])
-	plot_paths(ax10, stress_data, points[5])
-	plot_paths(ax02, stress_data, points[2])
-	plot_paths(ax01, stress_data, points[1])
-	plot_paths(ax12, stress_data, points[3])
-	plot_paths(ax11, stress_data, points[4])
-
-	plot_probe_points(ax0, points)
-
-
-	# The function to be called anytime a slider's value changes
 	def update_plot(val):
-		global index
-		index = max(0, int(val))
-
-		xmin,xmax = ax30.get_xlim()
-		ymin,ymax = ax30.get_ylim()
-		ax30.cla()
-		# plot_gas_pressure(ax30, time_steps, gas_time, gas_pressure, index)
-		# t_interp = time_steps[max(0,index-1)]
-		# p_interp = np.interp(t_interp, gas_time, gas_pressure)
-		# ax30.scatter(t_interp/day, p_interp/MPa, c="white", edgecolors="black")
-		# ax30.set_xlim(xmin,xmax)
-		# ax30.set_ylim(ymin,ymax)
-
-		stress_path_list = [(ax00, 0), (ax10, 5), (ax02, 2), (ax01, 1), (ax12, 3), (ax11, 4)]
-		for ax, i in stress_path_list:
-			xmin,xmax = ax.get_xlim()
-			ymin,ymax = ax.get_ylim()
-			ax.cla()
-			plot_paths(ax, stress_data, points[i], index)
-			ax.set_xlim(xmin,xmax)
-			ax.set_ylim(ymin,ymax)
-
-		xmin,xmax = ax32.get_xlim()
-		ymin,ymax = ax32.get_ylim()
-		ax32.cla()
-		plot_convergence(ax32, times, volumes, index)
-		ax32.set_xlim(xmin,xmax)
-		ax32.set_ylim(ymin,ymax)
+		t_step = int(val)
 
 		xmin,xmax = ax31.get_xlim()
 		ymin,ymax = ax31.get_ylim()
 		ax31.cla()
-		plot_subsidence(ax31, displacement_data, index)
+		plot_convergence(ax31, wall_profile, t_step=t_step)
 		ax31.set_xlim(xmin,xmax)
 		ax31.set_ylim(ymin,ymax)
 
-		apply_grey_theme(fig, [ax0, ax00, ax01, ax02, ax10, ax11, ax12, ax30, ax31, ax32], transparent=True)
+		xmin,xmax = ax32.get_xlim()
+		ymin,ymax = ax32.get_ylim()
+		ax32.cla()
+		plot_subsidence(ax32, subsidence_data, t_step=t_step)
+		ax32.set_xlim(xmin,xmax)
+		ax32.set_ylim(ymin,ymax)
 
-		fig.canvas.draw_idle()
+		for i, ax in enumerate([ax00, ax01, ax02, ax10, ax11, ax12]):
+			xmin,xmax = ax.get_xlim()
+			ymin,ymax = ax.get_ylim()
+			ax.cla()
+			plot_stress_paths(ax, stress_path, i=i, t_step=t_step)
+			ax.set_xlim(xmin,xmax)
+			ax.set_ylim(ymin,ymax)
+
+		apply_grey_theme(fig, [ax0, ax00, ax01, ax02, ax10, ax11, ax12, ax30, ax31, ax32], transparent=True)
 
 	# Make a horizontal slider to control the frequency.
 	axtime = fig.add_axes([0.09, 0.02, 0.75, 0.03])
@@ -462,7 +327,7 @@ def plot_results_panel(results_folder, stage="operation"):
 	    ax=axtime,
 	    label='Time step',
 	    valmin=0,
-	    valmax=n_time-1,
+	    valmax=n_steps-1,
 	    valinit=0,
 	)
 
@@ -471,8 +336,6 @@ def plot_results_panel(results_folder, stage="operation"):
 
 	plt.show()
 
-def main():
-	plot_results_panel("case_0", "operation")
 
 if __name__ == '__main__':
 	main()

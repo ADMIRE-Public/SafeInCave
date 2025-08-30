@@ -60,7 +60,7 @@ def main():
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("bicg")
+	mom_solver.setType("cg")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -206,12 +206,9 @@ def main():
 	output_mom = sf.SaveFields(mom_eq)
 	output_mom.set_output_folder(ouput_folder_equilibrium)
 	output_mom.add_output_field("u", "Displacement (m)")
-	# output_mom.add_output_field("Temp", "Temperature (K)")
 	output_mom.add_output_field("eps_tot", "Total strain (-)")
 	output_mom.add_output_field("p_elems", "Mean stress (Pa)")
 	output_mom.add_output_field("q_elems", "Von Mises stress (Pa)")
-	output_mom.add_output_field("p_nodes", "Mean stress (Pa)")
-	output_mom.add_output_field("q_nodes", "Von Mises stress (Pa)")
 	outputs = [output_mom]
 
 	# Define simulator
@@ -279,12 +276,8 @@ def main():
 	output_mom = sf.SaveFields(mom_eq)
 	output_mom.set_output_folder(output_folder_operation)
 	output_mom.add_output_field("u", "Displacement (m)")
-	# output_mom.add_output_field("Temp", "Temperature (K)")
-	output_mom.add_output_field("eps_tot", "Total strain (-)")
 	output_mom.add_output_field("p_elems", "Mean stress (Pa)")
 	output_mom.add_output_field("q_elems", "Von Mises stress (Pa)")
-	output_mom.add_output_field("p_nodes", "Mean stress (Pa)")
-	output_mom.add_output_field("q_nodes", "Von Mises stress (Pa)")
 	outputs = [output_mom]
 
 	# Define simulator
