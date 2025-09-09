@@ -16,7 +16,7 @@ import time
 
 def main():
 	# Read grid
-	grid_path = os.path.join("..", "..", "..", "grids", "cube")
+	grid_path = os.path.join("..", "..", "..", "grids", "cube_regions")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
