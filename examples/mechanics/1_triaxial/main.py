@@ -169,7 +169,7 @@ def main():
 	outputs = [output_mom]
 
 	# Define simulator
-	sim = sf.Simulator_M(mom_eq, t_control, outputs, True)
+	sim = sf.Simulator_M(mom_eq, t_control, outputs, compute_elastic_response=True)
 	sim.run()
 
 
