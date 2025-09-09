@@ -12,21 +12,38 @@ import numpy as np
 from petsc4py import PETSc
 import time
 
+GPa = ut.GPa
+MPa = ut.MPa
+day = ut.day
+
+
+def get_geometry_parameters(path_to_grid):
+	f = open(os.path.join(path_to_grid, "geom.geo"), "r")
+	data = f.readlines()
+	ovb_thickness = float(data[10][len("ovb_thickness = "):-2])
+	salt_thickness = float(data[11][len("salt_thickness = "):-2])
+	hanging_wall = float(data[12][len("hanging_wall = "):-2])
+	return ovb_thickness, salt_thickness, hanging_wall
+
 
 def main():
 	# Read grid
-	grid_path = os.path.join("..", "..", "..", "grids", "cavern_irregular")
+	grid_path = os.path.join("..", "..", "..", "grids", "cavern_overburden_coarse")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
 	output_folder = os.path.join("output", "case_0")
 
+	# Extract region indices
+	ind_salt = grid.region_indices["Salt"]
+	ind_ovb = grid.region_indices["Overburden"]
+
 	# Define momentum equation
-	mom_eq = sf.LinearMomentum(grid, theta=0.5)
+	mom_eq = sf.LinearMomentum(grid, theta=0.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("bicg")
+	mom_solver.setType("cg")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -35,12 +52,18 @@ def main():
 	mat = sf.Material(mom_eq.n_elems)
 
 	# Set material density
-	salt_density = 2000
-	rho = salt_density*to.ones(mom_eq.n_elems, dtype=to.float64)
+	gas_density = 0.082
+	salt_density = 2200
+	ovb_density = 2800
+	rho = to.zeros(mom_eq.n_elems, dtype=to.float64)
+	rho[ind_salt] = salt_density
+	rho[ind_ovb] = ovb_density
 	mat.set_density(rho)
 
 	# Constitutive model
-	E0 = 102*ut.GPa*to.ones(mom_eq.n_elems)
+	E0 = to.zeros(mom_eq.n_elems)
+	E0[ind_salt] = 102*GPa
+	E0[ind_ovb] = 180*GPa
 	nu0 = 0.3*to.ones(mom_eq.n_elems)
 	spring_0 = sf.Spring(E0, nu0, "spring")
 
@@ -50,21 +73,34 @@ def main():
 	nu1 = 0.32*to.ones(mom_eq.n_elems)
 	kelvin = sf.Viscoelastic(eta, E1, nu1, "kelvin")
 
-	# Create creep
-	A = 1.9e-20*to.ones(mom_eq.n_elems)
+	# Create dislocation creep
+	A = to.zeros(mom_eq.n_elems)
+	A[ind_salt] = 1.9e-20
+	A[ind_ovb] = 0.0
 	Q = 51600*to.ones(mom_eq.n_elems)
 	n = 3.0*to.ones(mom_eq.n_elems)
-	creep_0 = sf.DislocationCreep(A, Q, n, "creep")
+	creep_ds = sf.DislocationCreep(A, Q, n, "ds_creep")
+
+	# Create pressure solution creep
+	A = to.zeros(mom_eq.n_elems)
+	A[ind_salt] = 1.29e-19
+	A[ind_ovb] = 0.0
+	Q = 13184*to.ones(mom_eq.n_elems)
+	d = 0.01*to.ones(mom_eq.n_elems)
+	creep_ps = sf.PressureSolutionCreep(A, d, Q, "ps_creep")
 
 	# Thermo-elastic element
-	alpha = 44e-6*to.ones(mom_eq.n_elems)
+	alpha = to.zeros(mom_eq.n_elems)
+	alpha[ind_salt] = 44e-6
+	alpha[ind_ovb] = 0.0
 	thermo = sf.Thermoelastic(alpha, "thermo")
 
 	# Create constitutive model
 	mat.add_to_elastic(spring_0)
 	mat.add_to_thermoelastic(thermo)
 	mat.add_to_non_elastic(kelvin)
-	mat.add_to_non_elastic(creep_0)
+	mat.add_to_non_elastic(creep_ds)
+	mat.add_to_non_elastic(creep_ps)
 
 	# Set constitutive model
 	mom_eq.set_material(mat)
@@ -79,75 +115,72 @@ def main():
 	dTdZ = 27/km
 	T_top = 273 + 20
 	T_field_fun = lambda x,y,z: T_top + dTdZ*(660 - z)
-	T0_field_elems = ut.create_field_elems(grid, T_field_fun)
-	mom_eq.set_T0(T0_field_elems)
-	mom_eq.set_T(T0_field_elems)
+	T0_field = ut.create_field_elems(grid, T_field_fun)
+	mom_eq.set_T0(T0_field)
+	mom_eq.set_T(T0_field)
 
 	# Time settings for equilibrium stage
-	tc_equilibrium = sf.TimeController(dt=0.5, initial_time=0.0, final_time=10, time_unit="hour")
+	tc_eq = sf.TimeControllerParabolic(n_time_steps=20, initial_time=0.0, final_time=10, time_unit="day")
+	# tc_eq = sf.TimeController(dt=0.1, final_time=5, initial_time=0.0, time_unit="day")
 
 	# Boundary conditions
 	time_values = [0*ut.hour,  1*ut.hour]
 	nt = len(time_values)
 
-	bc_west = momBC.DirichletBC(boundary_name = "West", 
-					 		component = 0,
-							values = [0.0, 0.0],
-							time_values = [0.0, tc_equilibrium.t_final])
+	bc_west_salt = momBC.DirichletBC(boundary_name="West_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
+	bc_west_ovb = momBC.DirichletBC(boundary_name = "West_ovb", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
 
-	bc_bottom = momBC.DirichletBC(boundary_name = "Bottom", 
-					 	  component = 2,
-					 	  values = [0.0, 0.0],
-					 	  time_values = [0.0, tc_equilibrium.t_final])
+	bc_east_salt = momBC.DirichletBC(boundary_name="East_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
+	bc_east_ovb = momBC.DirichletBC(boundary_name = "East_ovb", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
 
-	bc_south = momBC.DirichletBC(boundary_name = "South", 
-					 	  component = 1,
-					 	  values = [0.0, 0.0],
-					 	  time_values = [0.0, tc_equilibrium.t_final])
+	bc_bottom = momBC.DirichletBC(boundary_name="Bottom", component=2, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
 
-	side_burden = 10.0*ut.MPa
-	bc_east = momBC.NeumannBC(boundary_name = "East",
-						direction = 2,
-						density = salt_density,
-						ref_pos = 660.0,
-						values =      [side_burden, side_burden],
-						time_values = [0.0, tc_equilibrium.t_final],
-						g = g_vec[2])
+	bc_south_salt = momBC.DirichletBC(boundary_name="South_salt", component=1, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
+	bc_south_ovb = momBC.DirichletBC(boundary_name="South_ovb", component=1, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
 
-	bc_north = momBC.NeumannBC(boundary_name = "North",
-						direction = 2,
-						density = salt_density,
-						ref_pos = 660.0,
-						values =      [side_burden, side_burden],
-						time_values = [0.0, tc_equilibrium.t_final],
-						g = g_vec[2])
+	bc_north_salt = momBC.DirichletBC(boundary_name="North_salt", component=1, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
+	bc_north_ovb = momBC.DirichletBC(boundary_name="North_ovb", component=1, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
 
-	over_burden = 10.0*ut.MPa
+	# Extract geometry dimensions
+	Lx = grid.Lx
+	Ly = grid.Ly
+	Lz = grid.Lz
+	z_surface = 0.0
+
+	g = 9.81
+	ovb_thickness, salt_thickness, hanging_wall = get_geometry_parameters(grid_path)
+	cavern_roof = ovb_thickness + hanging_wall
+	p_roof = 0 + salt_density*g*hanging_wall + ovb_density*g*ovb_thickness
+
+	# Pressure at the top of the salt layer (bottom of overburden)
+	p_top = ovb_density*g*ovb_thickness
+
 	bc_top = momBC.NeumannBC(boundary_name = "Top",
 						direction = 2,
 						density = 0.0,
-						ref_pos = 0.0,
-						values =      [over_burden, over_burden],
-						time_values = [0.0, tc_equilibrium.t_final],
+						ref_pos = z_surface,
+						values = [0*MPa, 0*MPa],
+						time_values = [0*day,  10*day],
 						g = g_vec[2])
 
-	gas_density = 0.082
-	p_gas = 10.0*ut.MPa
 	bc_cavern = momBC.NeumannBC(boundary_name = "Cavern",
 						direction = 2,
 						density = gas_density,
-						# density = 0.082,
-						ref_pos = 430.0,
-						values =      [p_gas, p_gas],
-						time_values = [0.0,            tc_equilibrium.t_final],
+						ref_pos = cavern_roof,
+						values = [0.8*p_roof, 0.8*p_roof],
+						time_values = [0*day,  tc_eq.t_final],
 						g = g_vec[2])
 
 	bc_equilibrium = momBC.BcHandler(mom_eq)
-	bc_equilibrium.add_boundary_condition(bc_west)
+	bc_equilibrium.add_boundary_condition(bc_west_salt)
+	bc_equilibrium.add_boundary_condition(bc_west_ovb)
+	bc_equilibrium.add_boundary_condition(bc_east_salt)
+	bc_equilibrium.add_boundary_condition(bc_east_ovb)
 	bc_equilibrium.add_boundary_condition(bc_bottom)
-	bc_equilibrium.add_boundary_condition(bc_south)
-	bc_equilibrium.add_boundary_condition(bc_east)
-	bc_equilibrium.add_boundary_condition(bc_north)
+	bc_equilibrium.add_boundary_condition(bc_south_salt)
+	bc_equilibrium.add_boundary_condition(bc_south_ovb)
+	bc_equilibrium.add_boundary_condition(bc_north_salt)
+	bc_equilibrium.add_boundary_condition(bc_north_ovb)
 	bc_equilibrium.add_boundary_condition(bc_top)
 	bc_equilibrium.add_boundary_condition(bc_cavern)
 
@@ -172,7 +205,7 @@ def main():
 	outputs = [output_mom]
 
 	# Define simulator
-	sim = sf.Simulator_M(mom_eq, tc_equilibrium, outputs, True)
+	sim = sf.Simulator_M(mom_eq, tc_eq, outputs, True)
 	sim.run()
 
 
@@ -181,7 +214,7 @@ def main():
 
 
 	# Time settings for operation stage
-	tc_operation = sf.TimeController(dt=1, initial_time=0.0, final_time=240, time_unit="day")
+	tc_op = sf.TimeController(dt=0.5, initial_time=0.0, final_time=240, time_unit="day")
 
 	# Define heat diffusion equation
 	heat_eq = sf.HeatDiffusion(grid)
@@ -209,28 +242,32 @@ def main():
 	heat_eq.set_initial_T(T0_field_nodes)
 
 	# Define boundary conditions for heat diffusion
-	time_values = [tc_operation.t_initial, tc_operation.t_final]
+	time_values = [tc_op.t_initial, tc_op.t_final]
 	nt = len(time_values)
 
 	bc_handler = heatBC.BcHandler(heat_eq)
 
 	bc_top = heatBC.DirichletBC("Top", nt*[T_top], time_values)
-	bc_handler.add_boundary_condition(bc_top)
-
 	bc_bottom = heatBC.NeumannBC("Bottom", nt*[dTdZ], time_values)
+	bc_east_salt = heatBC.NeumannBC("East_salt", nt*[0.0], time_values)
+	bc_east_ovb = heatBC.NeumannBC("East_ovb", nt*[0.0], time_values)
+	bc_west_salt = heatBC.NeumannBC("West_salt", nt*[0.0], time_values)
+	bc_west_ovb = heatBC.NeumannBC("West_ovb", nt*[0.0], time_values)
+	bc_south_salt = heatBC.NeumannBC("South_salt", nt*[0.0], time_values)
+	bc_south_ovb = heatBC.NeumannBC("South_ovb", nt*[0.0], time_values)
+	bc_north_salt = heatBC.NeumannBC("North_salt", nt*[0.0], time_values)
+	bc_north_ovb = heatBC.NeumannBC("North_ovb", nt*[0.0], time_values)
+
+	bc_handler.add_boundary_condition(bc_top)
 	bc_handler.add_boundary_condition(bc_bottom)
-
-	bc_east = heatBC.NeumannBC("East", nt*[0.0], time_values)
-	bc_handler.add_boundary_condition(bc_east)
-
-	bc_west = heatBC.NeumannBC("West", nt*[0.0], time_values)
-	bc_handler.add_boundary_condition(bc_west)
-
-	bc_south = heatBC.NeumannBC("South", nt*[0.0], time_values)
-	bc_handler.add_boundary_condition(bc_south)
-
-	bc_north = heatBC.NeumannBC("North", nt*[0.0], time_values)
-	bc_handler.add_boundary_condition(bc_north)
+	bc_handler.add_boundary_condition(bc_east_salt)
+	bc_handler.add_boundary_condition(bc_east_ovb)
+	bc_handler.add_boundary_condition(bc_west_salt)
+	bc_handler.add_boundary_condition(bc_west_ovb)
+	bc_handler.add_boundary_condition(bc_south_salt)
+	bc_handler.add_boundary_condition(bc_south_ovb)
+	bc_handler.add_boundary_condition(bc_north_salt)
+	bc_handler.add_boundary_condition(bc_north_ovb)
 
 	T_gas = T_top
 	h_conv = 5.0
@@ -246,23 +283,44 @@ def main():
 	# Set operation stage settings for momentum equation
 
 	# Boundary conditions
-	bc_west = momBC.DirichletBC("West", 0, [0.0, 0.0], [0.0, tc_operation.t_final])
-	bc_bottom = momBC.DirichletBC("Bottom", 2, [0.0, 0.0], [0.0, tc_operation.t_final])
-	bc_south = momBC.DirichletBC("South", 1, [0.0, 0.0], [0.0, tc_operation.t_final])
-	bc_east = momBC.NeumannBC("East", 2, salt_density, 660.0, [side_burden, side_burden], [0.0, tc_operation.t_final], g_vec[2])
-	bc_north = momBC.NeumannBC("North", 2, salt_density, 660.0, [side_burden, side_burden], [0.0, tc_operation.t_final], g_vec[2])
-	bc_top = momBC.NeumannBC("Top", 2, 0.0, 0.0, [over_burden, over_burden], [0.0, tc_operation.t_final], g_vec[2])
+	bc_west_salt = momBC.DirichletBC(boundary_name="West_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+	bc_west_ovb = momBC.DirichletBC(boundary_name = "West_ovb", component=0, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
 
-	time_list = [0.0, 2.0*ut.hour, 14*ut.hour, 16*ut.hour, 24*ut.hour]
-	p_list = [10.0*ut.MPa, 7.0*ut.MPa, 7.0*ut.MPa, 10.0*ut.MPa, 10.0*ut.MPa]
-	bc_cavern = momBC.NeumannBC("Cavern", 2, gas_density, 430.0, p_list, time_list, g_vec[2])
+	bc_east_salt = momBC.DirichletBC(boundary_name="East_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+	bc_east_ovb = momBC.DirichletBC(boundary_name = "East_ovb", component=0, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+
+	bc_bottom = momBC.DirichletBC(boundary_name="Bottom", component=2, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+
+	bc_south_salt = momBC.DirichletBC(boundary_name="South_salt", component=1, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+	bc_south_ovb = momBC.DirichletBC(boundary_name="South_ovb", component=1, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+
+	bc_north_salt = momBC.DirichletBC(boundary_name="North_salt", component=1, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+	bc_north_ovb = momBC.DirichletBC(boundary_name="North_ovb", component=1, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+
+	bc_top = momBC.NeumannBC(boundary_name="Top", direction=2, density=0.0, ref_pos=z_surface, values=[0, 0], time_values=[0, tc_op.t_final], g=g_vec[2])
+
+	p_values = 3*[0.8*p_roof, 0.8*p_roof, 0.2*p_roof, 0.2*p_roof] + [0.8*p_roof]
+	t_values = [20*day*i for i in range(13)]
+
+	bc_cavern = momBC.NeumannBC(boundary_name = "Cavern",
+						direction = 2,
+						density = gas_density,
+						ref_pos = cavern_roof,
+						values = p_values,
+						time_values = t_values,
+						g = g_vec[2])
+
 
 	bc_operation = momBC.BcHandler(mom_eq)
-	bc_operation.add_boundary_condition(bc_west)
+	bc_operation.add_boundary_condition(bc_west_salt)
+	bc_operation.add_boundary_condition(bc_west_ovb)
+	bc_operation.add_boundary_condition(bc_east_salt)
+	bc_operation.add_boundary_condition(bc_east_ovb)
 	bc_operation.add_boundary_condition(bc_bottom)
-	bc_operation.add_boundary_condition(bc_south)
-	bc_operation.add_boundary_condition(bc_east)
-	bc_operation.add_boundary_condition(bc_north)
+	bc_operation.add_boundary_condition(bc_south_salt)
+	bc_operation.add_boundary_condition(bc_south_ovb)
+	bc_operation.add_boundary_condition(bc_north_salt)
+	bc_operation.add_boundary_condition(bc_north_ovb)
 	bc_operation.add_boundary_condition(bc_top)
 	bc_operation.add_boundary_condition(bc_cavern)
 
@@ -291,7 +349,7 @@ def main():
 	outputs = [output_mom, output_heat]
 
 	# Define simulator
-	sim = sf.Simulator_TM(mom_eq, heat_eq, tc_operation, outputs, False)
+	sim = sf.Simulator_TM(mom_eq, heat_eq, tc_op, outputs, False)
 	sim.run()
 
 
