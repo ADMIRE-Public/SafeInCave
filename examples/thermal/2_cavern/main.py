@@ -1,15 +1,11 @@
 import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.HeatBC as heatBC
-from mpi4py import MPI
 import dolfinx as do
 import os
 import sys
-import ufl
 import torch as to
-import numpy as np
 from petsc4py import PETSc
-import time
 
 def main():
 	# Read grid
@@ -95,11 +91,6 @@ def main():
 	output_heat.set_output_folder(output_folder)
 	output_heat.add_output_field("T", "Temperature (K)")
 	outputs = [output_heat]
-
-	# Print output folder
-	if MPI.COMM_WORLD.rank == 0:
-		print(output_folder)
-		sys.stdout.flush()
 
 	# Define simulator
 	sim = sf.Simulator_T(heat_eq, t_control, outputs, True)

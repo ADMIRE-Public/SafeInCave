@@ -2,15 +2,10 @@ import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.HeatBC as heatBC
 import safeincave.MomentumBC as momBC
-from mpi4py import MPI
-import dolfinx as do
 import os
 import sys
-import ufl
 import torch as to
-import numpy as np
 from petsc4py import PETSc
-import time
 
 
 def main():
@@ -157,10 +152,6 @@ def main():
 	# Equilibrium output folder
 	ouput_folder_equilibrium = os.path.join(output_folder, "equilibrium")
 
-	# Print output folder
-	if MPI.COMM_WORLD.rank == 0:
-		print(ouput_folder_equilibrium)
-
 	# Create output handlers
 	output_mom = sf.SaveFields(mom_eq)
 	output_mom.set_output_folder(ouput_folder_equilibrium)
@@ -271,11 +262,6 @@ def main():
 
 	# Define output folder
 	output_folder_operation = os.path.join(output_folder, "operation")
-
-	# Print output folder
-	if MPI.COMM_WORLD.rank == 0:
-		print(output_folder_operation)
-		sys.stdout.flush()
 
 	# Create output handlers
 	output_mom = sf.SaveFields(mom_eq)
