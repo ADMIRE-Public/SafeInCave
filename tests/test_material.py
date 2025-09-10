@@ -1,11 +1,3 @@
-# import unittest
-# import os
-# import sys
-# sys.path.append(os.path.join("..", "safeincave"))
-# import torch as to
-# import numpy as np
-# from MaterialProps import Spring, Viscoelastic, DislocationCreep, ViscoplasticDesai
-
 import safeincave as sc
 import torch as to
 import numpy as np
@@ -143,7 +135,7 @@ class TestDislocationCreep(unittest.TestCase):
 
 	def test_full(self):
 		self.elem.compute_G_B(self.stress, self.dt, self.theta, self.Temp)
-		to.testing.assert_close(self.elem.G, self.true_G, rtol=1e-10, atol=1e-10)
+		to.testing.assert_close(self.elem.G, self.true_G, rtol=1e-15, atol=1e-15)
 
 		self.elem.compute_eps_ne_rate(self.stress, self.phi1, self.Temp)
 		to.testing.assert_close(self.elem.eps_ne_rate, self.true_eps_ne_rate, rtol=1e-10, atol=1e-10)
@@ -157,6 +149,67 @@ class TestDislocationCreep(unittest.TestCase):
 		to.testing.assert_close(self.elem.eps_ne_rate_old, self.zeros3x3, rtol=1e-10, atol=1e-10)
 		self.elem.update_eps_ne_rate_old()
 		to.testing.assert_close(self.elem.eps_ne_rate_old, self.true_eps_ne_rate, rtol=1e-10, atol=1e-10)
+
+
+class TestPressureSolutionCreep(unittest.TestCase):
+	def setUp(self):
+		self.n_elems = 1
+		mm = 1e-3
+		A = 1.29e-15*to.ones(self.n_elems)
+		d = 10*mm*to.ones(self.n_elems)
+		# B = 1.29e-13*10*mm
+		# print(B)
+		Q = 13184*to.ones(self.n_elems)
+		self.elem = sc.PressureSolutionCreep(A, d, Q, name="creep")
+
+		self.stress = 1e6*to.tensor([[  [1., 4., 5.],
+	                                 	[4., 2., 6.],
+	                                 	[5., 6., 3.]] ], dtype=to.float64)
+
+		self.zeros3x3 = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+
+		self.Temp = 298*to.ones(self.n_elems, dtype=to.float64)
+
+		self.theta = 0.5
+		self.dt = 7200.
+		self.phi2 = (1 - self.theta)*self.dt
+		self.phi1 = self.theta*self.dt
+
+		self.true_G = to.tensor([[	[ 1.4155e-14, -7.0777e-15, -7.0777e-15,  0.0000e+00,  0.0000e+00,	0.0000e+00],
+									[-7.0777e-15,  1.4155e-14, -7.0777e-15,  0.0000e+00,  0.0000e+00,	0.0000e+00],
+									[-7.0777e-15, -7.0777e-15,  1.4155e-14,  0.0000e+00,  0.0000e+00,	0.0000e+00],
+									[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  4.2466e-14,  0.0000e+00,	0.0000e+00],
+									[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  4.2466e-14,	0.0000e+00],
+									[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,	4.2466e-14]]], dtype=to.float64)
+
+		self.true_eps_ne_rate = to.tensor([[ [-2.1233e-08,  8.4932e-08,  1.0617e-07],
+									         [ 8.4932e-08,  0.0000e+00,  1.2740e-07],
+									         [ 1.0617e-07,  1.2740e-07,  2.1233e-08]]], dtype=to.float64)
+
+		self.true_eps_ne_k = to.tensor([[ 	[-7.6439e-05,  3.0576e-04,  3.8219e-04],
+											[ 3.0576e-04,  0.0000e+00,  4.5863e-04],
+											[ 3.8219e-04,  4.5863e-04,  7.6439e-05]]], dtype=to.float64)
+
+		self.true_eps_ne = to.tensor([[	 [-1.5288e-04,  9.1727e-04,  1.1466e-03],
+								         [ 9.1727e-04,  7.1189e-12,  1.3759e-03],
+								         [ 1.1466e-03,  1.3759e-03,  1.5288e-04]]], dtype=to.float64)
+
+	def test_full(self):
+		self.elem.compute_G_B(self.stress, self.dt, self.theta, self.Temp)
+		to.testing.assert_close(self.elem.G, self.true_G, rtol=1e-15, atol=1e-15)
+
+		self.elem.compute_eps_ne_rate(self.stress, self.phi1, self.Temp)
+		to.testing.assert_close(self.elem.eps_ne_rate, self.true_eps_ne_rate, rtol=1e-8, atol=1e-8)
+
+		self.elem.compute_eps_ne_k(self.phi1, self.phi2)
+		to.testing.assert_close(self.elem.eps_ne_k, self.true_eps_ne_k, rtol=1e-4, atol=1e-4)
+
+		self.elem.update_eps_ne_old(self.stress, self.zeros3x3, self.phi2)
+		to.testing.assert_close(self.elem.eps_ne_old, self.true_eps_ne, rtol=1e-4, atol=1e-4)
+
+		to.testing.assert_close(self.elem.eps_ne_rate_old, self.zeros3x3, rtol=1e-10, atol=1e-10)
+		self.elem.update_eps_ne_rate_old()
+		to.testing.assert_close(self.elem.eps_ne_rate_old, self.true_eps_ne_rate, rtol=1e-5, atol=1e-5)
 
 
 class TestViscoplasticDesai(unittest.TestCase):
