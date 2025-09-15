@@ -748,3 +748,46 @@ class Simulator_Mout(Simulator):
 		self.screen.close()
 		for output in self.outputs:
 			output.save_mesh()
+
+
+class Simulator_GUI(Simulator):
+	def __init__(self, input_file):
+		self.input_file = input_file
+
+		from .Grid import GridHandlerGMSH
+		from .MaterialProps import Material, Spring
+		from petsc4py import PETSc
+
+		grid_path = self.input_file["grid"]["path"]
+		output_folder = self.input_file["output"]["path"]
+
+		grid = GridHandlerGMSH("geom", grid_path)
+
+		solver = PETSc.KSP().create(grid.mesh.comm)
+		solver.setType("cg")
+		solver.getPC().setType("asm")
+		solver.setTolerances(rtol=1e-12, max_it=100)
+
+		mat = Material(grid.n_elems)
+		mat.set_density(2000.0*to.ones(grid.n_elems, dtype=to.float64))
+
+		E = 102e9*to.ones(grid.n_elems)
+		nu = 0.3*to.ones(grid.n_elems)
+		spring_0 = Spring(E, nu, "spring")
+
+
+		mom_eq = LinearMomentum(grid, theta=0.5)
+		output_mom = SaveFields(mom_eq)
+		output_mom.set_output_folder(output_folder)
+		output_mom.add_output_field("u", "Displacement (m)")
+		output_mom.add_output_field("p_elems", "Mean stress (Pa)")
+		output_mom.add_output_field("q_elems", "Von Mises stress (Pa)")
+		outputs = [output_mom]
+
+		time_unit = "hour"
+		
+		ScreenPrinter.reset_instance()
+		self.screen = ScreenPrinter(grid, solver, mat, outputs, time_unit)
+
+	def run(self):
+		pass

@@ -34,6 +34,9 @@ version = { attr = "safeincave.__version__" }
 where = ["."]
 include = ["safeincave*"]
 
+[tool.setuptools.package-data]
+"safeincave" = ["app/assets/*.png"]
+
 [project.urls]
 Repository = "https://gitlab.tudelft.nl/ADMIRE_Public/safeincave"
 

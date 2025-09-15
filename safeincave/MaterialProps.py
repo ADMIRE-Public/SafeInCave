@@ -1012,9 +1012,9 @@ class PressureSolutionCreep(NonElasticElement):
         A_bar = (self.A/self.d**3/Temp)*to.exp(-self.Q/self.R/Temp)
         eps_rate = A_bar[:,None,None]*dev
         if return_eps_ne:
-            return eps_rate
+            return eps_rate
         else:
-            self.eps_ne_rate = eps_rate
+            self.eps_ne_rate = eps_rate
 
 
 class ViscoplasticDesai(NonElasticElement):
