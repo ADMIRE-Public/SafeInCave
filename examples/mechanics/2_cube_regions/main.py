@@ -5,7 +5,6 @@ from mpi4py import MPI
 from petsc4py import PETSc
 import torch as to
 import os
-import time
 
 
 def main():
@@ -28,7 +27,7 @@ def main():
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("bicg")
+	mom_solver.setType("cg")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)

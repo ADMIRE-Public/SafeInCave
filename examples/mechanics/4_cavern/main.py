@@ -1,45 +1,19 @@
-# import os
-# import sys
-# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-# from Grid2 import GridHandlerGMSH
-# from mpi4py import MPI
-# import ufl
-# import dolfinx as do
-# import torch as to
-# import numpy as np
-# from petsc4py import PETSc
-# import Utils as utils
-# from MaterialProps import *
-# from MomentumEquation import LinearMomentum
-# import MomentumBC as momBC
-# from OutputHandler import SaveFields
-# from Simulators import Simulator_M
-# from TimeHandler import TimeController, TimeControllerParabolic
-# import time
-
 import safeincave as sf
-import safeincave.Utils as ut
+from safeincave.Utils import day, GPa, create_field_elems
 import safeincave.MomentumBC as momBC
+from petsc4py import PETSc
 from mpi4py import MPI
-import dolfinx as do
+import torch as to
 import os
 import sys
-import torch as to
-from petsc4py import PETSc
 
-GPa = ut.GPa
-MPa = ut.MPa
-day = ut.day
 
 def get_geometry_parameters(path_to_grid):
 	f = open(os.path.join(path_to_grid, "geom.geo"), "r")
 	data = f.readlines()
 	ovb_thickness = float(data[10][len("ovb_thickness = "):-2])
-	salt_thickness = float(data[11][len("salt_thickness = "):-2])
 	hanging_wall = float(data[12][len("hanging_wall = "):-2])
-	return ovb_thickness, salt_thickness, hanging_wall
-
-
+	return ovb_thickness, hanging_wall
 
 
 
@@ -72,7 +46,7 @@ def main():
 	# Set material density
 	salt_density = 2200
 	ovb_density = 2800
-	gas_density = 10
+	gas_density = 0.082
 	rho = to.zeros(mom_eq.n_elems, dtype=to.float64)
 	rho[ind_salt] = salt_density
 	rho[ind_ovb] = ovb_density
@@ -118,7 +92,7 @@ def main():
 		dTdZ = 27/km
 		T_surface = 20 + 273
 		return T_surface - dTdZ*z
-	T0_field = ut.create_field_elems(grid, T_field_fun)
+	T0_field = create_field_elems(grid, T_field_fun)
 	mom_eq.set_T0(T0_field)
 	mom_eq.set_T(T0_field)
 
@@ -127,64 +101,31 @@ def main():
 	# tc_eq = sf.TimeController(dt=0.1, final_time=5, initial_time=0.0, time_unit="day")
 
 	# Boundary conditions
-	time_values = [0*ut.hour,  1*ut.hour]
-	nt = len(time_values)
+	bc_equilibrium = momBC.BcHandler(mom_eq)
 
-	bc_west_salt = momBC.DirichletBC(boundary_name="West_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
-	bc_west_ovb = momBC.DirichletBC(boundary_name = "West_ovb", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
-
-	bc_east_salt = momBC.DirichletBC(boundary_name="East_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
-	bc_east_ovb = momBC.DirichletBC(boundary_name = "East_ovb", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
-
-	bc_bottom = momBC.DirichletBC(boundary_name="Bottom", component=2, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
-
-	bc_south_salt = momBC.DirichletBC(boundary_name="South_salt", component=1, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
-	bc_south_ovb = momBC.DirichletBC(boundary_name="South_ovb", component=1, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
-
-	bc_north_salt = momBC.DirichletBC(boundary_name="North_salt", component=1, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
-	bc_north_ovb = momBC.DirichletBC(boundary_name="North_ovb", component=1, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
+	# Apply Dirichlet boundary conditions
+	boundaries = [("West_salt", 0), ("West_ovb", 0), ("East_salt", 0), ("East_ovb", 0), 
+				  ("South_salt", 1), ("South_ovb", 1), ("North_salt", 1), ("North_ovb", 1),
+				  ("Bottom", 2)]
+	for b_name, component in boundaries:
+		bc = momBC.DirichletBC(boundary_name=b_name, component=component, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
+		bc_equilibrium.add_boundary_condition(bc)
 
 	# Extract geometry dimensions
-	Lx = grid.Lx
-	Ly = grid.Ly
-	Lz = grid.Lz
-	z_surface = 0.0
+	ovb_thickness, hanging_wall = get_geometry_parameters(grid_path)
 
-	g = 9.81
-	ovb_thickness, salt_thickness, hanging_wall = get_geometry_parameters(grid_path)
+	# Calculate lithostatic pressure at the cavern's roof
 	cavern_roof = ovb_thickness + hanging_wall
-	p_roof = 0 + salt_density*g*hanging_wall + ovb_density*g*ovb_thickness
+	p_roof = 0 - salt_density*g*hanging_wall - ovb_density*g*ovb_thickness
 
-	# Pressure at the top of the salt layer (bottom of overburden)
-	p_top = ovb_density*g*ovb_thickness
-
-	bc_top = momBC.NeumannBC(boundary_name = "Top",
-						direction = 2,
-						density = 0.0,
-						ref_pos = z_surface,
-						values = [0*MPa, 0*MPa],
-						time_values = [0*day,  10*day],
-						g = g_vec[2])
-
+	# Impose loading condition on the cavern walls
 	bc_cavern = momBC.NeumannBC(boundary_name = "Cavern",
 						direction = 2,
 						density = gas_density,
 						ref_pos = cavern_roof,
 						values = [0.8*p_roof, 0.8*p_roof],
-						time_values = [0*day,  10*day],
+						time_values = [0*day,  tc_eq.t_final],
 						g = g_vec[2])
-
-	bc_equilibrium = momBC.BcHandler(mom_eq)
-	bc_equilibrium.add_boundary_condition(bc_west_salt)
-	bc_equilibrium.add_boundary_condition(bc_west_ovb)
-	bc_equilibrium.add_boundary_condition(bc_east_salt)
-	bc_equilibrium.add_boundary_condition(bc_east_ovb)
-	bc_equilibrium.add_boundary_condition(bc_bottom)
-	bc_equilibrium.add_boundary_condition(bc_south_salt)
-	bc_equilibrium.add_boundary_condition(bc_south_ovb)
-	bc_equilibrium.add_boundary_condition(bc_north_salt)
-	bc_equilibrium.add_boundary_condition(bc_north_ovb)
-	bc_equilibrium.add_boundary_condition(bc_top)
 	bc_equilibrium.add_boundary_condition(bc_cavern)
 
 
@@ -221,21 +162,18 @@ def main():
 	# Time settings for operation stage
 	tc_op = sf.TimeController(dt=2, initial_time=0.0, final_time=240, time_unit="hour")
 
-	# # Boundary conditions
-	bc_west_salt = momBC.DirichletBC(boundary_name="West_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
-	bc_west_ovb = momBC.DirichletBC(boundary_name = "West_ovb", component=0, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+	# Boundary conditions
+	bc_operation = momBC.BcHandler(mom_eq)
 
-	bc_east_salt = momBC.DirichletBC(boundary_name="East_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
-	bc_east_ovb = momBC.DirichletBC(boundary_name = "East_ovb", component=0, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+	# Dirichlet boundary conditions
+	boundaries = [("West_salt", 0), ("West_ovb", 0), ("East_salt", 0), ("East_ovb", 0), 
+				  ("South_salt", 1), ("South_ovb", 1), ("North_salt", 1), ("North_ovb", 1),
+				  ("Bottom", 2)]
+	for b_name, component in boundaries:
+		bc = momBC.DirichletBC(boundary_name=b_name, component=component, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
+		bc_operation.add_boundary_condition(bc)
 
-	bc_bottom = momBC.DirichletBC(boundary_name="Bottom", component=2, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
-
-	bc_south_salt = momBC.DirichletBC(boundary_name="South_salt", component=1, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
-	bc_south_ovb = momBC.DirichletBC(boundary_name="South_ovb", component=1, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
-
-	bc_north_salt = momBC.DirichletBC(boundary_name="North_salt", component=1, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
-	bc_north_ovb = momBC.DirichletBC(boundary_name="North_ovb", component=1, values=[0.0, 0.0], time_values=[0.0, tc_op.t_final])
-
+	# Impose loading condition on the cavern walls
 	bc_cavern = momBC.NeumannBC(boundary_name = "Cavern",
 						direction = 2,
 						density = gas_density,
@@ -243,19 +181,6 @@ def main():
 						values = [0.8*p_roof, 0.2*p_roof, 0.2*p_roof, 0.8*p_roof, 0.8*p_roof],
 						time_values = [0*day,  2*day,  6*day, 8*day, 10*day],
 						g = g_vec[2])
-
-
-	bc_operation = momBC.BcHandler(mom_eq)
-	bc_operation.add_boundary_condition(bc_west_salt)
-	bc_operation.add_boundary_condition(bc_west_ovb)
-	bc_operation.add_boundary_condition(bc_east_salt)
-	bc_operation.add_boundary_condition(bc_east_ovb)
-	bc_operation.add_boundary_condition(bc_bottom)
-	bc_operation.add_boundary_condition(bc_south_salt)
-	bc_operation.add_boundary_condition(bc_south_ovb)
-	bc_operation.add_boundary_condition(bc_north_salt)
-	bc_operation.add_boundary_condition(bc_north_ovb)
-	bc_operation.add_boundary_condition(bc_top)
 	bc_operation.add_boundary_condition(bc_cavern)
 
 	# Set boundary conditions

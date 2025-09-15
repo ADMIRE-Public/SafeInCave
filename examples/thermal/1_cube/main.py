@@ -1,15 +1,11 @@
 import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.HeatBC as heatBC
+from petsc4py import PETSc
 from mpi4py import MPI
-import dolfinx as do
+import torch as to
 import os
 import sys
-import ufl
-import torch as to
-import numpy as np
-from petsc4py import PETSc
-import time
 
 
 def main():
@@ -56,11 +52,11 @@ def main():
 	nt = len(time_values)
 
 	bc_east = heatBC.DirichletBC(boundary_name = "EAST", 
-							values = 2*[273 + 1.0],
+							values = [273, 273],
 							time_values = [t_control.t_initial, t_control.t_final])
 
 	bc_west = heatBC.RobinBC(boundary_name = "WEST", 
-							values = 2*[273 + 1.0],
+							values = [273, 273],
 							h = 5.0,
 							time_values = [t_control.t_initial, t_control.t_final])
 
@@ -72,7 +68,7 @@ def main():
 	heat_eq.set_boundary_conditions(bc_handler)
 
 	# Set initial temperature field
-	fun = lambda x, y, z: 273 + 20
+	fun = lambda x, y, z: 293
 	T0_field = ut.create_field_nodes(heat_eq.grid, fun)
 	heat_eq.set_initial_T(T0_field)
 

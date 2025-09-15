@@ -1,11 +1,9 @@
 import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.HeatBC as heatBC
-import dolfinx as do
-import os
-import sys
-import torch as to
 from petsc4py import PETSc
+import torch as to
+import os
 
 def main():
 	# Read grid

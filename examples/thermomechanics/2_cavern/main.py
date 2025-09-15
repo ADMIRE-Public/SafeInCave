@@ -2,15 +2,11 @@ import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.HeatBC as heatBC
 import safeincave.MomentumBC as momBC
+from petsc4py import PETSc
 from mpi4py import MPI
-import dolfinx as do
 import os
 import sys
-import ufl
 import torch as to
-import numpy as np
-from petsc4py import PETSc
-import time
 
 GPa = ut.GPa
 MPa = ut.MPa
