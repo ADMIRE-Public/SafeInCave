@@ -896,39 +896,38 @@ class Simulator_GUI(Simulator):
 		# Build material: non-elastic element
 		for elem_name in self.input_file["constitutive_model"]["nonelastic"].keys():
 			if self.input_file["constitutive_model"]["nonelastic"][elem_name]["active"]:
-				if self.input_file["constitutive_model"]["nonelastic"][elem_name]["equilibrium"]:
-					if self.input_file["constitutive_model"]["nonelastic"][elem_name]["type"] == "KelvinVoigt":
-						E = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["E"])
-						nu = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["nu"])
-						eta = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["eta"])
-						kelvin = Viscoelastic(eta, E, nu, elem_name)
-						self.mom_eq.mat.add_to_non_elastic(kelvin)
-					elif self.input_file["constitutive_model"]["nonelastic"][elem_name]["type"] == "DislocationCreep":
-						A = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["A"])
-						n = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["n"])
-						Q = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["Q"])
-						creep_0 = DislocationCreep(A, Q, n, elem_name)
-						self.mom_eq.mat.add_to_non_elastic(creep_0)
-						T = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["T"])
-						self.mom_eq.set_T0(T)
-						self.mom_eq.set_T(T)
-					elif self.input_file["constitutive_model"]["nonelastic"][elem_name]["type"] == "ViscoplasticDesai":
-						mu_1 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["mu_1"])
-						N_1 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["N_1"])
-						n = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["n"])
-						a_1 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["a_1"])
-						eta = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["eta"])
-						beta_1 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["beta_1"])
-						beta = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["beta"])
-						m = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["m"])
-						gamma = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["gamma"])
-						alpha_0 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["alpha_0"])
-						sigma_t = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["sigma_t"])
-						desai = ViscoplasticDesai(mu_1, N_1, a_1, eta, n, beta_1, beta, m, gamma, sigma_t, alpha_0, elem_name)
-						self.mom_eq.mat.add_to_non_elastic(desai)
-					else:
-						elem_type = self.input_file["constitutive_model"]["nonelastic"][elem_name]["type"]
-						raise Exception(f"Element type {elem_type} not supported.")
+				if self.input_file["constitutive_model"]["nonelastic"][elem_name]["type"] == "KelvinVoigt":
+					E = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["E"])
+					nu = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["nu"])
+					eta = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["eta"])
+					kelvin = Viscoelastic(eta, E, nu, elem_name)
+					self.mom_eq.mat.add_to_non_elastic(kelvin)
+				elif self.input_file["constitutive_model"]["nonelastic"][elem_name]["type"] == "DislocationCreep":
+					A = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["A"])
+					n = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["n"])
+					Q = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["Q"])
+					creep_0 = DislocationCreep(A, Q, n, elem_name)
+					self.mom_eq.mat.add_to_non_elastic(creep_0)
+					T = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["T"])
+					self.mom_eq.set_T0(T)
+					self.mom_eq.set_T(T)
+				elif self.input_file["constitutive_model"]["nonelastic"][elem_name]["type"] == "ViscoplasticDesai":
+					mu_1 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["mu_1"])
+					N_1 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["N_1"])
+					n = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["n"])
+					a_1 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["a_1"])
+					eta = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["eta"])
+					beta_1 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["beta_1"])
+					beta = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["beta"])
+					m = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["m"])
+					gamma = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["gamma"])
+					alpha_0 = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["alpha_0"])
+					sigma_t = self.grid.get_parameter(self.input_file["constitutive_model"]["nonelastic"][elem_name]["parameters"]["sigma_t"])
+					desai = ViscoplasticDesai(mu_1, N_1, a_1, eta, n, beta_1, beta, m, gamma, sigma_t, alpha_0, elem_name)
+					self.mom_eq.mat.add_to_non_elastic(desai)
+				else:
+					elem_type = self.input_file["constitutive_model"]["nonelastic"][elem_name]["type"]
+					raise Exception(f"Element type {elem_type} not supported.")
 
 
 		# Time settings for operation stage
@@ -967,6 +966,7 @@ class Simulator_GUI(Simulator):
 		output_mom.set_output_folder(os.path.join(self.output_folder, "operation"))
 		output_mom.add_output_field("u", "Displacement (m)")
 		output_mom.add_output_field("p_elems", "Mean Stress (MPa)")
+		output_mom.add_output_field("q_elems", "Von Mises Stress (MPa)")
 		outputs = [output_mom]
 
 		# Define simulator
