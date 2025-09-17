@@ -375,12 +375,8 @@ def gui():
             data["grid"] = {"path": grid_path_entry.get(), "name": grid_name_entry.get()}
             data["output"] = {"path": output_path_entry.get()}
 
-            print(grid.tags_dict.items())
-
             data["grid"]["regions"] = {value: int(key) for key, value in grid.tags_dict.items()}
             data["grid"]["boundaries"] = list_of_boundary_names
-
-            print(data["grid"])
 
             # Save Solver settings
             if solver_type_var.get() == "KrylovSolver":
@@ -529,7 +525,7 @@ def gui():
     # Create the main window
     root = tk.Tk()
     root.title("SafeInCave Parameter Manager")
-    root.geometry("1920x834")
+    root.geometry("1900x834")
 
 
     # ============ Left Side ============
@@ -552,7 +548,7 @@ def gui():
     center_frame.pack_propagate(False)
 
     # ============ Right Frame ============
-    right_frame = tk.Frame(root, width=560, height=800, relief=tk.GROOVE, borderwidth=1)
+    right_frame = tk.Frame(root, width=540, height=800, relief=tk.GROOVE, borderwidth=1)
     right_frame.place(x=1360, y=34)
     right_frame.pack_propagate(False)
 
@@ -678,7 +674,7 @@ def gui():
         # Define options based on the solver type
         if solver_type_var.get() == "KrylovSolver":
             method_options = ["cg", "bicg", "bicgstab", "gmres"]
-            preconditioner_options = ["icc", "ilu", "petsc_amg", "sor", "hypre"]
+            preconditioner_options = ["icc", "ilu", "petsc_amg", "sor", "hypre", "asm"]
             preconditioner_combobox['state'] = 'readonly'
             tolerance_entry.config(state='normal')
         else:  # DirectSolver
@@ -1025,4 +1021,4 @@ def gui():
     root.mainloop()
 
 if __name__ == '__main__':
-    main()
+    gui()

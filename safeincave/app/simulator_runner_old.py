@@ -1,43 +1,82 @@
 import os
 import sys
-import threading
-
-# sys.path.append(os.path.join("..", "..", "safeincave"))
-# from Simulator import Simulator
-# from Utils import read_json
+from multiprocessing import Process, Pipe
+from threading import Thread
+from ..Utils import read_json
 from ..Simulators import Simulator_GUI
 
-class SimulatorRunner:
-    """Class for running the Simulator and managing the output"""
-    jsonfilename = "" # "input_file.json"
-    def __init__(self, output_callback):
-        """
-        Directs the Simulator's output to the output_callback function.
-        :param output_callback: A function to display the output in the GUI
-        """
-        self.output_callback = output_callback
 
-    def setJsonFile(self,filename1):
+class SimulatorRunner:
+    def __init__(self, output_callback):
+        self.output_callback = output_callback
+        self.process = None
+        self.parent_conn, self.child_conn = None, None
+        self.listener_thread = None
+        self.jsonfilename = ""
+
+    def setJsonFile(self, filename1):
         self.jsonfilename = filename1
 
     def run(self):
-        """Run the simulation in a separate thread"""
-        def simulation_thread():
-            input_file = read_json(self.jsonfilename)
-            sim = SimulatorGUI(input_file)
+        # Reset connection and process
+        if self.process and self.process.is_alive():
+            self.stop()
 
-            # Redirect output to the `output_callback` function
-            sys.stdout = self
+        self.parent_conn, self.child_conn = Pipe()
+
+        def sim_process(conn, jsonfilename):
+            # Redirect stdout/stderr to Pipe
+            class PipeWriter:
+                def write(self, text):
+                    conn.send(text)
+                def flush(self):
+                    pass
+
+            sys.stdout = PipeWriter()
+            sys.stderr = PipeWriter()
+
+            sim = Simulator_GUI(read_json(jsonfilename))
             sim.run()
-            sys.stdout = sys.__stdout__  # Restore standard output
 
-        threading.Thread(target=simulation_thread, daemon=True).start()
+            # Cleanup
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+            conn.close()
+
+        self.process = Process(target=sim_process, args=(self.child_conn, self.jsonfilename))
+        self.process.start()
+
+        self.process.terminate()
+
+        def listen_pipe():
+            try:
+                while True:
+                    if self.parent_conn.poll(0.1):  # check if there's data
+                        msg = self.parent_conn.recv()
+                        self.write(msg)
+                    if not self.process.is_alive():
+                        break
+            except (EOFError, OSError):
+                self.write("\n[⚠️ Pipe closed. Listener exiting.]\n")
+            except Exception as e:
+                self.write(f"\n[❌ Error in listener thread: {e}]\n")
+
+        self.listener_thread = Thread(target=listen_pipe, daemon=True)
+        self.listener_thread.start()
+
+    def stop(self):
+        if self.process and self.process.is_alive():
+            self.process.terminate()
+            self.process.join()
+            self.write("\n❌ Simulation terminated by user.\n")
+        if self.listener_thread and self.listener_thread.is_alive():
+            self.listener_thread.join(timeout=1)
+        self.process = None
+        self.listener_thread = None
 
     def write(self, text):
-        """Receive output and send it to `output_callback`"""
         if self.output_callback:
             self.output_callback(text)
 
     def flush(self):
-        """For compatibility with `sys.stdout`"""
         pass

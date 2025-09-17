@@ -1,16 +1,9 @@
-import os
-import sys
-from multiprocessing import Process, Pipe
-from threading import Thread
-from ..Utils import read_json
-from ..Simulators import Simulator_GUI
-
+import sys, subprocess, threading
 
 class SimulatorRunner:
     def __init__(self, output_callback):
         self.output_callback = output_callback
-        self.process = None
-        self.parent_conn, self.child_conn = None, None
+        self.proc = None
         self.listener_thread = None
         self.jsonfilename = ""
 
@@ -18,63 +11,40 @@ class SimulatorRunner:
         self.jsonfilename = filename1
 
     def run(self):
-        # Reset connection and process
-        if self.process and self.process.is_alive():
-            self.stop()
+        self.stop()  # if already running
 
-        self.parent_conn, self.child_conn = Pipe()
+        # Start a clean Python interpreter running just the CLI
+        self.proc = subprocess.Popen(
+            [sys.executable, "-m", "safeincave.app.sim_cli", "--json", self.jsonfilename],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            close_fds=True
+        )
 
-        def sim_process(conn, jsonfilename):
-            # Redirect stdout/stderr to Pipe
-            class PipeWriter:
-                def write(self, text):
-                    conn.send(text)
-                def flush(self):
-                    pass
-
-            sys.stdout = PipeWriter()
-            sys.stderr = PipeWriter()
-
-            sim = Simulator_GUI(read_json(jsonfilename))
-            sim.run()
-
-            # Cleanup
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
-            conn.close()
-
-        self.process = Process(target=sim_process, args=(self.child_conn, self.jsonfilename))
-        self.process.start()
-
-        def listen_pipe():
+        def listen():
             try:
-                while True:
-                    if self.parent_conn.poll(0.1):  # check if there's data
-                        msg = self.parent_conn.recv()
-                        self.write(msg)
-                    if not self.process.is_alive():
-                        break
-            except (EOFError, OSError):
-                self.write("\n[⚠️ Pipe closed. Listener exiting.]\n")
-            except Exception as e:
-                self.write(f"\n[❌ Error in listener thread: {e}]\n")
+                assert self.proc.stdout is not None
+                for line in self.proc.stdout:
+                    if self.output_callback:
+                        self.output_callback(line)
+            finally:
+                if self.proc and self.proc.stdout:
+                    self.proc.stdout.close()
 
-        self.listener_thread = Thread(target=listen_pipe, daemon=True)
+        self.listener_thread = threading.Thread(target=listen, daemon=True)
         self.listener_thread.start()
 
     def stop(self):
-        if self.process and self.process.is_alive():
-            self.process.terminate()
-            self.process.join()
-            self.write("\n❌ Simulation terminated by user.\n")
-        if self.listener_thread and self.listener_thread.is_alive():
-            self.listener_thread.join(timeout=1)
-        self.process = None
-        self.listener_thread = None
-
-    def write(self, text):
-        if self.output_callback:
-            self.output_callback(text)
-
-    def flush(self):
-        pass
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait()
+            if self.output_callback:
+                self.output_callback("\n❌ Simulation terminated by user.\n")
+        self.proc = None
+        # listener thread will exit when stdout closes
