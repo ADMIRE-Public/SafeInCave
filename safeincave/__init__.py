@@ -16,7 +16,7 @@ from .HeatEquation import HeatDiffusion
 from .MomentumEquation import LinearMomentumBase, LinearMomentum
 from .MaterialProps import Material, NonElasticElement, Spring, Thermoelastic, Viscoelastic, DislocationCreep, PressureSolutionCreep, ViscoplasticDesai
 from .OutputHandler import SaveFields
-from .Simulators import Simulator_TM, Simulator_T, Simulator_M
+from .Simulators import Simulator_TM, Simulator_T, Simulator_M, Simulator_GUI
 from .ScreenOutput import ScreenPrinter
 from .TimeHandler import TimeControllerBase, TimeController, TimeControllerParabolic
 from . import MomentumBC
@@ -43,6 +43,7 @@ __all__ = [
     "Simulator_TM",
     "Simulator_T",
     "Simulator_M",
+    "Simulator_GUI",
     "ScreenPrinter",
     "TimeControllerBase",
     "TimeController",

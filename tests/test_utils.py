@@ -153,7 +153,7 @@ class Test1(unittest.TestCase):
 
 class Test2(unittest.TestCase):
 	def setUp(self):
-		self.grid = GridHandlerGMSH("geom", os.path.join("..", "grids", "cube"))
+		self.grid = GridHandlerGMSH("geom", os.path.join("..", "grids", "cube_regions"))
 
 	def test_fields(self):
 		fun = lambda x,y,z: x**2 + y**2 + z**2

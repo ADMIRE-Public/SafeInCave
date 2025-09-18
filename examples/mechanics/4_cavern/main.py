@@ -118,6 +118,8 @@ def main():
 	cavern_roof = ovb_thickness + hanging_wall
 	p_roof = 0 - salt_density*g*hanging_wall - ovb_density*g*ovb_thickness
 
+	print(0.2*p_roof, 0.8*p_roof, cavern_roof)
+
 	# Impose loading condition on the cavern walls
 	bc_cavern = momBC.NeumannBC(boundary_name = "Cavern",
 						direction = 2,
@@ -151,7 +153,7 @@ def main():
 
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_eq, outputs, True)
-	sim.run()
+	# sim.run()
 
 
 
@@ -204,7 +206,7 @@ def main():
 
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_op, outputs, False)
-	sim.run()
+	# sim.run()
 
 if __name__ == '__main__':
 	main()
