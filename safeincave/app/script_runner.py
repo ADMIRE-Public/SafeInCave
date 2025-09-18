@@ -17,7 +17,7 @@ class PythonScriptRunner(tk.Frame):
         self.top_frame.pack(side="top", fill="both", expand=False)
         self.top_frame.pack_propagate(False) 
 
-        self.bottom_frame = tk.Frame(self, height=240)  # 30% of 800
+        self.bottom_frame = tk.Frame(self, height=290)  # 30% of 800
         self.bottom_frame.pack(side="top", fill="both", expand=False)
         self.bottom_frame.pack_propagate(False)
 

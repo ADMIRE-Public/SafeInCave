@@ -390,7 +390,7 @@ def gui():
                     "preconditioner": preconditioner_combobox.get(),
                     "relative_tolerance": tol_f
                 }
-            elif solver_type_var.get() == "LU": #"DirectSolver":
+            elif solver_type_var.get() == "LU":
                 data["solver_settings"] = {
                     "type": solver_type_var.get(),
                     "method": method_combobox.get(),
@@ -525,30 +525,30 @@ def gui():
     # Create the main window
     root = tk.Tk()
     root.title("SafeInCave Parameter Manager")
-    root.geometry("1900x834")
+    root.geometry("1900x900")
 
 
     # ============ Left Side ============
-    left_frame = tk.Frame(root, width=360, height=800, relief=tk.GROOVE, borderwidth=1)
+    left_frame = tk.Frame(root, width=360, height=850, relief=tk.GROOVE, borderwidth=1)
     left_frame.place(x=0, y=34)
 
     left_textbox = scrolledtext.ScrolledText(left_frame, wrap=tk.WORD)
-    left_textbox.place(x=10, y=10, width=340, height=750)
+    left_textbox.place(x=10, y=10, width=340, height=790)
 
     left_btn1 = ttk.Button(left_frame, text="Load File", command=load_from_file)
-    left_btn1.place(x=10, y=765, width=150)
+    left_btn1.place(x=10, y=810, width=150)
 
     left_btn2 = ttk.Button(left_frame, text="Save File", command=save_data)
-    left_btn2.place(x=180, y=765, width=150)
+    left_btn2.place(x=180, y=810, width=150)
 
 
     # ============ center Frame ============
-    center_frame = tk.Frame(root, width=1000, height=800, relief=tk.GROOVE, borderwidth=1)
+    center_frame = tk.Frame(root, width=1000, height=850, relief=tk.GROOVE, borderwidth=1)
     center_frame.place(x=360, y=34)
     center_frame.pack_propagate(False)
 
     # ============ Right Frame ============
-    right_frame = tk.Frame(root, width=540, height=800, relief=tk.GROOVE, borderwidth=1)
+    right_frame = tk.Frame(root, width=540, height=850, relief=tk.GROOVE, borderwidth=1)
     right_frame.place(x=1360, y=34)
     right_frame.pack_propagate(False)
 
@@ -673,15 +673,19 @@ def gui():
     def update_dropdowns():
         # Define options based on the solver type
         if solver_type_var.get() == "KrylovSolver":
-            method_options = ["cg", "bicg", "bicgstab", "gmres"]
-            preconditioner_options = ["icc", "ilu", "petsc_amg", "sor", "hypre", "asm"]
+            method_options = ["cg", "bicg", "bcgs", "gmres", "richardson", "chebyshev", "cgs"]
+            # preconditioner_options = ["icc", "ilu", "petsc_amg", "sor", "hypre", "asm"]
             preconditioner_combobox['state'] = 'readonly'
             tolerance_entry.config(state='normal')
         else:  # DirectSolver
-            method_options = ["default", "umfpack", "mumps", "superlu", "petsc"]
+            method_options = ["petsc"]
             preconditioner_combobox['state'] = 'disabled'
             tolerance_entry.config(state='disabled')
-            preconditioner_options = ["icc", "ilu", "petsc_amg", "sor", "hypre"]
+        # preconditioner_options = ["icc", "ilu", "petsc_amg", "sor", "hypre", "asm"]
+        preconditioner_options = [
+            "jacobi", "bjacobi", "sor", "eisenstat", "icc", "ilu", 
+            "asm", "gasm","gamg", "bddc", "lu", "cholesky", "none"
+        ]
         
         # Update method combobox
         method_combobox['values'] = method_options

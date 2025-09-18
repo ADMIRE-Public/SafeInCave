@@ -23,13 +23,13 @@ class JSONBoundaryApp:
         external_time_list = [10, 20, 30, 40, 50]
         external_json_data = {
             "boundary_conditions": {
-                "NORTH": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [4000000.0] * 5},
-                "SOUTH": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [4000000.0] * 5},
-                "WEST": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [4000000.0] * 5},
-                "EAST": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [4000000.0] * 5},
-                "BOTTOM": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [4000000.0] * 5},
-                "TOP": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [4000000.0] * 5},
-                "Cavern": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [4000000.0] * 5},
+                "NORTH": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [0.0] * 5},
+                "SOUTH": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [0.0] * 5},
+                "WEST": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [0.0] * 5},
+                "EAST": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [0.0] * 5},
+                "BOTTOM": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [0.0] * 5},
+                "TOP": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [0.0] * 5},
+                "Cavern": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [0.0] * 5},
             }
         }
 
@@ -128,12 +128,19 @@ class JSONBoundaryApp:
         
         updated_boundaries = {key: value for key, value in current_boundaries.items() if key in grid_boundary_names}
         
+        # "NORTH": {"type": "neumann", "direction":0, "density": 0.0, "reference_position":0.0, "values": [4000000.0] * 5},
         for key in grid_boundary_names:
             if key not in updated_boundaries:
-                updated_boundaries[key] = {"values": [4000000.0] * 5}
+                updated_boundaries[key] = {
+                        "type": "neumann",
+                        "direction": 0,
+                        "density": 0.0,
+                        "reference_position": 0.0, 
+                        "values": [0.0] * len(self.time_list)
+                }
         
         self.json_data["boundary_conditions"] = updated_boundaries
-        
+
         #self.json_data["boundary_conditions"] = grid_boundary_names
         self.update_combobox()
     
