@@ -16,7 +16,7 @@ import dolfinx as do
 
 class Test1(unittest.TestCase):
 	def setUp(self):
-		self.grid = GridHandlerGMSH("geom", os.path.join("..", "grids", "cube"))
+		self.grid = GridHandlerGMSH("geom", os.path.join("..", "grids", "cube_regions"))
 		self.expected_bNames = ["NORTH", "SOUTH", "WEST", "EAST", "BOTTOM", "TOP"]
 		self.expected_btags_20 = np.array([26, 26, 26, 26, 26, 24, 24, 21, 21, 24, 26, 24, 26, 24, 24, 24, 21, 21, 24, 26])
 
