@@ -73,6 +73,7 @@ def main():
 	ax1.set_ylabel("Temperature (K)", fontname="serif", fontsize=12)
 	ax1.legend(loc=0, shadow=True, fancybox=True, prop={"size":8})
 
+	print(x_sorted[5])
 	ax2.plot(t, T_sorted[:,5])
 	ax2.set_xlabel("Time (days)", fontname="serif", fontsize=12)
 	ax2.set_ylabel("Temperature (K)", fontname="serif", fontsize=12)

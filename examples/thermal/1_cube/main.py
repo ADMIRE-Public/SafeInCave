@@ -1,5 +1,4 @@
 import safeincave as sf
-import safeincave.Utils as ut
 import safeincave.HeatBC as heatBC
 from petsc4py import PETSc
 from mpi4py import MPI
@@ -68,8 +67,7 @@ def main():
 	heat_eq.set_boundary_conditions(bc_handler)
 
 	# Set initial temperature field
-	fun = lambda x, y, z: 293
-	T0_field = ut.create_field_nodes(heat_eq.grid, fun)
+	T0_field = 293*to.ones(heat_eq.n_elems, dtype=to.float64)
 	heat_eq.set_initial_T(T0_field)
 
 	# Create output handlers

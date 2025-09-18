@@ -1,5 +1,6 @@
 import safeincave as sf
 import safeincave.Utils as ut
+from safeincave.Utils import GPa, MPa, day, hour, create_field_elems, create_field_nodes
 import safeincave.HeatBC as heatBC
 import safeincave.MomentumBC as momBC
 from petsc4py import PETSc
@@ -7,10 +8,6 @@ from mpi4py import MPI
 import os
 import sys
 import torch as to
-
-GPa = ut.GPa
-MPa = ut.MPa
-day = ut.day
 
 
 def get_geometry_parameters(path_to_grid):
@@ -28,7 +25,7 @@ def main():
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0")
+	output_folder = os.path.join("output", "case_1")
 
 	# Extract region indices
 	ind_salt = grid.region_indices["Salt"]
@@ -65,7 +62,7 @@ def main():
 
 	# Create Kelvin-Voigt viscoelastic element
 	eta = 105e11*to.ones(mom_eq.n_elems)
-	E1 = 10*ut.GPa*to.ones(mom_eq.n_elems)
+	E1 = 10*GPa*to.ones(mom_eq.n_elems)
 	nu1 = 0.32*to.ones(mom_eq.n_elems)
 	kelvin = sf.Viscoelastic(eta, E1, nu1, "kelvin")
 
@@ -111,7 +108,7 @@ def main():
 	dTdZ = 27/km
 	T_top = 273 + 20
 	T_field_fun = lambda x,y,z: T_top + dTdZ*(660 - z)
-	T0_field = ut.create_field_elems(grid, T_field_fun)
+	T0_field = create_field_elems(grid, T_field_fun)
 	mom_eq.set_T0(T0_field)
 	mom_eq.set_T(T0_field)
 
@@ -120,7 +117,7 @@ def main():
 	# tc_eq = sf.TimeController(dt=0.1, final_time=5, initial_time=0.0, time_unit="day")
 
 	# Boundary conditions
-	time_values = [0*ut.hour,  1*ut.hour]
+	time_values = [0*hour,  1*hour]
 	nt = len(time_values)
 
 	bc_west_salt = momBC.DirichletBC(boundary_name="West_salt", component=0, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
@@ -234,7 +231,7 @@ def main():
 	heat_eq.set_material(mat)
 
 	# Set initial temperature
-	T0_field_nodes = ut.create_field_nodes(grid, T_field_fun)
+	T0_field_nodes = create_field_nodes(grid, T_field_fun)
 	heat_eq.set_initial_T(T0_field_nodes)
 
 	# Define boundary conditions for heat diffusion
