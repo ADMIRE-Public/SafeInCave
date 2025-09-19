@@ -1,5 +1,4 @@
-<!-- ![alt text](<./docs_archive/source/_static/logo_2.png>){width=35%} -->
-![alt text](<https://gitlab.tudelft.nl/ADMIRE_Public/safeincave/-/raw/v2/assets/logo_2.png?ref_type=heads>){width=35%}
+<img src="assets/logo_2.png" width="500"/>
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://gitlab.tudelft.nl/ADMIRE_Public/safeincave)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
@@ -20,21 +19,48 @@ SafeInCave is a 3D finite element simulator based on FEniCSx. It is designed to 
 
 - **MPI-powered parallelism**: Scale simulations efficiently with mpi4py for distributed computing
 - **Thermal effects**: Solve heat diffusion equation and include thermal strains and creep thermal responses
-- **Cyclic operations**: Impose fast cyclic pressure loads to the cavern walls
-- **Constitutive model**: Include transient creep, reverse transient creep, and steady-state creep
+- **Graphical user interface**: Build your simulation without writing lines of code
+- **Constitutive model**: Include transient, reverse transient, dislocation, and pressure solution creep
 - **Robust linearization**: Provides robustness and flexibility to include new constitutive models
 - **Time discretization**: Choose between Explicit, Crank-Nicolson, and Fully-Implicit schemes
 - **XDMF output**: Efficient output format in terms of size and postprocessing
 
 ---
 
-## Getting started
-The user should start by reading the documentation at folder docs/manual. There you will find the installation steps, simple to complex tutorials, and detailed instructions on how to setup your own simulation cases. In addition, check out our video lectures on the SafeInCave simulator:
+## Installation
+SafeInCave installation depends on [FEniCSx](https://fenicsproject.org/) installation. For Windows users, the installaion pipeline consists of:
 
-1) Tensorial operations (theory): https://youtu.be/w5KX3F_rdzU?si=QQLVBq1NcrvOiS32
-2) Tensorial operations (exercises): https://youtu.be/JiN6jwp0RPk?si=K1Qhe3lAxJD4LI5w
-3) SafeInCave installation: https://youtu.be/J0KQ-nBMwwU?si=VXUVk60yrxavfT1E
-4) Stay tuned for upcoming video lectures.
+1) Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/)
+
+2) Install Ubuntu
+
+3) Install [FEniCSx](https://fenicsproject.org/download/)
+
+4) Install SafeInCave
+
+See SafeInCave [documentation](https://safeincave-docs.streamlit.app/installation) for a detailed explanation on the installation process.
+
+---
+
+## Getting started
+After installation, the easiest way to set up SafeInCave simulations is by using the SafeInCave App, as shown in the image below.
+
+<img src="assets/gui_safeincave.jpeg" width="800"/>
+
+Alternatively, users can build their own simulators using the *safeincave* package. Our [documentation](https://safeincave-docs.streamlit.app/) webpage shows detailed examples of how to set up purely [mechanical]() simulations, [heat diffusion]() simulations, and [thermomechanical]() simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
+
+---
+
+## Extra material
+Video lectures and video tutorials can be found in the [ADMIRE](https://www.youtube.com/@ADMIRE1/featured) YouTube channel. The following videos are currently available:
+
+1) [Tensorial operations (theory)](https://youtu.be/w5KX3F_rdzU?si=QQLVBq1NcrvOiS32)
+
+2) [Tensorial operations (exercises)](https://www.youtube.com/watch?v=JiN6jwp0RPk&t=0s)
+
+3) [Constitutive modeling](https://www.youtube.com/watch?v=fCeJIbjIL10)
+
+4) Stay tuned to [ADMIRE](https://www.youtube.com/@ADMIRE1/featured) YouTube channel for upcoming video lectures.
 
 ---
 
