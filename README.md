@@ -65,8 +65,8 @@ Video lectures and video tutorials can be found in the [ADMIRE](https://www.yout
 ---
 
 ## Current members 
-- [Hermínio Tasinafo Honório] (H.TasinafoHonorio@tudelft.nl),  Maintainer, 2023-present
-- [Hadi Hajibeygi] (h.hajibeygi@tudelft.nl), Principal Investigator
+- [Hermínio Tasinafo Honório](https://www.linkedin.com/in/herminioth/), Maintainer, 2023-present
+- [Hadi Hajibeygi](https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/sections/reservoir-engineering/staff/academic-staff/profdr-h-hajibeygi), Principal Investigator
 
 ---
 
