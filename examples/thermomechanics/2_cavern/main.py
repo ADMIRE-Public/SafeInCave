@@ -36,7 +36,7 @@ def main():
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("cg")
+	mom_solver.setType("bcgs")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -61,9 +61,13 @@ def main():
 	spring_0 = sf.Spring(E0, nu0, "spring")
 
 	# Create Kelvin-Voigt viscoelastic element
-	eta = 105e11*to.ones(mom_eq.n_elems)
+	# eta = 105e11*to.ones(mom_eq.n_elems)
 	E1 = 10*GPa*to.ones(mom_eq.n_elems)
 	nu1 = 0.32*to.ones(mom_eq.n_elems)
+
+	eta = to.zeros(mom_eq.n_elems)
+	eta[ind_salt] = 105e11
+	eta[ind_ovb] = 105e21
 	kelvin = sf.Viscoelastic(eta, E1, nu1, "kelvin")
 
 	# Create dislocation creep

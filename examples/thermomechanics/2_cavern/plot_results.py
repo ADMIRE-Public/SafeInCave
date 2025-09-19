@@ -58,12 +58,12 @@ def main():
 	fig, ax = plt.subplots(1, 1, figsize=(5, 3.5))
 	fig.subplots_adjust(top=0.92, bottom=0.155, left=0.138, right=0.980, hspace=0.35, wspace=0.295)
 
-	ax.plot([-10, 0.0], [0.8*p_roof/MPa, 0.8*p_roof/MPa], "-", color="lightcoral", linewidth=2.0, label="Equilibrium stage")
-	ax.plot(t_values, p_values, "-", color="steelblue", linewidth=2.0, label="Operation stage")
+	# ax.plot([-10, 0.0], [0.8*p_roof/MPa, 0.8*p_roof/MPa], "-", color="lightcoral", linewidth=2.0, label="Equilibrium stage")
+	ax.plot(t_values, p_values, "o-", color="steelblue", linewidth=2.0, label="Operation stage")
 	ax.set_xlabel("Time (days)", fontname="serif", size=12)
 	ax.set_ylabel("Gas pressure (MPa)", fontname="serif", size=12)
 	ax.set_ylim(2.5, 22)
-	ax.legend(loc=2, fancybox=True, shadow=True, ncol=2)
+	# ax.legend(loc=2, fancybox=True, shadow=True, ncol=2)
 	ax.grid(True)
 
 	apply_grey_theme(fig, [ax])
