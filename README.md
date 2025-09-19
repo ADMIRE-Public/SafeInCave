@@ -1,4 +1,4 @@
-<img src="assets/logo_2.png" width="500"/>
+<img src="https://raw.githubusercontent.com/ADMIRE-Public/SafeInCave/develop/assets/logo_2.png" width="500"/>
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://gitlab.tudelft.nl/ADMIRE_Public/safeincave)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
@@ -45,7 +45,7 @@ See SafeInCave [documentation](https://safeincave-docs.streamlit.app/installatio
 ## Getting started
 After installation, the easiest way to set up SafeInCave simulations is by using the SafeInCave App, as shown in the image below.
 
-<img src="assets/gui_safeincave.jpeg" width="800"/>
+<img src="https://raw.githubusercontent.com/ADMIRE-Public/SafeInCave/develop/assets/gui_safeincave.jpeg" width="800"/>
 
 Alternatively, users can build their own simulators using the *safeincave* package. Our [documentation](https://safeincave-docs.streamlit.app/) webpage shows detailed examples of how to set up purely [mechanical]() simulations, [heat diffusion]() simulations, and [thermomechanical]() simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
 
