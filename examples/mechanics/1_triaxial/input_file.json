@@ -1,6 +1,6 @@
 {
     "grid": {
-        "path": "/home/htasinafohonor/v2.0.0_safeincave/safeincave/grids/cube",
+        "path": "../../../grids/cube",
         "name": "geom",
         "regions": {
             "BODY": 19
