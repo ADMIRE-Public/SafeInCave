@@ -1,16 +1,3 @@
-# import os
-# import sys
-# sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-# import numpy as np
-# import pandas as pd
-# from Utils import read_json, MPa
-# import matplotlib.pyplot as plt
-# import meshio
-# from PostProcessingTools import (read_scalar_from_points,
-# 								find_mapping,
-# 								read_xdmf_as_pandas,
-# 								read_msh_as_pandas)
-
 import safeincave as sf
 import safeincave.PostProcessingTools as post
 import matplotlib.pyplot as plt
