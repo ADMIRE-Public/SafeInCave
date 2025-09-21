@@ -47,7 +47,7 @@ After installation, the easiest way to set up SafeInCave simulations is by using
 
 <img src="https://raw.githubusercontent.com/ADMIRE-Public/SafeInCave/develop/assets/gui_safeincave.jpeg" width="800"/>
 
-Alternatively, users can build their own simulators using the *safeincave* package. Our [documentation](https://safeincave-docs.streamlit.app/) webpage shows detailed examples of how to set up purely [mechanical]() simulations, [heat diffusion]() simulations, and [thermomechanical]() simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
+Alternatively, users can build their own simulators using the *safeincave* package. Our [documentation](https://safeincave-docs.streamlit.app/) webpage shows detailed examples of how to set up purely [mechanical](https://safeincave-docs.streamlit.app/mechanics_4_cavern) simulations, [heat diffusion](https://safeincave-docs.streamlit.app/thermal_1_cube) simulations, and [thermomechanical](https://safeincave-docs.streamlit.app/thermomech_2_cavern) simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
 
 ---
 
