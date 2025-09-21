@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "safeincave"
+dynamic = ["version"]
+description = "Simulator and tools for salt cavern stability and storage analyses"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{name = "Hermínio T. Honório"}]
+license = {text = "GPL-3.0-only"}
+dependencies = [
+  "numpy==1.26.4",
+  "scipy==1.14.1",
+  "torch==2.4.0",
+  "meshio==3.3.1",
+  # "pandas==1.4.3",
+  # "mpi4py>=3.1.3",
+  "gmsh>=4.14.0",
+  "lxml",
+  "pytz",
+  "h5py",
+  # "petsc4py"
+]
+
+[tool.setuptools]
+license-files = ["LICENSE"]
+
+[tool.setuptools.dynamic]
+version = { attr = "safeincave.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["safeincave*"]
+
+[tool.setuptools.package-data]
+"safeincave" = ["app/assets/*.png"]
+
+[project.urls]
+Repository = "https://github.com/ADMIRE-Public/SafeInCave"
+

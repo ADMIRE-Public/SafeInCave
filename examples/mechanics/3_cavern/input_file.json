@@ -1,0 +1,198 @@
+{
+    "grid": {
+        "path": "../../../grids/cavern_irregular",
+        "name": "geom",
+        "regions": {
+            "Salt": 72
+        },
+        "boundaries": [
+            "West",
+            "East",
+            "South",
+            "North",
+            "Bottom",
+            "Top",
+            "Cavern"
+        ]
+    },
+    "output": {
+        "path": "output/case_gui"
+    },
+    "solver_settings": {
+        "type": "KrylovSolver",
+        "method": "cg",
+        "preconditioner": "icc",
+        "relative_tolerance": 0.0
+    },
+    "simulation_settings": {
+        "operation": {
+            "active": true,
+            "dt_max": 360.0,
+            "n_skip": 1,
+            "hardening": true
+        },
+        "equilibrium": {
+            "active": true,
+            "dt_max": 1800.0,
+            "ite_max": 20,
+            "time_tol": 1e-09
+        }
+    },
+    "body_force": {
+        "gravity": -9.81,
+        "density": 2000,
+        "direction": 2
+    },
+    "time_settings": {
+        "theta": 0.0,
+        "time_list": [
+            0,
+            7200,
+            50400,
+            57600,
+            86400
+        ]
+    },
+    "boundary_conditions": {
+        "West": {
+            "type": "dirichlet",
+            "component": 0,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "East": {
+            "type": "neumann",
+            "direction": 2,
+            "density": 2000.0,
+            "reference_position": 660.0,
+            "values": [
+                10000000.0,
+                10000000.0,
+                10000000.0,
+                10000000.0,
+                10000000.0
+            ]
+        },
+        "South": {
+            "type": "dirichlet",
+            "component": 1,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "North": {
+            "type": "neumann",
+            "direction": 2,
+            "density": 2000.0,
+            "reference_position": 660.0,
+            "values": [
+                10000000.0,
+                10000000.0,
+                10000000.0,
+                10000000.0,
+                10000000.0
+            ]
+        },
+        "Bottom": {
+            "type": "dirichlet",
+            "component": 2,
+            "values": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "Top": {
+            "type": "neumann",
+            "direction": 2,
+            "density": 0.0,
+            "reference_position": 0.0,
+            "values": [
+                10000000.0,
+                10000000.0,
+                10000000.0,
+                10000000.0,
+                10000000.0
+            ]
+        },
+        "Cavern": {
+            "type": "neumann",
+            "direction": 2,
+            "density": 0.082,
+            "reference_position": 430.0,
+            "values": [
+                10000000.0,
+                7000000.0,
+                7000000.0,
+                10000000.0,
+                10000000.0
+            ]
+        }
+    },
+    "constitutive_model": {
+        "elastic": {
+            "spring": {
+                "type": "Spring",
+                "active": true,
+                "equilibrium": true,
+                "parameters": {
+                    "E": 102000000000,
+                    "nu": 0.3
+                }
+            }
+        },
+        "nonelastic": {
+            "kelvin": {
+                "type": "KelvinVoigt",
+                "active": true,
+                "equilibrium": true,
+                "parameters": {
+                    "E": 10000000000,
+                    "nu": 0.32,
+                    "eta": 10500000000000
+                }
+            },
+            "desai": {
+                "type": "ViscoplasticDesai",
+                "active": true,
+                "equilibrium": false,
+                "parameters": {
+                    "mu_1": 5.366585700985981e-11,
+                    "N_1": 3.1,
+                    "n": 3,
+                    "a_1": 1.965018496922832e-05,
+                    "eta": 0.8275682807874163,
+                    "beta_1": 0.0048,
+                    "beta": 0.995,
+                    "m": -0.5,
+                    "gamma": 0.095,
+                    "alpha_0": 0.0022,
+                    "k_v": 0,
+                    "sigma_t": 5
+                }
+            },
+            "creep": {
+                "type": "DislocationCreep",
+                "active": true,
+                "equilibrium": true,
+                "parameters": {
+                    "A": 1.9e-20,
+                    "n": 3,
+                    "Q": 51600,
+                    "T": 298
+                }
+            }
+        }
+    }
+}
