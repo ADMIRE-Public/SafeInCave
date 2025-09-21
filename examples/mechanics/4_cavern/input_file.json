@@ -1,6 +1,6 @@
 {
     "grid": {
-        "path": "/home/htasinafohonor/v2.0.0_safeincave/safeincave/grids/cavern_overburden_coarse",
+        "path": "../../../grids/cavern_overburden_coarse",
         "name": "geom",
         "regions": {
             "Salt": 84,
