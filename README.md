@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/ADMIRE-Public/SafeInCave/develop/assets/logo_2.png" width="500"/>
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://gitlab.tudelft.nl/ADMIRE_Public/safeincave)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/ADMIRE-Public/SafeInCave)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
 [![FEniCSx](https://img.shields.io/badge/Dependency-FEniCSx%200.9.0-important)](https://fenicsproject.org)
 
