@@ -23,6 +23,7 @@ from abc import ABC
 import numpy as np
 import dolfinx as do
 import ufl
+from .Utils import (extract_cavern_surface_from_grid, surface_centroid, orient_triangles_outward, compute_volume, compute_pressure_change)
 
 class GeneralBC(ABC):
 	"""
@@ -134,6 +135,40 @@ class NeumannBC(GeneralBC):
 		self.ref_pos = ref_pos
 		self.gravity = g
 
+class SpecialNeumannBC(GeneralBC):
+    """
+    Volume–pressure coupled Neumann BC for abandonment.
+    The boundary value is:  -(p(t,V) + ρ g (H - x[i])) * n
+    where p is pressure.
+
+    Parameters
+    ----------
+    boundary_name : str
+    direction : int            # 0,1,2 axis for hydrostatic term
+    density : float            # ρ of fluid for hydrostatics
+    ref_pos : float            # H reference elevation
+    p0 : float                 # initial pressure
+    V0 : float                 # reference volume at t=0
+    g : float = -9.81
+    """
+    def __init__(self, boundary_name, direction, density, ref_pos, p0, g=-9.81, p_threshold=None):
+        self.boundary_name = boundary_name
+        self.type = "special_neumann"
+        self.direction = direction
+        self.density = density
+        self.ref_pos = ref_pos
+        self.gravity = g
+        self.p_threshold = p_threshold  # optional pressure threshold for abandonment soft shut-in
+
+        self.p0 = float(p0)
+        self.p_curr = float(p0)
+        self.V0 = None
+        self.V_curr = None
+
+        self._last_t = None
+        self._last_V = None
+        self._last_P = None
+
 
 class BcHandler():
 	"""
@@ -170,18 +205,83 @@ class BcHandler():
 		self.eq = equation
 		self.dirichlet_boundaries = []
 		self.neumann_boundaries = []
+		self.special_neumann_boundaries = []
 		self.x = ufl.SpatialCoordinate(self.eq.grid.mesh)
+		self.abandonment_mode = "off"
+		self.last_logged_pressure = None
+		self.last_logged_volume   = None
+
+		coords_wall, tris_tmp, wall_ids = extract_cavern_surface_from_grid(self.eq.grid, boundary_name="Cavern")
+		ctr = surface_centroid(coords_wall, tris_tmp)
+		self._coords0_wall = coords_wall
+		self._tris = orient_triangles_outward(coords_wall, tris_tmp, ctr)
+		self._wall_ids = np.asarray(wall_ids, dtype=int)
+		
+	def set_abandonment_mode(self, mode: str) -> None:
+		"""
+        Set the abandonment mode for special Neumann BCs.
+		"""
+		if mode not in ("off", "equilibrium", "coupled"):
+			raise ValueError("mode must be 'off', 'equilibrium', or 'coupled'")
+		self.abandonment_mode = mode
+
+	def _ensure_special_init(self, bc: SpecialNeumannBC) -> None:
+		"""Initialize V0 and last state on first use."""
+		if bc.V0 is None:
+			bc.V0 = compute_volume(self._coords0_wall, self._tris)
+			bc._last_V = bc.V0
+			bc.V_curr = bc.V0
+			bc.p_curr = bc.p0
+			bc._last_P = bc.p0
+	
+	
+	def _compute_cavern_volume(self) -> float:
+		"""
+		Compute deformed cavern volume using the v1.1 method but obtain the
+		wall-vertex displacements via safe Function.eval(points, cells).
+		"""
+		mesh = self.eq.grid.mesh
+		tdim = mesh.topology.dim
+		mesh.topology.create_connectivity(0, tdim)
+		
+		u_fun = getattr(self.eq, "X", None) or getattr(self.eq, "u")
+		
+		pts = np.asarray(self._coords0_wall, dtype=np.float64, order="C")
+		
+		v2c = mesh.topology.connectivity(0, tdim)
+		cells = np.empty(len(self._wall_ids), dtype=np.int32)
+		for k, v in enumerate(self._wall_ids):
+			links = v2c.links(v)
+			if len(links) == 0:
+				raise RuntimeError(f"Vertex {v} has no incident cell.")
+			cells[k] = links[0]
+		
+		disp_wall = u_fun.eval(pts, cells)
+		
+		coords_def = self._coords0_wall + disp_wall
+		V = compute_volume(coords_def, self._tris)
+		return float(V)
+
+	def get_abandonment_state(self):
+		"""
+		Returns (p_base, V_curr) for the first SpecialNeumannBC, or None if absent.
+		"""
+		if not self.special_neumann_boundaries:
+			return None
+		bc = self.special_neumann_boundaries[0]
+		return float(bc.p_curr), float(bc.V_curr)
 
 	def reset_boundary_conditions(self) -> None:
 		"""
-        Clear all registered boundary conditions.
-
-        Returns
-        -------
-        None
-        """
+		Clear all registered boundary conditions.
+		
+		Returns
+		-------
+		None
+		"""
 		self.dirichlet_boundaries = []
 		self.neumann_boundaries = []
+		self.special_neumann_boundaries = []
 
 	def add_boundary_condition(self, bc : GeneralBC) -> None:
 		"""
@@ -205,6 +305,8 @@ class BcHandler():
 			self.dirichlet_boundaries.append(bc)
 		elif bc.type == "neumann":
 			self.neumann_boundaries.append(bc)
+		elif bc.type == "special_neumann":
+			self.special_neumann_boundaries.append(bc)
 		else:
 			raise Exception(f"Boundary type {bc.type} not supported.")
 
@@ -276,3 +378,44 @@ class BcHandler():
 			value_neumann = p + rho*bc.gravity*(H - self.x[i])
 			self.neumann_bcs.append(value_neumann*self.eq.normal*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
 
+        # 2) Special Neumann BCs (abandonment)
+		if self.abandonment_mode == "off":
+			return
+		
+		for bc in self.special_neumann_boundaries:
+			self._ensure_special_init(bc)
+			i = bc.direction
+			rho = bc.density
+			H = bc.ref_pos
+			
+			V = self._compute_cavern_volume()
+			p_base = getattr(bc, "last_logged_pressure", bc.p0)
+			
+			if self.abandonment_mode == "equilibrium":
+				p_base = bc.p0
+				bc.p_curr=p_base
+				print("eq")
+			elif self.abandonment_mode == "coupled":
+				if bc.p_threshold is not None and bc.p_threshold < self.last_logged_pressure:
+					p_base = bc.p_threshold
+					print("thresholded")
+					bc.p_curr = p_base
+					bc._last_P = p_base
+				else:
+					V_prev = self.last_logged_volume
+					dP, _rho  = compute_pressure_change(V_prev, V, temperature=300, pressure=bc.p0, fluid="INCOMP::MNA[0.230]")
+					p_base = self.last_logged_pressure + dP
+					bc.p_curr = p_base
+					bc._last_P = p_base
+					print("coupled")
+			else:
+				raise RuntimeError(f"Unknown abandonment mode {self.abandonment_mode}")
+			
+			bc.V_curr = V
+			bc._last_V = V
+			bc._last_t = t
+			
+			p = -p_base
+			value_neumann = p + rho*bc.gravity*(H - self.x[i])
+			self.neumann_bcs.append(value_neumann*self.eq.normal*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
+            
