@@ -72,18 +72,40 @@ def plot_Fvp(ax, output_folder):
 
 
 
+# def main():
+# 	# Define paths
+# 	output_folder = os.path.join("output", "case_0")
+# 	output_folder = os.path.join("output", "case_mixed_0")
+
+# 	# Plot loading schedule
+# 	fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 3))
+# 	fig.subplots_adjust(top=0.970, bottom=0.155, left=0.062, right=0.980, hspace=0.35, wspace=0.312)
+# 	fig.patch.set_alpha(0.0)
+
+# 	plot_eps_tot(ax1, output_folder)
+# 	# plot_strains(ax2, output_folder)
+# 	# plot_Fvp(ax3, output_folder)
+
+	
+
+# 	plt.show()
+
+	
+
 def main():
 	# Define paths
-	output_folder = os.path.join("output", "case_0")
+	output_primal = os.path.join("output", "case_0")
+	output_mixed = os.path.join("output", "case_mixed_0")
 
 	# Plot loading schedule
 	fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 3))
 	fig.subplots_adjust(top=0.970, bottom=0.155, left=0.062, right=0.980, hspace=0.35, wspace=0.312)
 	fig.patch.set_alpha(0.0)
 
-	plot_eps_tot(ax1, output_folder)
-	plot_strains(ax2, output_folder)
-	plot_Fvp(ax3, output_folder)
+	plot_eps_tot(ax1, output_primal)
+	plot_eps_tot(ax2, output_mixed)
+	# plot_strains(ax2, output_folder)
+	# plot_Fvp(ax3, output_folder)
 
 	
 

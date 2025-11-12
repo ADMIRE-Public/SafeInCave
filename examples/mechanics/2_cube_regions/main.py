@@ -19,15 +19,18 @@ def main():
 	unit = "hour"
 	t_0 = 0.0
 	dt = 0.01
-	t_final = 1
+	t_final = 1.0
 	t_control = TimeController(dt=dt, initial_time=t_0, final_time=t_final, time_unit=unit)
 
 	# Define momentum equation
-	mom_eq = LinearMomentum(grid, theta=0.5)
+	# mom_eq = LinearMomentum(grid, theta=0.5)
+	mom_eq = LinearMomentumMixed(grid, theta=0.5)
+	h = compute_mesh_h(grid.mesh)
+	mom_eq.set_stabilization_h(5.0*h)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("cg")
+	mom_solver.setType("bicg")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -82,9 +85,6 @@ def main():
 	mom_eq.set_T(T0_field)
 
 	# Boundary conditions
-	time_values = [0*ut.hour,  1*ut.hour]
-	nt = len(time_values)
-
 	bc_west = momBC.DirichletBC(boundary_name = "WEST", 
 					 		component = 0,
 							values = [0.0, 0.0],
@@ -105,7 +105,7 @@ def main():
 						density = 0.0,
 						ref_pos = 0.0,
 						values =      [5.0*ut.MPa, 5.0*ut.MPa],
-						time_values = [0.0,           t_control.t_final],
+						time_values = [0.0, t_control.t_final],
 						g = g_vec[2])
 
 	bc_north = momBC.NeumannBC(boundary_name = "NORTH",
@@ -113,7 +113,7 @@ def main():
 						density = 0.0,
 						ref_pos = 0.0,
 						values =      [5.0*ut.MPa, 5.0*ut.MPa],
-						time_values = [0.0,           t_control.t_final],
+						time_values = [0.0, t_control.t_final],
 						g = g_vec[2])
 
 	bc_top = momBC.NeumannBC(boundary_name = "TOP",
@@ -121,7 +121,7 @@ def main():
 						density = 0.0,
 						ref_pos = 0.0,
 						values =      [8.0*ut.MPa, 8.0*ut.MPa],
-						time_values = [0.0,           t_control.t_final],
+						time_values = [0.0, t_control.t_final],
 						g = g_vec[2])
 
 	bc_handler = momBC.BcHandler(mom_eq)

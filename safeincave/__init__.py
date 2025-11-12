@@ -14,6 +14,7 @@ __version__ = "2.1.0"
 from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
 from .MomentumEquation import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
+from .CharacteristicLength import ModelML, compute_mesh_h
 from .MaterialProps import Material, NonElasticElement, Spring, Thermoelastic, Viscoelastic, DislocationCreep, PressureSolutionCreep, ViscoplasticDesai
 from .OutputHandler import SaveFields
 from .Simulators import Simulator_TM, Simulator_T, Simulator_M, Simulator_GUI
@@ -32,6 +33,8 @@ __all__ = [
     "LinearMomentumBase",
     "LinearMomentum",
     "LinearMomentumMixed",
+    "ModelML",
+    "compute_mesh_h",
     "Material",
     "NonElasticElement",
     "Spring",
@@ -56,5 +59,5 @@ __all__ = [
 ]
 
 __author__ = "Hermínio T. Honório"
-__email__ = "herminio.tasinafohonor@tno.nl"
+__email__ = "herminio.tasinafohonorio@tno.nl"
 

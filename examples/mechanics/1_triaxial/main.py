@@ -6,16 +6,27 @@ import dolfinx as do
 import os
 import torch as to
 
-class LinearMomentumMod(sf.LinearMomentum):
+class LinearMomentumMixedMod(sf.LinearMomentumMixed):
 	def __init__(self, grid, theta):
 		super().__init__(grid, theta)
-
-	def initialize(self) -> None:
-		self.C.x.array[:] = to.flatten(self.mat.C)
-		self.Fvp = do.fem.Function(self.DG0_1)
 		self.eps_ve = do.fem.Function(self.DG0_3x3)
 		self.eps_cr = do.fem.Function(self.DG0_3x3)
 		self.eps_vp = do.fem.Function(self.DG0_3x3)
+		self.Fvp = do.fem.Function(self.DG0_1)
+
+	def run_after_solve(self):
+		self.eps_ve.x.array[:] = to.flatten(self.mat.elems_ne[0].eps_ne_k)
+		self.eps_cr.x.array[:] = to.flatten(self.mat.elems_ne[1].eps_ne_k)
+		self.eps_vp.x.array[:] = to.flatten(self.mat.elems_ne[2].eps_ne_k)
+		self.Fvp.x.array[:] = self.mat.elems_ne[2].Fvp
+
+class LinearMomentumPrimaldMod(sf.LinearMomentum):
+	def __init__(self, grid, theta):
+		super().__init__(grid, theta)
+		self.eps_ve = do.fem.Function(self.DG0_3x3)
+		self.eps_cr = do.fem.Function(self.DG0_3x3)
+		self.eps_vp = do.fem.Function(self.DG0_3x3)
+		self.Fvp = do.fem.Function(self.DG0_1)
 
 	def run_after_solve(self):
 		self.eps_ve.x.array[:] = to.flatten(self.mat.elems_ne[0].eps_ne_k)
@@ -25,13 +36,14 @@ class LinearMomentumMod(sf.LinearMomentum):
 
 
 
-def main():
+def run(formulation="mixed", beta=1.0):
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0")
+	output_folder = os.path.join("output", "case_mixed_0")
+	output_folder = os.path.join("output", f"case_{formulation}_{beta}")
 
 	# Time settings for equilibrium stage
 	unit = "hour"
@@ -41,7 +53,13 @@ def main():
 	t_control = sf.TimeController(dt=dt, initial_time=t_0, final_time=t_final, time_unit=unit)
 
 	# Define momentum equation
-	mom_eq = LinearMomentumMod(grid, theta=0.5)
+	if formulation == "primal":
+		mom_eq = LinearMomentumPrimaldMod(grid, theta=0.5)
+	else:
+		mom_eq = LinearMomentumMixedMod(grid, theta=0.5)
+		if beta > 0.0:
+			h = sf.compute_mesh_h(grid.mesh)
+			mom_eq.set_stabilization_h(beta*h)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -172,7 +190,11 @@ def main():
 	sim = sf.Simulator_M(mom_eq, t_control, outputs, compute_elastic_response=True)
 	sim.run()
 
-
+def main():
+	run("mixed", beta=0.0)
+	run("mixed", beta=1.0)
+	run("mixed", beta=5.0)
+	run("primal", beta=0.0)
 
 if __name__ == '__main__':
 	main()
