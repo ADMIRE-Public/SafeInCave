@@ -7,13 +7,23 @@ import torch as to
 import os
 
 
-def main():
+def run(formulation="mixed", beta=1.0):
+	# Validate inputs
+	allowed_formulations = ["mixed", "primal"]
+	if formulation not in allowed_formulations:
+		raise ValueError(f"Formulation '{formulation}' not recognized. Allowed formulations are: {allowed_formulations}")
+	if beta < 0.0:
+		raise ValueError("Stabilization parameter 'beta' must be non-negative.")
+
+	# Define output folder
+	if formulation == "mixed":
+		output_folder = os.path.join("output", f"case_{formulation}_{beta}")
+	else:
+		output_folder = os.path.join("output", f"case_{formulation}")
+	
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube_regions")
 	grid = GridHandlerGMSH("geom", grid_path)
-
-	# Define output folder
-	output_folder = os.path.join("output", "case_0")
 
 	# Time settings for equilibrium stage
 	unit = "hour"
@@ -23,10 +33,13 @@ def main():
 	t_control = TimeController(dt=dt, initial_time=t_0, final_time=t_final, time_unit=unit)
 
 	# Define momentum equation
-	# mom_eq = LinearMomentum(grid, theta=0.5)
-	mom_eq = LinearMomentumMixed(grid, theta=0.5)
-	h = compute_mesh_h(grid.mesh)
-	mom_eq.set_stabilization_h(5.0*h)
+	if formulation == "primal":
+		mom_eq = LinearMomentum(grid, theta=0.5)
+	else:
+		mom_eq = LinearMomentumMixed(grid, theta=0.5)
+		if beta > 0.0:
+			h = compute_mesh_h(grid.mesh)
+			mom_eq.set_stabilization_h(beta*h)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -152,6 +165,10 @@ def main():
 	# Define simulator
 	sim = Simulator_M(mom_eq, t_control, outputs, True)
 	sim.run()
+
+def main():
+	run(formulation="primal")
+	run(formulation="mixed", beta=5.0)
 
 
 
