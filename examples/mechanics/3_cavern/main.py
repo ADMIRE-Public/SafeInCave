@@ -7,13 +7,24 @@ import dolfinx as do
 import os
 import torch as to
 
-
-class LinearMomentumMod(sf.LinearMomentum):
+class LinearMomentumMixedMod(sf.LinearMomentumMixed):
 	def __init__(self, grid, theta):
 		super().__init__(grid, theta)
+		self.Fvp = do.fem.Function(self.DG0_1)
+		self.alpha = do.fem.Function(self.DG0_1)
+		self.eps_vp = do.fem.Function(self.DG0_3x3)
 
-	def initialize(self) -> None:
-		self.C.x.array[:] = to.flatten(self.mat.C)
+	def run_after_solve(self):
+		try:
+			self.eps_vp.x.array[:] = to.flatten(self.mat.elems_ne[-1].eps_ne_k)
+			self.Fvp.x.array[:] = self.mat.elems_ne[-1].Fvp
+			self.alpha.x.array[:] = self.mat.elems_ne[-1].alpha
+		except:
+			pass
+
+class LinearMomentumPrimaldMod(sf.LinearMomentum):
+	def __init__(self, grid, theta):
+		super().__init__(grid, theta)
 		self.Fvp = do.fem.Function(self.DG0_1)
 		self.alpha = do.fem.Function(self.DG0_1)
 		self.eps_vp = do.fem.Function(self.DG0_3x3)
@@ -28,20 +39,37 @@ class LinearMomentumMod(sf.LinearMomentum):
 
 
 
-def main():
+
+def run(formulation="mixed", beta=1.0):
+	# Validate inputs
+	allowed_formulations = ["mixed", "primal"]
+	if formulation not in allowed_formulations:
+		raise ValueError(f"Formulation '{formulation}' not recognized. Allowed formulations are: {allowed_formulations}")
+	if beta < 0.0:
+		raise ValueError("Stabilization parameter 'beta' must be non-negative.")
+
+	# Define output folder
+	if formulation == "mixed":
+		output_folder = os.path.join("output", f"case_{formulation}_{beta}")
+	else:
+		output_folder = os.path.join("output", f"case_{formulation}")
+
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_irregular")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
-	# Define output folder
-	output_folder = os.path.join("output", "case_0")
-
 	# Define momentum equation
-	mom_eq = LinearMomentumMod(grid, theta=0.5)
+	if formulation == "primal":
+		mom_eq = LinearMomentumPrimaldMod(grid, theta=0.5)
+	else:
+		mom_eq = LinearMomentumMixedMod(grid, theta=0.5)
+		if beta > 0.0:
+			h = sf.compute_mesh_h(grid.mesh)
+			mom_eq.set_stabilization_h(beta*h)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("cg")
+	mom_solver.setType("bicg")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -292,6 +320,10 @@ def main():
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_operation, outputs, False)
 	sim.run()
+
+def main():
+	run(formulation="primal")
+	run(formulation="mixed", beta=5.0)
 
 if __name__ == '__main__':
 	main()
