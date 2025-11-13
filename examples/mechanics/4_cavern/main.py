@@ -16,23 +16,37 @@ def get_geometry_parameters(path_to_grid):
 	return ovb_thickness, hanging_wall
 
 
-
-def main():
-	# Read grid
-	grid_path = os.path.join("..", "..", "..", "grids", "cavern_overburden_coarse")
-	# grid_path = os.path.join("..", "..", "grids", "cavern_overburden")
-	grid = sf.GridHandlerGMSH("geom", grid_path)
+def run(formulation="mixed", beta=1.0):
+	# Validate inputs
+	allowed_formulations = ["mixed", "primal"]
+	if formulation not in allowed_formulations:
+		raise ValueError(f"Formulation '{formulation}' not recognized. Allowed formulations are: {allowed_formulations}")
+	if beta < 0.0:
+		raise ValueError("Stabilization parameter 'beta' must be non-negative.")
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0")
+	if formulation == "mixed":
+		output_folder = os.path.join("output", f"case_{formulation}_{beta}")
+	else:
+		output_folder = os.path.join("output", f"case_{formulation}")
+
+	# Read grid
+	grid_path = os.path.join("..", "..", "..", "grids", "cavern_overburden_coarse")
+	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define momentum equation
-	mom_eq = sf.LinearMomentum(grid, theta=0.0)
+	if formulation == "primal":
+		mom_eq = sf.LinearMomentum(grid, theta=0.0)
+	else:
+		mom_eq = sf.LinearMomentumMixed(grid, theta=0.0)
+		if beta > 0.0:
+			h = sf.compute_mesh_h(grid.mesh)
+			mom_eq.set_stabilization_h(beta*h)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("cg")
-	mom_solver.getPC().setType("asm")
+	mom_solver.setType("gmres")
+	mom_solver.getPC().setType("ilu")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
 
@@ -67,7 +81,7 @@ def main():
 
 	# Create creep
 	A = to.zeros(mom_eq.n_elems)
-	A[ind_salt] = 1.9e-20
+	A[ind_salt] = 1.9e-21
 	A[ind_ovb] = 0.0
 	Q = 51600*to.ones(mom_eq.n_elems)
 	n = 3.0*to.ones(mom_eq.n_elems)
@@ -153,7 +167,7 @@ def main():
 
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_eq, outputs, True)
-	# sim.run()
+	sim.run()
 
 
 
@@ -206,7 +220,13 @@ def main():
 
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_op, outputs, False)
-	# sim.run()
+	sim.run()
+
+def main():
+	# run(formulation="primal")
+	# run(formulation="mixed", beta=0.0)
+	# run(formulation="mixed", beta=1.0)
+	run(formulation="mixed", beta=5.0)
 
 if __name__ == '__main__':
 	main()
