@@ -37,13 +37,22 @@ class LinearMomentumPrimaldMod(sf.LinearMomentum):
 
 
 def run(formulation="mixed", beta=1.0):
+	# Validate inputs
+	allowed_formulations = ["mixed", "primal"]
+	if formulation not in allowed_formulations:
+		raise ValueError(f"Formulation '{formulation}' not recognized. Allowed formulations are: {allowed_formulations}")
+	if beta < 0.0:
+		raise ValueError("Stabilization parameter 'beta' must be non-negative.")
+
+	# Define output folder
+	if formulation == "mixed":
+		output_folder = os.path.join("output", f"case_{formulation}_{beta}")
+	else:
+		output_folder = os.path.join("output", f"case_{formulation}")
+
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
-
-	# Define output folder
-	output_folder = os.path.join("output", "case_mixed_0")
-	output_folder = os.path.join("output", f"case_{formulation}_{beta}")
 
 	# Time settings for equilibrium stage
 	unit = "hour"
