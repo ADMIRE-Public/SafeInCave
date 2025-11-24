@@ -350,7 +350,7 @@ class ScreenPrinter():
 		comm = MPI.COMM_WORLD
 		comm.Barrier()
 		if MPI.COMM_WORLD.rank == 0:
-		    self.start = MPI.Wtime()
+			self.start = MPI.Wtime()
 
 	def close(self) -> None:
 		"""
@@ -557,15 +557,15 @@ class ScreenPrinter():
 		    Formatted cell string of length at most ``width``.
 		"""
 		if alignment == 'left':
-		    if text_format != None: 
-		        text = text_format%text
-		    return f"{text:<{width}}"
+			if text_format != None: 
+				text = text_format%text
+			return f"{text:<{width}}"
 		elif alignment == 'center':
-		    if text_format != None: 
-		        text = text_format%text
-		    return f"{text:^{width}}"
+			if text_format != None: 
+				text = text_format%text
+			return f"{text:^{width}}"
 		else:
-		    # Fallback (could be 'right' or any other future alignment)
-		    if text_format != None: 
-		        text = text_format%text
-		    return f"{text:>{width}}"
+			# Fallback (could be 'right' or any other future alignment)
+			if text_format != None: 
+				text = text_format%text
+			return f"{text:>{width}}"

@@ -185,7 +185,6 @@ def main():
 
 
 
-
 	# Create Desai's viscoplastic model
 	mu_1 = 5.3665857009859815e-11*to.ones(mom_eq.n_elems)
 	N_1 = 3.1*to.ones(mom_eq.n_elems)
