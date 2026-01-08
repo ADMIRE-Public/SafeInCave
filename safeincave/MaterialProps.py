@@ -1358,7 +1358,7 @@ class ViscoplasticDesai(NonElasticElement):
 
         # Calculate strain rate
         ramp_idx = to.where(Fvp > 0)[0]
-        lmbda = to.zeros(self.n_elems, dtype=to.float64)
+        lmbda = to.zeros(self.n_elems)
         if len(ramp_idx) != 0:
         	lmbda[ramp_idx] = self.mu_1[ramp_idx]*(Fvp[ramp_idx]/self.F_0)**self.N_1[ramp_idx]
         eps_vp_rate = -dQdS*lmbda[:, None, None]
