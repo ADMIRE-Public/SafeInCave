@@ -18,6 +18,7 @@ import torch as to
 import numpy as np
 import sys
 import os
+import json
 from mpi4py import MPI
 
 
@@ -79,12 +80,14 @@ class Simulator_TM(Simulator):
 					   eq_heat: HeatDiffusion, 
 					   t_control: TimeControllerBase, 
 					   outputs: list[SaveFields],
-					   compute_elastic_response: bool=True):
+					   compute_elastic_response: bool=True,
+					   abandonment_mode: str | None = None):
 		self.eq_mom = eq_mom
 		self.eq_heat = eq_heat
 		self.t_control = t_control
 		self.outputs = outputs
 		self.compute_elastic_response = compute_elastic_response
+		self._abandonment_mode_fixed = abandonment_mode
 		
 		ScreenPrinter.reset_instance()
 		self.screen = ScreenPrinter(self.eq_mom.grid, self.eq_mom.solver, self.eq_mom.mat, self.outputs, t_control.time_unit)
@@ -134,6 +137,7 @@ class Simulator_TM(Simulator):
 		self.eq_mom.set_T0(T_elems)
 
 		# Update boundary conditions
+		self.eq_mom.bc.set_abandonment_mode("equilibrium")
 		self.eq_mom.bc.update_dirichlet(self.t_control.t)
 		self.eq_mom.bc.update_neumann(self.t_control.t)
 
@@ -172,6 +176,19 @@ class Simulator_TM(Simulator):
 		self.eq_mom.compute_p_nodes()
 		self.eq_mom.compute_q_nodes()
 		output.save_fields(0)
+
+
+		abandonment_log = []
+		
+		# Record initial (t=0) state
+		state = self.eq_mom.bc.get_abandonment_state()
+		if state is not None:
+			p_base, V_curr = state
+			abandonment_log.append((float(self.t_control.t), float(p_base), float(V_curr)))
+
+		if self.eq_mom.bc.special_neumann_boundaries:
+			self.eq_mom.bc.last_logged_pressure = float(p_base)
+			self.eq_mom.bc.last_logged_volume   = float(V_curr)  # optional
 
 		# Time loop
 		while self.t_control.keep_looping():
@@ -245,6 +262,16 @@ class Simulator_TM(Simulator):
 			# Update strain
 			self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
 
+			state = self.eq_mom.bc.get_abandonment_state()
+			if state is not None:
+				p_base, V_curr = state
+				abandonment_log.append((float(t), float(p_base), float(V_curr)))
+
+			if self.eq_mom.bc.special_neumann_boundaries:
+				bc0 = self.eq_mom.bc.special_neumann_boundaries[0]
+				self.eq_mom.bc.last_logged_pressure = float(p_base)
+				self.eq_mom.bc.last_logged_volume   = float(V_curr)  # optional
+
 			# Save fields
 			self.eq_mom.compute_p_elems()
 			self.eq_mom.compute_q_elems()
@@ -268,6 +295,17 @@ class Simulator_TM(Simulator):
 
 		for output in self.outputs:
 			output.save_mesh()
+		
+		#JSON dump
+		comm = self.eq_mom.grid.mesh.comm
+		if 'abandonment_log' in locals() and abandonment_log and comm.rank == 0:
+			out_dir = getattr(self.outputs[0], "output_folder", ".")
+			os.makedirs(out_dir, exist_ok=True)
+			json_path = os.path.join(out_dir, "abandonment_log.json")
+			payload = [{"t": float(t), "p_base": float(p), "V_curr": float(V)}
+					for (t, p, V) in abandonment_log]
+			with open(json_path, "w") as f:
+				json.dump(payload, f, indent=2)
 
 
 class Simulator_M(Simulator):
@@ -298,12 +336,14 @@ class Simulator_M(Simulator):
 	def __init__(self, eq_mom: LinearMomentum, 
 					   t_control: TimeControllerBase,
 					   outputs: list[SaveFields],
-					   compute_elastic_response: bool=True):
+					   compute_elastic_response: bool=True,
+					   abandonment_mode: str | None = None):
 		self.eq_mom = eq_mom
 		self.t_control = t_control
 		self.outputs = outputs
 		self.compute_elastic_response = compute_elastic_response
-		
+		self._abandonment_mode_fixed = abandonment_mode
+
 		ScreenPrinter.reset_instance()
 		self.screen = ScreenPrinter(self.eq_mom.grid, self.eq_mom.solver, self.eq_mom.mat, self.outputs, t_control.time_unit)
 
@@ -340,6 +380,8 @@ class Simulator_M(Simulator):
 			output.initialize()
 
 		# Update boundary conditions
+		if self._abandonment_mode_fixed is not None:
+			self.eq_mom.bc.set_abandonment_mode(self._abandonment_mode_fixed)
 		self.eq_mom.bc.update_dirichlet(self.t_control.t)
 		self.eq_mom.bc.update_neumann(self.t_control.t)
 
@@ -374,6 +416,18 @@ class Simulator_M(Simulator):
 		for output in self.outputs:
 			output.save_fields(0)
 
+		abandonment_log = []
+		# Record initial (t=0) state
+		state = self.eq_mom.bc.get_abandonment_state()
+		
+		if state is not None:
+			p_base, V_curr = state
+			abandonment_log.append((float(self.t_control.t), float(p_base), float(V_curr)))
+		if self.eq_mom.bc.special_neumann_boundaries:
+			bc0 = self.eq_mom.bc.special_neumann_boundaries[0]
+			self.eq_mom.bc.last_logged_pressure = float(p_base)
+			self.eq_mom.bc.last_logged_volume   = float(V_curr) 
+
 		# Time loop
 		while self.t_control.keep_looping():
 
@@ -382,6 +436,9 @@ class Simulator_M(Simulator):
 			t = self.t_control.t
 			dt = self.t_control.dt
 
+			if self._abandonment_mode_fixed is not None:
+				self.eq_mom.bc.set_abandonment_mode(self._abandonment_mode_fixed)
+			
 			# Update boundary conditions
 			self.eq_mom.bc.update_dirichlet(t)
 			self.eq_mom.bc.update_neumann(t)
@@ -437,6 +494,15 @@ class Simulator_M(Simulator):
 			# Update strain
 			self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
 
+			state = self.eq_mom.bc.get_abandonment_state()
+			if state is not None:
+				p_base, V_curr = state
+				abandonment_log.append((float(t), float(p_base), float(V_curr)))
+
+			if self.eq_mom.bc.special_neumann_boundaries:
+				self.eq_mom.bc.last_logged_pressure = float(p_base)
+				self.eq_mom.bc.last_logged_volume   = float(V_curr)  # optional
+
 			# Save fields
 			self.eq_mom.compute_p_elems()
 			self.eq_mom.compute_q_elems()
@@ -460,6 +526,17 @@ class Simulator_M(Simulator):
 
 		for output in self.outputs:
 			output.save_mesh()
+
+		#JSON dump
+		comm = self.eq_mom.grid.mesh.comm
+		if 'abandonment_log' in locals() and abandonment_log and comm.rank == 0:
+			out_dir = getattr(self.outputs[0], "output_folder", ".")
+			os.makedirs(out_dir, exist_ok=True)
+			json_path = os.path.join(out_dir, "abandonment_log.json")
+			payload = [{"t": float(t), "p_base": float(p), "V_curr": float(V)}
+					for (t, p, V) in abandonment_log]
+			with open(json_path, "w") as f:
+				json.dump(payload, f, indent=2)
 
 
 class Simulator_T(Simulator):
@@ -1243,6 +1320,7 @@ class Simulator_GUI(Simulator):
 		compute_elastic_response = True
 		if self.input_file["simulation_settings"]["equilibrium"]["active"] == True:
 			compute_elastic_response = False
+		self.mom_eq.bc.set_abandonment_mode("coupled")
 		sim = Simulator_M(self.mom_eq, tc_op, outputs, compute_elastic_response=compute_elastic_response)
 		sim.run()
 

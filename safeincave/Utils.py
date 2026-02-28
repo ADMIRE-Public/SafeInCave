@@ -22,6 +22,8 @@ import torch as to
 import dolfinx as do
 import ufl
 import json
+from CoolProp.CoolProp import PropsSI
+
 
 # Type aliases
 UFLVector3 = ufl.core.expr.Expr  # Shape (3,)
@@ -341,3 +343,101 @@ def create_field_elems(grid: GridHandlerGMSH, fun: Fn) -> to.Tensor:
 		x = sum(coordinates[v] for v in cell_vertices) / len(cell_vertices)
 		field[i] = fun(x[0], x[1], x[2])
 	return field
+
+def extract_cavern_surface_from_grid(grid, boundary_name: str):
+    """
+    Return (coords_wall, tris_local, wall_ids) for the named boundary.
+
+    - coords_wall : (n_wall, 3) coordinates of wall vertices, in the SAME order as wall_ids
+    - tris_local  : (n_tris, 3) triangle connectivity indexing into coords_wall
+    - wall_ids    : (n_wall,) global vertex ids of the wall vertices
+    """
+    mesh = grid.mesh
+    tdim = mesh.topology.dim
+    fdim = tdim - 1
+
+    # --- facet tags + target id ---
+    tag = grid.get_boundary_tag(boundary_name)
+    # try common names the Grid may expose
+    mt = getattr(grid, "boundaries", None) or getattr(grid, "facet_tags", None)
+    if mt is None:
+        raise RuntimeError("Grid does not expose facet tags as 'boundaries' or 'facet_tags'.")
+
+    # dolfinx MeshTags: .indices (array of facet ids), .values (array of tag values)
+    facets = mt.indices[mt.values == tag]
+
+    # --- facet -> vertex connectivity ---
+    mesh.topology.create_connectivity(fdim, 0)
+    f2v = mesh.topology.connectivity(fdim, 0)
+
+    tri_global = []
+    wall_set = set()
+    for f in facets:
+        verts = f2v.links(f)        # 3 vertex ids for a triangle facet
+        if len(verts) != 3:
+            # If your mesh has non-triangular faces, you need to triangulate them;
+            # salt cavern cases with tetrahedra produce triangles here.
+            continue
+        tri_global.append(verts)
+        wall_set.update(verts)
+
+    if not tri_global:
+        raise RuntimeError(f"No triangular facets found for boundary '{boundary_name}' (tag={tag}).")
+
+    wall_ids = np.array(sorted(wall_set), dtype=np.int64)
+    gid2lid = {gid: i for i, gid in enumerate(wall_ids)}
+
+    # map global triangles -> local triangles indexing into coords_wall
+    tris_local = np.array([[gid2lid[v] for v in tri] for tri in tri_global], dtype=np.int32)
+
+    # dolfinx coordinates
+    coords_all = mesh.geometry.x                     # (n_vertices, 3)
+    coords_wall = coords_all[wall_ids]               # (n_wall, 3)
+
+    return coords_wall, tris_local, wall_ids
+
+
+def compute_pressure_change(vol_t0, vol_t1, temperature=300, pressure=101325, fluid="INCOMP::MNA[0.230]"):
+    """Calculate pressure change in brine using CoolProp."""
+    compressiblity = PropsSI("ISOTHERMAL_COMPRESSIBILITY", "P", pressure, "T", temperature, "Water") #Takes comprssibility of water at given temperature and pressure
+    density = PropsSI("D", "P", pressure, "T", temperature, fluid)  # Density of brine at given conditions (kg/m³)
+    delta_V = abs(vol_t1 - vol_t0)  # Volume change (m³)
+    delta_P = (1/compressiblity) * np.log(vol_t0/vol_t1)  # Pressure change (Pa)
+    return delta_P, density
+
+def surface_centroid(coordinates, triangles): 
+    """Calculate the centroid of a surface defined by triangles."""
+    total_area = 0
+    weighted_sum = np.zeros(3)
+    for tri in triangles:
+        p0, p1, p2 = coordinates[tri]
+        center = (p0 + p1 + p2) / 3.0
+        area = np.linalg.norm(np.cross(p1 - p0, p2 - p0)) / 2.0
+        weighted_sum += center * area
+        total_area += area
+    return weighted_sum / total_area
+
+def orient_triangles_outward(coordinates, triangles, reference_point):
+    """Orient triangles so that their normals point outward from a reference point."""
+    fixed_triangles = []
+    for tri in triangles:
+        p0, p1, p2 = coordinates[tri]
+        normal = np.cross(p1 - p0, p2 - p0)
+        center = (p0 + p1 + p2) / 3.0
+        inward = reference_point - center
+        if np.dot(normal, inward) > 0:
+            fixed_triangles.append([tri[0], tri[2], tri[1]])
+        else:
+            fixed_triangles.append(tri)
+    return np.array(fixed_triangles)
+
+def compute_volume(coordinates, triangles):
+    """Calculate the volume of a closed surface defined by triangles using the divergence theorem."""
+    centroid= surface_centroid(coordinates, triangles)
+    volume = 0
+    for triangle in triangles:
+        v0 = coordinates[triangle[0]] - centroid
+        v1 = coordinates[triangle[1]] - centroid
+        v2 = coordinates[triangle[2]] - centroid
+        volume += np.dot(v0, np.cross(v1, v2)) / 6.0
+    return volume
