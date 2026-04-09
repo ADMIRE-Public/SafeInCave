@@ -19,24 +19,30 @@ def get_geometry_parameters(path_to_grid):
 	return ovb_thickness, salt_thickness, hanging_wall
 
 
-def main():
+def run(formulation):
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_overburden_coarse")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_1")
+	output_folder = os.path.join("output", "case_0", f"{formulation}")
 
 	# Extract region indices
 	ind_salt = grid.region_indices["Salt"]
 	ind_ovb = grid.region_indices["Overburden"]
 
 	# Define momentum equation
-	mom_eq = sf.LinearMomentum(grid, theta=0.0)
+	theta = 0.0
+	if formulation == "P1":
+		mom_eq = sf.LinearMomentum(grid, theta=theta)
+	elif formulation == "P1P1":
+		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=0.0)
+	elif formulation == "P1P1_Stab":
+		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("bcgs")
+	mom_solver.setType("gmres")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -348,6 +354,12 @@ def main():
 	# Define simulator
 	sim = sf.Simulator_TM(mom_eq, heat_eq, tc_op, outputs, False)
 	sim.run()
+
+
+def main():
+	run("P1")
+	run("P1P1")
+	run("P1P1_Stab")
 
 
 if __name__ == '__main__':

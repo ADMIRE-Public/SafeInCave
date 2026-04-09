@@ -216,11 +216,11 @@ class BcHandler():
             If the boundary condition type is not supported.
         """
         if bc.type == "dirichlet":
-        	self.dirichlet_boundaries.append(bc)
+            self.dirichlet_boundaries.append(bc)
         elif bc.type == "neumann":
-        	self.neumann_boundaries.append(bc)
+            self.neumann_boundaries.append(bc)
         elif bc.type == "robin":
-        	self.robin_boundaries.append(bc)
+            self.robin_boundaries.append(bc)
         else:
             raise Exception(f"Boundary type {bc.type} not supported.")
 
@@ -266,19 +266,19 @@ class BcHandler():
         """
         self.dirichlet_bcs = []
         for bc in self.dirichlet_boundaries:
-        	value = np.interp(t, bc.time_values, bc.values)
-        	dofs = do.fem.locate_dofs_topological(
-        		self.eq.V,
-        		self.eq.grid.boundary_dim,
-        		self.eq.grid.get_boundary_tags(bc.boundary_name)
-        	)
-        	self.dirichlet_bcs.append(
-        		do.fem.dirichletbc(
-        			do.default_scalar_type(value),
-        			dofs,
-        			self.eq.V
-        		)
-        	)
+            value = np.interp(t, bc.time_values, bc.values)
+            dofs = do.fem.locate_dofs_topological(
+                self.eq.V,
+                self.eq.grid.boundary_dim,
+                self.eq.grid.get_boundary_tags(bc.boundary_name)
+            )
+            self.dirichlet_bcs.append(
+                do.fem.dirichletbc(
+                    do.default_scalar_type(value),
+                    dofs,
+                    self.eq.V
+                )
+            )
 
     def update_neumann(self, t: float) -> None:
         """
@@ -328,7 +328,7 @@ class BcHandler():
         self.robin_bcs_a = []
         self.robin_bcs_b = []
         for bc in self.robin_boundaries:
-        	T_inf = np.interp(t, bc.time_values, bc.values)
-        	self.robin_bcs_a.append(bc.h*self.eq.dT*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
-        	self.robin_bcs_b.append(bc.h*T_inf*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
+            T_inf = np.interp(t, bc.time_values, bc.values)
+            self.robin_bcs_a.append(bc.h*self.eq.dT*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
+            self.robin_bcs_b.append(bc.h*T_inf*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
 

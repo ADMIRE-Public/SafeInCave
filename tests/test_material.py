@@ -30,6 +30,38 @@ class TestSpring(unittest.TestCase):
 		self.elem.compute_eps_e(self.stress)
 		to.testing.assert_close(self.elem.eps_e, self.true_eps_e, rtol=1e-6, atol=1e-9)
 
+
+class TestSpring2(unittest.TestCase):
+	def setUp(self):
+		s1 = 10e6
+		s3 = 5e6
+
+		E_value = 102e9
+		nu_value = 0.3
+
+		self.n_elems = 1
+		E = to.tensor(E_value*np.ones(self.n_elems))
+		nu = to.tensor(nu_value*np.ones(self.n_elems))
+
+		self.elem = sc.Spring(E, nu, name="spring")
+		self.elem.initialize()
+
+		e1 = (s1 - 2*nu_value*s3) / E_value
+		e3 = ((1 - nu_value)*s3 - nu_value*s1) / E_value
+
+		self.stress = to.tensor([[  [s3, 0., 0.],
+                                 	[0., s3, 0.],
+                                 	[0., 0., s1] ]], dtype=to.float64)
+
+		self.true_eps_e = to.tensor([[	 [e3, 0., 0.],
+								         [0., e3, 0.],
+								         [0., 0., e1] ]], dtype=to.float64)
+
+	def test_eps_e(self):
+		self.elem.compute_eps_e(self.stress)
+		to.testing.assert_close(self.elem.eps_e, self.true_eps_e, rtol=1e-6, atol=1e-9)
+
+
 class TestViscoelastic(unittest.TestCase):
 	def setUp(self):
 		self.n_elems = 1

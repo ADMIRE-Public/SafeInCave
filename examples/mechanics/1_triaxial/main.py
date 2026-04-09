@@ -9,9 +9,6 @@ import torch as to
 class LinearMomentumMod(sf.LinearMomentum):
 	def __init__(self, grid, theta):
 		super().__init__(grid, theta)
-
-	def initialize(self) -> None:
-		self.C.x.array[:] = to.flatten(self.mat.C)
 		self.Fvp = do.fem.Function(self.DG0_1)
 		self.eps_ve = do.fem.Function(self.DG0_3x3)
 		self.eps_cr = do.fem.Function(self.DG0_3x3)
@@ -24,14 +21,28 @@ class LinearMomentumMod(sf.LinearMomentum):
 		self.Fvp.x.array[:] = self.mat.elems_ne[2].Fvp
 
 
+class LinearMomentumMixedMod(sf.LinearMomentumMixed):
+	def __init__(self, grid, theta, stab_scaling=1.0):
+		super().__init__(grid, theta, stab_scaling)
+		self.Fvp = do.fem.Function(self.DG0_1)
+		self.eps_ve = do.fem.Function(self.DG0_3x3)
+		self.eps_cr = do.fem.Function(self.DG0_3x3)
+		self.eps_vp = do.fem.Function(self.DG0_3x3)
 
-def main():
+	def run_after_solve(self):
+		self.eps_ve.x.array[:] = to.flatten(self.mat.elems_ne[0].eps_ne_k)
+		self.eps_cr.x.array[:] = to.flatten(self.mat.elems_ne[1].eps_ne_k)
+		self.eps_vp.x.array[:] = to.flatten(self.mat.elems_ne[2].eps_ne_k)
+		self.Fvp.x.array[:] = self.mat.elems_ne[2].Fvp
+
+
+def run(formulation):
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0")
+	output_folder = os.path.join("output", "case_0", f"{formulation}")
 
 	# Time settings for equilibrium stage
 	unit = "hour"
@@ -41,11 +52,17 @@ def main():
 	t_control = sf.TimeController(dt=dt, initial_time=t_0, final_time=t_final, time_unit=unit)
 
 	# Define momentum equation
-	mom_eq = LinearMomentumMod(grid, theta=0.5)
+	theta = 0.5
+	if formulation == "P1":
+		mom_eq = LinearMomentumMod(grid, theta=theta)
+	elif formulation == "P1P1":
+		mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=0.0)
+	elif formulation == "P1P1_Stab":
+		mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=1.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("bicg")
+	mom_solver.setType("gmres")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -172,6 +189,11 @@ def main():
 	sim = sf.Simulator_M(mom_eq, t_control, outputs, compute_elastic_response=True)
 	sim.run()
 
+
+def main():
+	# run("P1")
+	# run("P1P1")
+	run("P1P1_Stab")
 
 
 if __name__ == '__main__':

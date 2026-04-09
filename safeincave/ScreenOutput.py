@@ -255,8 +255,8 @@ class ScreenPrinter():
 		None
 		"""
 		self.print_comment(" Output info:")
-		output_folder = self.outputs[0].output_folder
-		size = len(output_folder)
+		# output_folder = self.outputs[0].output_folder
+		# size = len(output_folder)
 		self.set_header_columns(["Location"+10*" ", "Field name      ", "Label name             "], "center")
 		self.print_header()
 		self.set_row_formats(["%s", "%s", "%s"], ["left", "left", "left"])

@@ -1284,10 +1284,10 @@ class ViscoplasticDesai(NonElasticElement):
 
 
         # Compute flow direction, i.e. d(Fvp)/d(stress)
-        F1 = (-alpha*I1**self.n + self.gamma*I1**2)
-        F2 = (to.exp(self.beta_1*I1) - self.beta*Sr)
-        dF1_dI1 = 2*self.gamma*I1 - self.n*alpha*I1**(self.n-1)
-        dF2m_dI1 = self.beta_1*self.m*to.exp(self.beta_1*I1)*F2**(self.m-1)
+        F1 = (-alpha*I1_star**self.n + self.gamma*I1_star**2)
+  		F2 = (to.exp(self.beta_1*I1_star) - self.beta*Sr)
+  		dF1_dI1 = 2*self.gamma*I1_star - self.n*alpha*I1_star**(self.n-1)
+  		dF2m_dI1 = self.beta_1*self.m*to.exp(self.beta_1*I1_star)*F2**(self.m-1)
         dF_dI1 = -(dF1_dI1*F2**self.m + F1*dF2m_dI1)
 
         dF2_dJ2 = -(3*self.beta*J3*27**0.5)/(4*J2**(5/2))

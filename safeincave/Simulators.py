@@ -184,8 +184,7 @@ class Simulator_TM(Simulator):
 			# Update boundary conditions
 			self.eq_mom.bc.update_dirichlet(t)
 			self.eq_mom.bc.update_neumann(t)
-			self.eq_heat.bc.update_dirichlet(t)
-			self.eq_heat.bc.update_neumann(t)
+			self.eq_heat.bc.update_bcs(t)
 
 			# Solve heat
 			self.eq_heat.solve(t, dt)
@@ -369,7 +368,10 @@ class Simulator_M(Simulator):
 		self.eq_mom.compute_q_elems()
 		self.eq_mom.compute_p_nodes()
 		self.eq_mom.compute_q_nodes()
-		output.save_fields(0)
+
+		# Save initial fields
+		for output in self.outputs:
+			output.save_fields(0)
 
 		# Time loop
 		while self.t_control.keep_looping():
@@ -530,8 +532,7 @@ class Simulator_T(Simulator):
 			dt = self.t_control.dt
 
 			# Update boundary conditions
-			self.eq_heat.bc.update_dirichlet(t)
-			self.eq_heat.bc.update_neumann(t)
+			self.eq_heat.bc.update_bcs(t)
 
 			# Solve heat
 			self.eq_heat.solve(t, dt)

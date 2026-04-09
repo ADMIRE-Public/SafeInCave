@@ -51,7 +51,6 @@ def main():
 	km = 1000
 	dTdZ = 27/km
 	T_top = 273 + 20
-	T_gas = 273 + 10
 	h_conv = 5.0
 
 	bc_handler = heatBC.BcHandler(heat_eq)
@@ -74,7 +73,25 @@ def main():
 	bc_north = heatBC.NeumannBC("North", nt*[0.0], time_values)
 	bc_handler.add_boundary_condition(bc_north)
 
-	bc_cavern = heatBC.RobinBC("Cavern", nt*[T_gas], h_conv, time_values)
+
+	# Gas temperature schedule over time
+	#      T(K) ^
+	#           |
+	#       310 |_ _ _  ___________
+	#    		|      /|          |
+	#    		|    /  
+	#    		|  /    |          |
+	#       303 |/
+	#    		|       |          |
+	#    		+-------+----------+-----> Time
+	#		   t_0    t_f/2       t_f
+
+	bc_cavern = heatBC.RobinBC(
+								boundary_name = "Cavern", 
+								values = [303, 310, 310], 
+								h = h_conv,
+								time_values = [t_control.t_initial, t_control.t_final/2, t_control.t_final]
+	)
 	bc_handler.add_boundary_condition(bc_cavern)
 
 	heat_eq.set_boundary_conditions(bc_handler)
