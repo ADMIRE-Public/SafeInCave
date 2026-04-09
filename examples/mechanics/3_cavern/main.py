@@ -27,43 +27,21 @@ class LinearMomentumMod(sf.LinearMomentum):
 			pass
 
 
-class LinearMomentumMixedMod(sf.LinearMomentumMixed):
-	def __init__(self, grid, theta, stab_scaling):
-		super().__init__(grid, theta, stab_scaling)
-		self.Fvp = do.fem.Function(self.DG0_1)
-		self.alpha = do.fem.Function(self.DG0_1)
-		self.eps_vp = do.fem.Function(self.DG0_3x3)
 
-	def run_after_solve(self):
-		try:
-			self.eps_vp.x.array[:] = to.flatten(self.mat.elems_ne[-1].eps_ne_k)
-			self.Fvp.x.array[:] = self.mat.elems_ne[-1].Fvp
-			self.alpha.x.array[:] = self.mat.elems_ne[-1].alpha
-		except:
-			pass
-
-
-
-def run(formulation):
+def main():
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_irregular")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0", f"{formulation}")
+	output_folder = os.path.join("output", "case_0")
 
 	# Define momentum equation
-	theta = 0.5
-	if formulation == "P1":
-		mom_eq = LinearMomentumMod(grid, theta=theta)
-	elif formulation == "P1P1":
-		mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=0.0)
-	elif formulation == "P1P1_Stab":
-		mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=1.0)
+	mom_eq = LinearMomentumMod(grid, theta=0.5)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("gmres")
+	mom_solver.setType("cg")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -140,7 +118,7 @@ def run(formulation):
 						density = salt_density,
 						ref_pos = 660.0,
 						values =      [side_burden, side_burden],
-						time_values = [0.0, tc_equilibrium.t_final],
+						time_values = [0.0,            tc_equilibrium.t_final],
 						g = g_vec[2])
 
 	bc_north = momBC.NeumannBC(boundary_name = "North",
@@ -148,7 +126,7 @@ def run(formulation):
 						density = salt_density,
 						ref_pos = 660.0,
 						values =      [side_burden, side_burden],
-						time_values = [0.0, tc_equilibrium.t_final],
+						time_values = [0.0,            tc_equilibrium.t_final],
 						g = g_vec[2])
 
 	over_burden = 10.0*ut.MPa
@@ -157,7 +135,7 @@ def run(formulation):
 						density = 0.0,
 						ref_pos = 0.0,
 						values =      [over_burden, over_burden],
-						time_values = [0.0, tc_equilibrium.t_final],
+						time_values = [0.0,            tc_equilibrium.t_final],
 						g = g_vec[2])
 
 	gas_density = 0.082
@@ -253,7 +231,7 @@ def run(formulation):
 						density = salt_density,
 						ref_pos = 660.0,
 						values =      [side_burden, side_burden],
-						time_values = [0.0, tc_operation.t_final],
+						time_values = [0.0,            tc_operation.t_final],
 						g = g_vec[2])
 
 	bc_north = momBC.NeumannBC(boundary_name = "North",
@@ -261,7 +239,7 @@ def run(formulation):
 						density = salt_density,
 						ref_pos = 660.0,
 						values =      [side_burden, side_burden],
-						time_values = [0.0, tc_operation.t_final],
+						time_values = [0.0,            tc_operation.t_final],
 						g = g_vec[2])
 
 	bc_top = momBC.NeumannBC(boundary_name = "Top",
@@ -269,7 +247,7 @@ def run(formulation):
 						density = 0.0,
 						ref_pos = 0.0,
 						values =      [over_burden, over_burden],
-						time_values = [0.0, tc_operation.t_final],
+						time_values = [0.0,            tc_operation.t_final],
 						g = g_vec[2])
 
 	bc_cavern = momBC.NeumannBC(boundary_name = "Cavern",
@@ -314,12 +292,6 @@ def run(formulation):
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_operation, outputs, False)
 	sim.run()
-
-
-def main():
-	run("P1")
-	# run("P1P1")
-	run("P1P1_Stab")
 
 if __name__ == '__main__':
 	main()

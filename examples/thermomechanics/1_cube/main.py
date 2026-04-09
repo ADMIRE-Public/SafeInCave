@@ -10,13 +10,13 @@ import sys
 
 
 
-def run(formulation):
+def main():
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube_regions")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0", f"{formulation}")
+	output_folder = os.path.join("output", "case_0")
 
 	# Time settings for equilibrium stage
 	t_control = sf.TimeControllerParabolic(n_time_steps=100, initial_time=0.0, final_time=10, time_unit="day")
@@ -69,17 +69,11 @@ def run(formulation):
 
 
 	# Define momentum equation
-	theta = 0.5
-	if formulation == "P1":
-		mom_eq = sf.LinearMomentum(grid, theta=theta)
-	elif formulation == "P1P1":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=0.0)
-	elif formulation == "P1P1_Stab":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
+	mom_eq = sf.LinearMomentum(grid, 0.5)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("gmres")
+	mom_solver.setType("bicg")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -166,12 +160,6 @@ def run(formulation):
 	# Define simulator
 	sim = sf.Simulator_TM(mom_eq, heat_eq, t_control, outputs, True)
 	sim.run()
-
-
-def main():
-	run("P1")
-	run("P1P1")
-	run("P1P1_Stab")
 
 
 
