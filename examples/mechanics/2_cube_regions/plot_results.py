@@ -23,10 +23,7 @@ def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color=
 			ax.set_facecolor(back_color)
 
 def main():
-	results_folder = os.path.join("output", "case_0", "P1")
-	# results_folder = os.path.join("output", "case_0", "P1P1")
-	# results_folder = os.path.join("output", "case_0", "P1P1_Stab_E")
-	# results_folder = os.path.join("output", "case_0", "P1P1_Stab_E_Star")
+	results_folder = os.path.join("output", "case_0")
 
 	# Plot pressure schedule
 	fig, ax = plt.subplots(1, 1, figsize=(5, 3.5))

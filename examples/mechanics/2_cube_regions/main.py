@@ -7,13 +7,13 @@ import torch as to
 import os
 
 
-def run(formulation):
+def main():
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube_regions")
 	grid = GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0", f"{formulation}")
+	output_folder = os.path.join("output", "case_0")
 
 	# Time settings for equilibrium stage
 	unit = "hour"
@@ -23,18 +23,11 @@ def run(formulation):
 	t_control = TimeController(dt=dt, initial_time=t_0, final_time=t_final, time_unit=unit)
 
 	# Define momentum equation
-	theta = 0.5
-	if formulation == "P1":
-		mom_eq = LinearMomentum(grid, theta=theta)
-	elif formulation == "P1P1":
-		mom_eq = LinearMomentumMixed(grid, theta=theta, stab_scaling=0.0)
-	elif formulation == "P1P1_Stab":
-		mom_eq = LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
-
+	mom_eq = LinearMomentum(grid, theta=0.5)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("gmres")
+	mom_solver.setType("cg")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -159,12 +152,6 @@ def run(formulation):
 	# Define simulator
 	sim = Simulator_M(mom_eq, t_control, outputs, True)
 	sim.run()
-
-
-def main():
-	# run("P1")
-	# run("P1P1")
-	run("P1P1_Stab")
 
 
 

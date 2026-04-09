@@ -17,27 +17,21 @@ def get_geometry_parameters(path_to_grid):
 
 
 
-def run(formulation):
+def main():
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_overburden_coarse")
 	# grid_path = os.path.join("..", "..", "grids", "cavern_overburden")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0", f"{formulation}")
+	output_folder = os.path.join("output", "case_0")
 
 	# Define momentum equation
-	theta = 0.0
-	if formulation == "P1":
-		mom_eq = sf.LinearMomentum(grid, theta=theta)
-	elif formulation == "P1P1":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=0.0)
-	elif formulation == "P1P1_Stab":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
+	mom_eq = sf.LinearMomentum(grid, theta=0.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
-	mom_solver.setType("gmres")
+	mom_solver.setType("cg")
 	mom_solver.getPC().setType("asm")
 	mom_solver.setTolerances(rtol=1e-12, max_it=100)
 	mom_eq.set_solver(mom_solver)
@@ -103,24 +97,16 @@ def run(formulation):
 	mom_eq.set_T(T0_field)
 
 	# Time settings for equilibrium stage
-	tc_eq = sf.TimeControllerParabolic(n_time_steps=20,
-										initial_time=0.0,
-										final_time=5,
-										time_unit="day")
+	tc_eq = sf.TimeControllerParabolic(n_time_steps=20, initial_time=0.0, final_time=5, time_unit="day")
+	# tc_eq = sf.TimeController(dt=0.1, final_time=5, initial_time=0.0, time_unit="day")
 
 	# Boundary conditions
 	bc_equilibrium = momBC.BcHandler(mom_eq)
 
 	# Apply Dirichlet boundary conditions
-	boundaries = [("West_salt", 0),
-					("West_ovb", 0),
-					("East_salt", 0),
-					("East_ovb", 0), 
-				  	("South_salt", 1),
-					("South_ovb", 1),
-					("North_salt", 1),
-					("North_ovb", 1),
-				  	("Bottom", 2)]
+	boundaries = [("West_salt", 0), ("West_ovb", 0), ("East_salt", 0), ("East_ovb", 0), 
+				  ("South_salt", 1), ("South_ovb", 1), ("North_salt", 1), ("North_ovb", 1),
+				  ("Bottom", 2)]
 	for b_name, component in boundaries:
 		bc = momBC.DirichletBC(boundary_name=b_name, component=component, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
 		bc_equilibrium.add_boundary_condition(bc)
@@ -167,7 +153,7 @@ def run(formulation):
 
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_eq, outputs, True)
-	sim.run()
+	# sim.run()
 
 
 
@@ -221,12 +207,6 @@ def run(formulation):
 	# Define simulator
 	sim = sf.Simulator_M(mom_eq, tc_op, outputs, False)
 	# sim.run()
-
-
-def main():
-	run("P1")
-	run("P1P1")
-	run("P1P1_Stab")
 
 if __name__ == '__main__':
 	main()

@@ -74,10 +74,7 @@ def plot_Fvp(ax, output_folder):
 
 def main():
 	# Define paths
-	# output_folder = os.path.join("output", "case_0", "P1")
-	# output_folder = os.path.join("output", "case_0", "P1P1")
-	output_folder = os.path.join("output", "case_0", "P1P1_Stab")
-	# output_folder = os.path.join("output", "case_0", "P1P1_Stab_E_Star")
+	output_folder = os.path.join("output", "case_0")
 
 	# Plot loading schedule
 	fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 3))
