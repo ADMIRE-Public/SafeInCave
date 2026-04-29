@@ -1,0 +1,87 @@
+# Install mkdocs
+# pip install mkdocs
+
+# Install mkdocs materials
+# pip install mkdocs-material
+
+# To use Latex equations
+# pip install pymdown-extensions
+
+# For automatic numbering and cross-referencing
+# pip install mkdocs-caption
+
+site_name: The SafeInCave Simulator
+
+extra_css:
+  - stylesheets/extra.css
+
+theme:
+  name: material
+  palette:
+    scheme: default
+    primary: custom
+
+  favicon: images/logo.png
+  logo: images/logo_2.png
+  features:
+    - navigation.path
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.expand
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+# Repository
+repo_name: SafeInCave
+repo_url: https://github.com/ADMIRE-Public/SafeInCave
+
+markdown_extensions:
+  - attr_list
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+
+plugins:
+  - search
+  - caption
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home:
+      - Welcome: index.md
+      - Getting Started: getting_started/index.md
+      - Contribution Guide: contributing.md
+      - Changelog: CHANGELOG.md
+
+  - Theory:
+      - Intro: theory/index.md
+      - Constitutive models: theory/constitutive_models.md
+      - Mathematical formulation: theory/mathematical_models.md
+      - Numerical formulation: theory/numerical_model.md
+      - Thermodynamic model: theory/thermodynamics.md
+
+  - Usage:
+      - Intro: usage/index.md
+
+  - Examples:
+      - Mechanics:
+          - 1 - Triaxial Test: examples/mechanics/1_triaxial.md
+          - 2 - Different regions: examples/mechanics/2_cube_regions.md
+          - 3 - Single cavern: examples/mechanics/3_cavern.md
+
+      - Thermal:
+          - 1 - Cube: examples/thermal/1_cube.md
+
+      - Thermomechanics:
+          - 1 - Cube: examples/thermomechanics/1_cube.md
+          - 2 - Single cavern: examples/thermomechanics/2_cavern.md
+
+
+
