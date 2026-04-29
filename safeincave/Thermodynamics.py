@@ -37,7 +37,6 @@ class CavernThermodynamics(object):
         self.fluid = fluid
         self.AS = CP.AbstractState("HEOS", fluid)
 
-
     def _update_PT(self, P: float, T: float) -> None:
         if P <= 0.0:
             raise ValueError(f"P must be > 0, got {P}")
@@ -45,14 +44,12 @@ class CavernThermodynamics(object):
             raise ValueError(f"T must be > 0, got {T}")
         self.AS.update(CP.PT_INPUTS, P, T)
 
-
     def rho_u_h(self, P: float, T: float) -> Tuple[float, float, float]:
         self._update_PT(P, T)
         rho = self.AS.rhomass()
         u = self.AS.umass()
         h = self.AS.hmass()
         return rho, u, h
-
 
     def solve_withdrawal(
         self,
@@ -137,7 +134,7 @@ class CavernThermodynamics(object):
             try:
                 rho1, u1, _ = self.rho_u_h(P1, T1)
                 _, _, h_out = self.rho_u_h(Pout, Tout)
-            except Exception as e:
+            except Exception:
                 # Return large residuals if CoolProp fails at this state
                 return np.array([1e20, 1e20], dtype=float)
 
@@ -156,7 +153,6 @@ class CavernThermodynamics(object):
         logP1, T1 = sol.x
         rho1 = M1 / V1
         return float(np.exp(logP1)), float(T1), float(rho1)
-
 
     def solve_injection(
         self,
@@ -238,26 +234,26 @@ class CavernThermodynamics(object):
         def residuals(x: np.ndarray) -> np.ndarray:
             logP1, T1 = float(x[0]), float(x[1])
             P1 = np.exp(logP1)
-            
-            Pin = (P0 + P1)/2
+
+            Pin = (P0 + P1) / 2
             W = (V1 - V0) * (P0 + P1) / 2
 
             try:
                 rho1, u1, _ = self.rho_u_h(P1, T1)
-            except Exception as e:
+            except Exception:
                 # Return large residuals if CoolProp fails at this state
                 return np.array([1e20, 1e20], dtype=float)
 
             try:
                 _, _, h_in = self.rho_u_h(Pin, Tin)
-            except Exception as e:
+            except Exception:
                 # Return large residuals if CoolProp fails at this state
                 return np.array([1e20, 1e20], dtype=float)
 
             F1 = M1 * u1 - M0 * u0 - Q + W - m_inj * h_in
             F2 = rho1 - rho_target
 
-            return np.array([F1/energy_scale, F2/density_scale], dtype=float)
+            return np.array([F1 / energy_scale, F2 / density_scale], dtype=float)
 
         sol = root(
             residuals,
@@ -273,32 +269,34 @@ class CavernThermodynamics(object):
         rho1 = M1 / V1
         return float(np.exp(logP1)), float(T1), float(rho1)
 
-    def solve(self,
-                dm: float,
-                Q_in: float,
-                T_in: float,
-                P0: float,
-                T0: float,
-                V0: float,
-                V1: float):
+    def solve(
+        self,
+        dm: float,
+        Q_in: float,
+        T_in: float,
+        P0: float,
+        T0: float,
+        V0: float,
+        V1: float,
+    ):
         # print(P0, T0, V0, dm)
         if dm > 0.0:
             P1, T1, rho1 = self.solve_injection(
-                                            P0 = P0,
-                                            T0 = T0,
-                                            V0 = V0,
-                                            Tin = T_in,
-                                            m_inj = dm,
-                                            Q = Q_in,
-                                            V1 = V1,
-                                        )
+                P0=P0,
+                T0=T0,
+                V0=V0,
+                Tin=T_in,
+                m_inj=dm,
+                Q=Q_in,
+                V1=V1,
+            )
         else:
             P1, T1, rho1 = self.solve_withdrawal(
-                                            P0 = P0,
-                                            T0 = T0,
-                                            V0 = V0,
-                                            m_prod = dm,
-                                            Q = Q_in,
-                                            V1 = V1,
-                                        )
+                P0=P0,
+                T0=T0,
+                V0=V0,
+                m_prod=dm,
+                Q=Q_in,
+                V1=V1,
+            )
         return P1, T1, rho1
