@@ -25,7 +25,56 @@ import os
 
 
 class CavernVolumeComputer:
-    def __init__(self, grid, boundary_name: str, reference_point: list[float,float,float] = None, sym_scale: int = 1):
+    """
+    Compute the volume of a cavern from a tagged boundary surface.
+
+    The cavern wall is extracted from a 3D tetrahedral mesh, oriented with
+    outward-facing triangle normals, and integrated as a closed triangulated
+    surface. Optional displacement fields can be supplied to compute the
+    deformed volume.
+
+    Parameters
+    ----------
+    grid : GridHandlerGMSH-like
+        Grid object exposing the mesh, boundary tags, and facet markers.
+    boundary_name : str
+        Name/label of the cavern-wall boundary in the mesh tags.
+    reference_point : list of float, optional
+        Point used as the origin for tetrahedral volume integration. If
+        ``None``, the area-weighted surface centroid is used. Required when
+        ``sym_scale`` is greater than 1.
+    sym_scale : int, default=1
+        Symmetry multiplier for meshes representing part of a cavern. Valid
+        values are ``1`` (full cavern), ``2`` (half cavern), and ``4``
+        (quarter cavern).
+
+    Attributes
+    ----------
+    grid : GridHandlerGMSH-like
+        Stored grid reference.
+    boundary_name : str
+        Boundary label used to extract the cavern wall.
+    sym_scale : int
+        Validated symmetry multiplier.
+    reference_point : list of float or ndarray
+        Point used for volume integration.
+    coords_wall : ndarray
+        Coordinates of the wall vertices.
+    conn_wall : ndarray
+        Triangle connectivity indexing into ``coords_wall``.
+    ids_wall : ndarray
+        Global vertex ids of the wall vertices.
+    wall_cells : ndarray
+        Incident cell id used to evaluate displacement at each wall vertex.
+    """
+
+    def __init__(
+        self,
+        grid,
+        boundary_name: str,
+        reference_point: list[float, float, float] = None,
+        sym_scale: int = 1,
+    ):
         self.grid = grid
         self.boundary_name = boundary_name
         self.sym_scale = self.validate_sym_scale(sym_scale)
@@ -34,7 +83,9 @@ class CavernVolumeComputer:
         cavern_data = self.__extract_cavern_surface_from_grid(self.boundary_name)
         self.coords_wall, self.conn_wall, self.ids_wall = cavern_data
         if reference_point is None:
-            self.reference_point = self.__surface_centroid(self.coords_wall, self.conn_wall)
+            self.reference_point = self.__surface_centroid(
+                self.coords_wall, self.conn_wall
+            )
         self.gather_cells_for_wall_vertices()
 
     def verify_reference_point(self):
@@ -45,14 +96,13 @@ Additionally, it must be on the intersection of all symmetry planes.
                              """)
 
     def validate_sym_scale(self, sym_scale):
-        '''
+        """
         Validate that sym_scale is a positive integer and that the mesh represents a fraction 1/sym_scale of the full cavern.
         It can be either 1 (full cavern), 2 (half cavern), or 4 (quarter cavern).
-        '''
+        """
         if sym_scale not in [1, 2, 4]:
             raise ValueError(f"sym_scale must be 1, 2, or 4. Got {sym_scale}.")
         return sym_scale
-
 
     def calculate_normals(self):
         normals = np.zeros((len(self.conn_wall), 3))
@@ -61,7 +111,6 @@ Additionally, it must be on the intersection of all symmetry planes.
             normal = np.cross(p1 - p0, p2 - p0)
             normals[i] = normal / np.linalg.norm(normal)
         return normals
-    
 
     def calculate_cavern_midpoint(self, direction: int, u=None):
         if u is None:
@@ -72,8 +121,6 @@ Additionally, it must be on the intersection of all symmetry planes.
         min_coord = np.min(coords[:, direction])
         max_coord = np.max(coords[:, direction])
         return (min_coord + max_coord) / 2.0
-        
-    
 
     def gather_cells_for_wall_vertices(self):
         tdim = self.grid.mesh.topology.dim
@@ -85,7 +132,6 @@ Additionally, it must be on the intersection of all symmetry planes.
             if len(links) == 0:
                 raise RuntimeError(f"Vertex {v} has no incident cell.")
             self.wall_cells[k] = links[0]
-
 
     def compute(self, u=None):
         if u is None:
@@ -100,7 +146,6 @@ Additionally, it must be on the intersection of all symmetry planes.
             v2 = coords[tri][2] - self.reference_point
             volume += np.dot(v0, np.cross(v1, v2)) / 6.0
         return abs(volume) * self.sym_scale
-
 
     def __extract_cavern_surface_from_grid(self, boundary_name: str):
         """
@@ -138,19 +183,25 @@ Additionally, it must be on the intersection of all symmetry planes.
 
         tag = self.grid.get_boundary_tag(boundary_name)
 
-        mt = getattr(self.grid, "boundaries", None) or getattr(self.grid, "facet_tags", None)
+        mt = getattr(self.grid, "boundaries", None) or getattr(
+            self.grid, "facet_tags", None
+        )
         if mt is None:
-            raise RuntimeError("Grid does not expose facet tags as 'boundaries' or 'facet_tags'.")
+            raise RuntimeError(
+                "Grid does not expose facet tags as 'boundaries' or 'facet_tags'."
+            )
 
         # Facets carrying the requested boundary tag
         facets = mt.indices[mt.values == tag]
         if len(facets) == 0:
-            raise RuntimeError(f"No facets found for boundary '{boundary_name}' (tag={tag}).")
+            raise RuntimeError(
+                f"No facets found for boundary '{boundary_name}' (tag={tag})."
+            )
 
         # Required connectivities
-        mesh.topology.create_connectivity(fdim, 0)     # facet -> vertices
+        mesh.topology.create_connectivity(fdim, 0)  # facet -> vertices
         mesh.topology.create_connectivity(fdim, tdim)  # facet -> cell(s)
-        mesh.topology.create_connectivity(tdim, 0)     # cell  -> vertices
+        mesh.topology.create_connectivity(tdim, 0)  # cell  -> vertices
 
         f2v = mesh.topology.connectivity(fdim, 0)
         f2c = mesh.topology.connectivity(fdim, tdim)
@@ -204,20 +255,20 @@ Additionally, it must be on the intersection of all symmetry planes.
             wall_set.update(facet_vertices.tolist())
 
         if not tri_global:
-            raise RuntimeError(f"No triangular facets found for boundary '{boundary_name}' (tag={tag}).")
+            raise RuntimeError(
+                f"No triangular facets found for boundary '{boundary_name}' (tag={tag})."
+            )
 
         wall_ids = np.array(sorted(wall_set), dtype=np.int64)
         gid2lid = {gid: i for i, gid in enumerate(wall_ids)}
 
         tris_local = np.array(
-            [[gid2lid[v] for v in tri] for tri in tri_global],
-            dtype=np.int32
+            [[gid2lid[v] for v in tri] for tri in tri_global], dtype=np.int32
         )
         coords_wall = coords_all[wall_ids]
         return coords_wall, tris_local, wall_ids
 
-    
-    def __surface_centroid(self, coordinates, triangles): 
+    def __surface_centroid(self, coordinates, triangles):
         """Calculate the centroid of a surface defined by triangles."""
         total_area = 0
         weighted_sum = np.zeros(3)
@@ -230,32 +281,79 @@ Additionally, it must be on the intersection of all symmetry planes.
         return weighted_sum / total_area
 
 
+class HeatFluxComputer:
+    """
+    Compute integrated heat flux through a named cavern boundary.
 
-class HeatFluxComputer():
+    Parameters
+    ----------
+    grid : GridHandlerGMSH-like
+        Grid object exposing the mesh, boundary tags, and facet markers.
+    boundary_name : str
+        Name/label of the boundary where heat flux is integrated.
+
+    Attributes
+    ----------
+    grid : GridHandlerGMSH-like
+        Stored grid reference.
+    boundary_name : str
+        Boundary label used to query mesh tags.
+    ds : ufl.Measure
+        Exterior-facet measure with grid boundary markers.
+    n : ufl.FacetNormal
+        Outward unit normal on the mesh facets.
+    """
+
     def __init__(self, grid, boundary_name: str):
         self.grid = grid
         self.boundary_name = boundary_name
-        
-        self.ds = ufl.Measure("ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries())
+
+        self.ds = ufl.Measure(
+            "ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries()
+        )
         self.n = ufl.FacetNormal(self.grid.mesh)
 
-    
-    def compute(self, dt: float, T: any=None, kappa: any=None) -> float:
+    def compute(self, dt: float, T: any = None, kappa: any = None) -> float:
         if T is None or kappa is None:
             print(T, kappa)
             return 0.0
         else:
-            Q_form = fem.form(ufl.dot(kappa * ufl.grad(T), self.n) * self.ds(self.grid.get_boundary_tag(self.boundary_name)))
+            Q_form = fem.form(
+                ufl.dot(kappa * ufl.grad(T), self.n)
+                * self.ds(self.grid.get_boundary_tag(self.boundary_name))
+            )
             Q = fem.assemble_scalar(Q_form)
             Q = -self.grid.mesh.comm.allreduce(Q, op=MPI.SUM)
             return dt * Q
 
 
 class Cavern(ABC):
-    def __init__(self,
-                 cavern_name: str,
-                 fluid: str = None,
-                 h_conv: float = None):
+    """
+    Abstract base class for cavern boundary-condition models.
+
+    Parameters
+    ----------
+    cavern_name : str
+        Name/label of the cavern boundary in the mesh tags.
+    fluid : str, optional
+        CoolProp fluid name. If provided, it is validated against CoolProp's
+        ``HEOS`` backend.
+    h_conv : float, optional
+        Convective heat-transfer coefficient used by the heat boundary handler.
+
+    Attributes
+    ----------
+    cavern_name : str
+        Boundary label associated with the cavern.
+    fluid : str or None
+        CoolProp fluid identifier.
+    h_conv : float or None
+        Convective heat-transfer coefficient.
+    type : str or None
+        Cavern type identifier set by subclasses.
+    """
+
+    def __init__(self, cavern_name: str, fluid: str = None, h_conv: float = None):
         self.cavern_name = cavern_name
         self.check_fluid(fluid)
         self.fluid = fluid
@@ -268,7 +366,7 @@ class Cavern(ABC):
                 CP.AbstractState("HEOS", fluid)
             except ValueError:
                 raise ValueError(f"Fluid '{fluid}' not recognized by CoolProp.")
-        
+
     @abstractmethod
     def update_cavern(self, t: float) -> None:
         pass
@@ -280,18 +378,34 @@ class Cavern(ABC):
     def calculate_initial_condition(self) -> None:
         pass
 
-    def calculate_heat(self, T: any=None, kappa: any=None) -> None:
+    def calculate_heat(self, T: any = None, kappa: any = None) -> None:
         pass
 
 
-
 class CavernHandler:
+    """
+    Container and dispatcher for cavern boundary-condition models.
+
+    This class stores caverns by model type and forwards volume, heat,
+    time-update, recording, and export operations to the registered caverns.
+
+    Attributes
+    ----------
+    caverns_T : list[Cavern_T]
+        Caverns with prescribed time-dependent temperature.
+    caverns_PT : list[Cavern_PT]
+        Caverns with prescribed time-dependent pressure and temperature.
+    caverns_MFlux : list[Cavern_MassFlux]
+        Caverns advanced from a prescribed mass-flux history.
+    output_folder : str or None
+        Folder where cavern history data are written by :meth:`save_caverns_data`.
+    """
+
     def __init__(self):
         self.caverns_T = []
         self.caverns_PT = []
         self.caverns_MFlux = []
         self.output_folder = None
-
 
     def add_cavern(self, cavern: Cavern) -> None:
         if cavern.type == "Cavern_T":
@@ -302,26 +416,21 @@ class CavernHandler:
             self.caverns_MFlux.append(cavern)
         else:
             raise ValueError(f"Cavern type {cavern.type} not supported")
-        
 
     def set_output_folder(self, output_folder: str) -> None:
         self.output_folder = output_folder
-        
-        
+
     def calculate_volumes(self, u: any = None) -> None:
         for cavern in self.caverns_MFlux + self.caverns_PT:
             cavern.calculate_volume(u)
 
-    def calculate_total_heat(self, dt: float, T: any=None, kappa: any=None) -> None:
+    def calculate_total_heat(self, dt: float, T: any = None, kappa: any = None) -> None:
         for cavern in self.caverns_MFlux + self.caverns_PT:
             cavern.calculate_heat(dt, T, kappa)
 
-
-    def update_caverns(self, 
-                       t: float,
-                       dt: float = None,
-                       u: any = None,
-                       T: any = None) -> None:
+    def update_caverns(
+        self, t: float, dt: float = None, u: any = None, T: any = None
+    ) -> None:
         for cavern in self.caverns_T:
             cavern.update_cavern(t, dt)
 
@@ -331,11 +440,9 @@ class CavernHandler:
         for cavern in self.caverns_MFlux:
             cavern.update_cavern(t, dt)
 
-
     def calculate_initial_conditions(self) -> None:
         for cavern in self.caverns_MFlux:
             cavern.calculate_initial_condition()
-
 
     def record_cavern_data(self, t: float) -> None:
         for cavern in self.caverns_T:
@@ -346,7 +453,6 @@ class CavernHandler:
 
         for cavern in self.caverns_MFlux:
             cavern.record_data(t)
-
 
     def save_caverns_data(self):
         cavern_data = {}
@@ -359,10 +465,40 @@ class CavernHandler:
             save_json(cavern_data, os.path.join(self.output_folder, "cavern_data.json"))
 
 
-
-
 class Cavern_T(Cavern):
-    def __init__(self, cavern_name: str, T_values: list, time_values: list, h_conv: float = None):
+    """
+    Cavern model with prescribed time-dependent temperature.
+
+    Parameters
+    ----------
+    cavern_name : str
+        Name/label of the cavern boundary in the mesh tags.
+    T_values : list of float
+        Prescribed cavern temperatures over time.
+    time_values : list of float
+        Times corresponding to ``T_values``.
+    h_conv : float, optional
+        Convective heat-transfer coefficient used by the heat boundary handler.
+
+    Attributes
+    ----------
+    type : str
+        Always ``"Cavern_T"``.
+    T_values : list of float
+        Time-sampled prescribed temperatures.
+    time_values : list of float
+        Sample times corresponding to ``T_values``.
+    T : float
+        Current cavern temperature.
+    T_hist : list of float
+        Recorded temperature history.
+    t_hist : list of float
+        Recorded time history.
+    """
+
+    def __init__(
+        self, cavern_name: str, T_values: list, time_values: list, h_conv: float = None
+    ):
         super().__init__(cavern_name, None, h_conv)
         self.type = "Cavern_T"
         self.T_values = T_values
@@ -373,40 +509,95 @@ class Cavern_T(Cavern):
         self.T_hist = [self.T]
         self.t_hist = [self.time_values[0]]
 
-
     def update_cavern(self, t: float, dt: float) -> None:
         self.T = np.interp(t, self.time_values, self.T_values)
         if self.T <= 0.0:
             raise ValueError(f"T must be > 0, got {self.T}")
 
-
     def record_data(self, t: float) -> None:
         self.T_hist.append(self.T)
         self.t_hist.append(t)
 
-    
     def create_data(self, output_dir: str):
         pass
 
 
-
 class Cavern_PT(Cavern):
-    def __init__(self, 
-                 *,
-                 grid: any,
-                 cavern_name: str,
-                 fluid: str,
-                 sym_scale: int,
-                 reference_point: list[float,float,float] = None,
-                 P_values: list,        # Gauge pressure values (Pa)
-                 T_values: list,        # Temperature values (K)
-                 time_values: list,
-                 ref_pos: float = 0.0,
-                 direction: int = 0,
-                 g: float = -9.81,
-                 h_conv: float = None,
-                 P_atm: float = 101325.0 # Atmospheric pressure in Pa
-                ):
+    """
+    Cavern model with prescribed time-dependent pressure and temperature.
+
+    Pressure and temperature are interpolated from user-provided histories.
+    The current density is evaluated with CoolProp using the absolute pressure
+    ``P + P_atm`` and temperature ``T``.
+
+    Parameters
+    ----------
+    grid : GridHandlerGMSH-like
+        Grid object used for heat-flux and volume computations.
+    cavern_name : str
+        Name/label of the cavern boundary in the mesh tags.
+    fluid : str
+        CoolProp fluid name.
+    sym_scale : int
+        Symmetry multiplier for volume computation. Valid values are ``1``,
+        ``2``, and ``4``.
+    reference_point : list of float, optional
+        Point used by :class:`CavernVolumeComputer` for volume integration.
+    P_values : list of float
+        Prescribed gauge pressure values over time, in Pa.
+    T_values : list of float
+        Prescribed temperature values over time, in K.
+    time_values : list of float
+        Times corresponding to ``P_values`` and ``T_values``.
+    ref_pos : float, default=0.0
+        Reference coordinate used by coupled cavern models.
+    direction : int, default=0
+        Coordinate direction associated with ``ref_pos`` and gravity.
+    g : float, default=-9.81
+        Gravitational acceleration.
+    h_conv : float, optional
+        Convective heat-transfer coefficient used by the heat boundary handler.
+    P_atm : float, default=101325.0
+        Atmospheric pressure added to gauge pressure before CoolProp calls.
+
+    Attributes
+    ----------
+    type : str
+        Always ``"Cavern_PT"``.
+    P : float
+        Current gauge pressure.
+    T : float
+        Current temperature.
+    density : float
+        Current fluid density.
+    Q : float
+        Integrated heat over the current time step.
+    heat : HeatFluxComputer
+        Helper used to integrate heat flux on the cavern boundary.
+    cvc : CavernVolumeComputer
+        Helper used to compute cavern volume.
+    V_hist, M_hist, P_hist, T_hist, Q_hist, density_hist, t_hist : list
+        Recorded histories for volume, mass, pressure, temperature, heat,
+        density, and time.
+    """
+
+    def __init__(
+        self,
+        *,
+        grid: any,
+        cavern_name: str,
+        fluid: str,
+        sym_scale: int,
+        reference_point: list[float, float, float] = None,
+        P_values: list,  # Gauge pressure values (Pa)
+        T_values: list,  # Temperature values (K)
+        time_values: list,
+        ref_pos: float = 0.0,
+        direction: int = 0,
+        g: float = -9.81,
+        h_conv: float = None,
+        P_atm: float = 101325.0,  # Atmospheric pressure in Pa
+    ):
         super().__init__(cavern_name, fluid, h_conv)
         self.type = "Cavern_PT"
         self.P_values = P_values
@@ -417,7 +608,7 @@ class Cavern_PT(Cavern):
         self.direction = direction
         self.gravity = g
         self.Q = 0.0
-        
+
         self.AS = CP.AbstractState("HEOS", self.fluid)
         self.P = self.P_values[0]
         self.T = self.T_values[0]
@@ -429,11 +620,11 @@ class Cavern_PT(Cavern):
 
         # Initialize cavern volume computer
         self.cvc = CavernVolumeComputer(
-                                        grid=grid,
-                                        boundary_name=self.cavern_name,
-                                        reference_point=reference_point,
-                                        sym_scale=sym_scale
-                                    )
+            grid=grid,
+            boundary_name=self.cavern_name,
+            reference_point=reference_point,
+            sym_scale=sym_scale,
+        )
 
         # Initialize histories
         self.V_hist = []
@@ -444,28 +635,26 @@ class Cavern_PT(Cavern):
         self.density_hist = []
         self.t_hist = []
 
-
     def calculate_volume(self, u: any = None) -> None:
         if u is None:
             self.V = self.cvc.compute()
         else:
             self.V = self.cvc.compute(u)
 
-    
-    def calculate_heat(self, dt: float, T: any=None, kappa: any=None) -> None:
+    def calculate_heat(self, dt: float, T: any = None, kappa: any = None) -> None:
         self.Q = self.heat.compute(dt, T, kappa)
-
 
     def update_cavern(self, t: float, dt: float) -> None:
         self.P = np.interp(t, self.time_values, self.P_values)
         self.T = np.interp(t, self.time_values, self.T_values)
         if self.P + self.P_atm <= 0.0:
-            raise ValueError(f"Absolute pressure must be > 0, got {self.P + self.P_atm}")
+            raise ValueError(
+                f"Absolute pressure must be > 0, got {self.P + self.P_atm}"
+            )
         if self.T <= 0.0:
             raise ValueError(f"Temperature must be > 0, got {self.T}")
         self.AS.update(CP.PT_INPUTS, self.P + self.P_atm, self.T)
         self.density = self.AS.rhomass()
-
 
     def record_data(self, t: float) -> None:
         self.density_hist.append(self.density)
@@ -476,7 +665,6 @@ class Cavern_PT(Cavern):
         self.Q_hist.append(self.Q)
         self.t_hist.append(t)
 
-    
     def create_data(self):
         data = {}
         data["Time"] = self.t_hist
@@ -489,26 +677,89 @@ class Cavern_PT(Cavern):
         return data
 
 
-
-
 class Cavern_MassFlux(Cavern):
-    def __init__(self,
-                 *,
-                 grid: any,
-                 cavern_name: str,
-                 sym_scale: int,
-                 reference_point: list[float,float,float] = None,
-                 fluid: str,
-                 P_init: float,         # Initial gauge pressure (Pa)
-                 T_init: float,         # Initial fluid temperature (K)
-                 T_in: float,           # Temperature of injected fluid (K)
-                 Mflux_values: list,
-                 time_values: list,
-                 direction: int = 2,
-                 g: float = -9.81,
-                 h_conv: float = None,
-                 P_atm: float = 101325.0 # Atmospheric pressure in Pa
-                 ):
+    """
+    Cavern model advanced from a prescribed mass-flux history.
+
+    The cavern mass is updated from the interpolated mass flux and time-step
+    size. Pressure, temperature, and density are then solved with
+    :class:`CavernThermodynamics`, including heat exchange and volume change.
+
+    Parameters
+    ----------
+    grid : GridHandlerGMSH-like
+        Grid object used for heat-flux and volume computations.
+    cavern_name : str
+        Name/label of the cavern boundary in the mesh tags.
+    sym_scale : int
+        Symmetry multiplier for volume computation. Valid values are ``1``,
+        ``2``, and ``4``.
+    reference_point : list of float, optional
+        Point used by :class:`CavernVolumeComputer` for volume integration.
+    fluid : str
+        CoolProp fluid name.
+    P_init : float
+        Initial gauge pressure, in Pa.
+    T_init : float
+        Initial fluid temperature, in K.
+    T_in : float
+        Temperature of injected fluid, in K.
+    Mflux_values : list of float
+        Prescribed mass-flux values over time.
+    time_values : list of float
+        Times corresponding to ``Mflux_values``.
+    direction : int, default=2
+        Coordinate direction used to calculate the cavern midpoint.
+    g : float, default=-9.81
+        Gravitational acceleration.
+    h_conv : float, optional
+        Convective heat-transfer coefficient used by the heat boundary handler.
+    P_atm : float, default=101325.0
+        Atmospheric pressure used to convert gauge pressure to absolute pressure.
+
+    Attributes
+    ----------
+    type : str
+        Always ``"Cavern_MFlux"``.
+    Mflux : float
+        Current mass-flux value.
+    P : float
+        Current gauge pressure.
+    T : float
+        Current temperature.
+    density : float
+        Current fluid density.
+    Q : float
+        Integrated heat over the current time step.
+    heat : HeatFluxComputer
+        Helper used to integrate heat flux on the cavern boundary.
+    cvc : CavernVolumeComputer
+        Helper used to compute cavern volume.
+    model : CavernThermodynamics
+        Thermodynamic model used to update pressure, temperature, and density.
+    V_hist, M_hist, P_hist, T_hist, Q_hist, density_hist, t_hist : list
+        Recorded histories for volume, mass, pressure, temperature, heat,
+        density, and time.
+    """
+
+    def __init__(
+        self,
+        *,
+        grid: any,
+        cavern_name: str,
+        sym_scale: int,
+        reference_point: list[float, float, float] = None,
+        fluid: str,
+        P_init: float,  # Initial gauge pressure (Pa)
+        T_init: float,  # Initial fluid temperature (K)
+        T_in: float,  # Temperature of injected fluid (K)
+        Mflux_values: list,
+        time_values: list,
+        direction: int = 2,
+        g: float = -9.81,
+        h_conv: float = None,
+        P_atm: float = 101325.0,  # Atmospheric pressure in Pa
+    ):
         super().__init__(cavern_name, fluid, h_conv)
         self.type = "Cavern_MFlux"
         self.Mflux_values = Mflux_values
@@ -533,11 +784,11 @@ class Cavern_MassFlux(Cavern):
 
         # Initialize cavern volume computer
         self.cvc = CavernVolumeComputer(
-                                        grid=grid,
-                                        boundary_name=self.cavern_name,
-                                        reference_point=reference_point,
-                                        sym_scale=sym_scale
-                                    )
+            grid=grid,
+            boundary_name=self.cavern_name,
+            reference_point=reference_point,
+            sym_scale=sym_scale,
+        )
         self.ref_pos = self.cvc.calculate_cavern_midpoint(direction=self.direction)
 
         # Initialize thermodynamic model
@@ -557,43 +808,41 @@ class Cavern_MassFlux(Cavern):
         self.density_hist = []
         self.t_hist = []
 
-
-    def calculate_volume(self, u: any=None) -> None:
+    def calculate_volume(self, u: any = None) -> None:
         if u is None:
             self.V = self.cvc.compute()
             self.ref_pos = self.cvc.calculate_cavern_midpoint(direction=self.direction)
         else:
             self.V = self.cvc.compute(u)
-            self.ref_pos = self.cvc.calculate_cavern_midpoint(direction=self.direction, u=u)
+            self.ref_pos = self.cvc.calculate_cavern_midpoint(
+                direction=self.direction, u=u
+            )
 
-    
-    def calculate_heat(self, dt: float, T: any=None, kappa: any=None) -> None:
+    def calculate_heat(self, dt: float, T: any = None, kappa: any = None) -> None:
         self.Q = self.heat.compute(dt, T, kappa)
         # self.Q = 0.0
 
-    
     def update_cavern(self, t: float, dt: float) -> None:
         Mflux = np.interp(t, self.time_values, self.Mflux_values)
         self.M = self.M0 + Mflux * dt
         dm = self.M - self.M0
         self.P, self.T, self.density = self.model.solve(
-            dm = dm,
-            Q_in = self.Q,
-            T_in = self.T_in,
-            P0 = self.P0 + self.P_atm,  # Convert to absolute pressure
-            T0 = self.T0,
-            V0 = self.V0,
-            V1 = self.V
+            dm=dm,
+            Q_in=self.Q,
+            T_in=self.T_in,
+            P0=self.P0 + self.P_atm,  # Convert to absolute pressure
+            T0=self.T0,
+            V0=self.V0,
+            V1=self.V,
         )
         if self.P <= 0.0:
             raise ValueError(f"P must be > 0, got {self.P}")
         if self.T <= 0.0:
             raise ValueError(f"T must be > 0, got {self.T}")
-        
+
         # Convert to gauge pressure
         self.P -= self.P_atm
         # print(self.P/1e6, self.T, self.density, self.M0, dm, self.V)
-
 
     def record_data(self, t: float) -> None:
         self.density_hist.append(self.density)
@@ -604,14 +853,12 @@ class Cavern_MassFlux(Cavern):
         self.Q_hist.append(self.Q)
         self.t_hist.append(t)
 
-
     def calculate_initial_condition(self):
         self.V0 = self.V
         self.P0 = self.P
         self.T0 = self.T
         self.M0 = self.V * self.density
 
-    
     def create_data(self):
         data = {}
         data["Time"] = self.t_hist
@@ -622,7 +869,3 @@ class Cavern_MassFlux(Cavern):
         data["Mass"] = self.M_hist
         data["Heat"] = self.Q_hist
         return data
-
-
-
-    
