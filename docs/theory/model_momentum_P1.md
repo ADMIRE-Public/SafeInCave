@@ -1,57 +1,7 @@
-# Numerical Formulation
-## Heat diffusion
-Let us define the following trial function space for approximating temperature as
 
-$$
-\mathcal{S} = \lbrace T : \Omega \rightarrow \mathbb{R}\hspace{1mm} | \hspace{1mm} T \in H^1, T = \bar{T} \hspace{1mm} \text{on} \hspace{1mm} \Gamma_d^T \rbrace,
-\label{eq:trial_T}
-$$
+# P1 formulation
 
-
-and the test function space as
-
-$$
-\mathcal{S}_0 = \lbrace v : \Omega \rightarrow \mathbb{R}\hspace{1mm} | \hspace{1mm} v \in H^1, v = 0 \hspace{1mm} \text{on} \hspace{1mm} \Gamma_d^T \rbrace.
-\label{eq:test_T}
-$$
-
-The weak form of the heat diffusion equation reads
-
-$$
-\begin{align}
-    \int_\Omega \left( \rho c \frac{\partial T}{\partial t} + k\nabla T \cdot \nabla v \right)\mathrm{d}\Omega 
-    + \int_{\Gamma^q} q'' v \mathrm{d}\Gamma
-    + \int_{\Gamma^h} h\left( T - T_\infty \right) v \mathrm{d}\Gamma
-    = 0.
-    \label{eq:weak_heat_0}
-\end{align}
-$$
-
-
-Integrating in time between $t$ and $t+\Delta t$, using the fully-implicit (i.e., backward Euler) scheme to evaluate the time  integrals, and rearranging the terms, Eq. $\eqref{eq:weak_heat_0}$ becomes
-
-$$
-\begin{align}
-    \int_\Omega \left(  \frac{\rho c}{\Delta t}T + k\nabla T \cdot \nabla v \right)\mathrm{d}\Omega 
-    + \int_{\Gamma^h} h T v \mathrm{d}\Gamma
-    = 
-    \int_\Omega  \frac{\rho c}{\Delta t} T^t \mathrm{d}\Omega 
-    + \int_{\Gamma^h} h T_\infty v \mathrm{d}\Gamma
-    - \int_{\Gamma^q} q'' v \mathrm{d}\Gamma
-    . \nonumber
-    \label{eq:weak_heat_1}
-\end{align}
-$$
-
-where $T^t$ refers to the temperature evaluated at the previous time step $t$, while the temperature evaluated at the current time step $t+\Delta t$ carries no superscript to avoid heavy notation ($T$). 
-
-
-
-
-
-## Linear momentum
-
-### Consistent tangent matrix
+## Stress linearization
 Consider a non-elastic element $i$, with strain rate $\dot{\pmb{\varepsilon}}_i$. Using the $\theta-$method to integrate the strain rate from $t$ to $t+\Delta t$, gives
 
 $$
@@ -123,18 +73,24 @@ Finally, substituting Eq. $\eqref{eq:eps_rate_ne_0}$ into Eq. $\eqref{eq:stress_
 
 $$
 \pmb{\sigma}^{k+1} = \mathbb{C}_T : \left[ 
-		\pmb{\varepsilon}^{k+1} 
+		\pmb{\varepsilon}_0 
+		+ \pmb{\varepsilon}^{k+1} 
 		- \pmb{\varepsilon}_{ne}^k
 		+ \phi_2 \left( \mathbb{G}_{ne} : \pmb{\sigma}^k + \mathbf{B}_{ne} \right)
 	\right]
 \label{eq:stress_3}
 $$
 
-where $\pmb{\varepsilon}_{ne}^k = \pmb{\varepsilon}_{ne}^t + \phi_1 \dot{\pmb{\varepsilon}}_{ne}^t + \phi_1 \dot{\pmb{\varepsilon}}_{ne}^k$, and the consistent tangent matrix is given by
+where the initial elastic strain (consistent with the imposed initial stress field), the non-elastic strain at previous iteration $k$, and the consistent tangent matrix are respectively given by
 
 $$
-\mathbb{C}_T = \left( \mathbb{C}_0^{-1} + \phi_2 \mathbb{G}_{ne} \right)^{-1}
-\label{eq:CT}
+\begin{align}
+    &\pmb{\varepsilon}_0 = \mathbb{C}_e^{-1} : \pmb{\sigma}_0
+    \\
+    &\pmb{\varepsilon}_{ne}^k = \pmb{\varepsilon}_{ne}^t + \phi_1 \dot{\pmb{\varepsilon}}_{ne}^t + \phi_1 \dot{\pmb{\varepsilon}}_{ne}^k
+    \\
+    &\mathbb{C}_T = \left( \mathbb{C}_0^{-1} + \phi_2 \mathbb{G}_{ne} \right)^{-1} \label{eq:CT}
+\end{align}
 $$
 
 We can further simplify Eq. $\eqref{eq:stress_3}$ by defining
@@ -147,14 +103,16 @@ $$
 In this manner, the stress tensor can be expressed as
 
 $$
-\pmb{\sigma}^{k+1} = \mathbb{C}_T : \left( \pmb{\varepsilon}^{k+1} - \pmb{\varepsilon}^k_\text{rhs} \right).
+\pmb{\sigma}^{k+1} = \mathbb{C}_T : \left( \pmb{\varepsilon}_0 + \pmb{\varepsilon}^{k+1} - \pmb{\varepsilon}^k_\text{rhs} \right).
 \label{eq:stress_4}
 $$
+
+## Linearized momentum balance equation
 
 Finally, the linearized momentum balance equation reads
 
 $$
-\nabla \cdot \mathbb{C}_T : \pmb{\varepsilon}^{k+1} = \mathbf{f} + \nabla \cdot \mathbb{C}_T : \pmb{\varepsilon}_\text{rhs}^k.
+\nabla \cdot \mathbb{C}_T : \pmb{\varepsilon}^{k+1} = \mathbf{f} + \nabla \cdot \mathbb{C}_T : \left( \pmb{\varepsilon}_\text{rhs}^k - \pmb{\varepsilon}_0 \right).
 \label{eq:mom_1}
 $$
 
@@ -162,4 +120,4 @@ $$
 
 
 	
-### Weak formulation
+## Weak formulation

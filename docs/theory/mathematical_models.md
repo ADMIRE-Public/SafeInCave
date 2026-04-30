@@ -97,11 +97,15 @@ $$
 
 and the non-elastic strains are given by
 
+<a id="eq-eps-i"></a>
+
 $$
 \pmb{\varepsilon}_{ne} = \sum_{i=1}^{N_{ne}} \pmb{\varepsilon}_{i},
 $$
 
 with $N_{ne}$ denoting the number of non-elastic elements included in the constitutive model. In this manner, the stress tensor can be expressed as
+
+<a id="eq-stress-1"></a>
 
 $$
 \pmb{\sigma} = \pmb{\sigma}_0 + \mathbb{C}_e : \left( \pmb{\varepsilon} - \pmb{\varepsilon}_{ne} - \pmb{\varepsilon}_{th}\right).

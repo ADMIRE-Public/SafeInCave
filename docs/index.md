@@ -1,13 +1,15 @@
 # SafeInCave Documentation
 
-[![](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/ADMIRE-Public/SafeInCave)
+<!-- [![](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/ADMIRE-Public/SafeInCave)
 [![](https://img.shields.io/badge/DOI-10.1234%2Fabcde.12345678-blue)](https://doi.org/10.5281/zenodo.17169591)
 [![](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
 [![](https://img.shields.io/badge/Dependency-FEniCSx%200.9.0-important)](https://fenicsproject.org)
 
 
 > **Note**: This project requires **FEniCSx** and runs natively on Ubuntu.  
-> Windows users must use [WSL](https://learn.microsoft.com/en-us/windows/wsl/).
+> Windows users must use [WSL](https://learn.microsoft.com/en-us/windows/wsl/). -->
+
+Welcome to the SafeInCave documentation page. SafeInCave is an open-source simulator for the thermo-mechanical behavior of salt caverns. 
 
 ---
 

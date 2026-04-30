@@ -64,7 +64,11 @@ nav:
       - Intro: theory/index.md
       - Constitutive models: theory/constitutive_models.md
       - Mathematical formulation: theory/mathematical_models.md
-      - Numerical formulation: theory/numerical_model.md
+      # - Numerical formulation: theory/numerical_model.md
+      - Numerical formulation:
+          - Heat diffusion: theory/model_heat.md
+          - Momentum P1: theory/model_momentum_P1.md
+          - Momentum P1-P1: theory/model_momentum_P1P1.md
       - Thermodynamic model: theory/thermodynamics.md
 
   - Usage:
