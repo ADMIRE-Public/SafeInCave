@@ -20,9 +20,9 @@ $$
 
 
 
-## Kelvin-Voigt element
+## Viscoelastic element
 
-The Kelvin-Voigt element consists of a parallel arrangement between a spring and a dashpot. The stress $\pmb{\sigma}$ applied on this type of element is balanced by the stresses on the spring and dashpot. That is,
+The viscoelastic element consists of a parallel arrangement between a spring and a dashpot, also known as Kelvin-Voigt model. The stress $\pmb{\sigma}$ applied on this type of element is balanced by the stresses on the spring and dashpot. That is,
 
 $$
 \pmb{\sigma} = \underbrace{\mathbb{C}_1 : \pmb{\varepsilon}_{ve}}_{\text{spring}} + \underbrace{\eta_1 \dot{\pmb{\varepsilon}}_{ve}}_{\text{dashpot}}

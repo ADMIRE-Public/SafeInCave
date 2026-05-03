@@ -19,3 +19,31 @@ $$
 $$
 
 The constitutive models available in the literature, some of which are presented in the following sections, differ from each other by how they consider the **non-elastic** strain tensor $\pmb{\varepsilon}_{ne}$.
+
+## Elastic strain
+The elastic strain $\pmb{\varepsilon}_e$ is obtained from Hooke's law, that is,
+
+$$
+\pmb{\sigma} - \pmb{\sigma}_0 = \mathbb{C}_e : \pmb{\varepsilon}_e
+\quad \rightarrow \quad
+\pmb{\varepsilon}_e = \mathbb{C}_e^{-1} : \left( \pmb{\sigma} - \pmb{\sigma}_0 \right),
+$$
+
+where $\pmb{\sigma}$ and $\pmb{\sigma}_0$ denote the current and initial stress tensors, respectively, and $\mathbb{C}_e$ is the rank-4 elastic stiffness tensor, whose components are given by
+
+$$
+C_{ijkl} = \lambda \delta_{ij} \delta_{kl} + G \left( \delta_{ik} \delta_{jl} + \delta_{il} \delta_{jk} \right),
+$$
+
+with $\lambda$ and $G$ denoting the first Lamè's parameter and the shear modulus, respectively.
+
+
+## Thermal strain
+The thermal strain element is represented in [](#fig-constitutive-model-1) as a ballon that only responds to temperature variations $\Delta T$, not stress. The termal strain is given by
+
+$$
+\pmb{\varepsilon}_{th} = \alpha_{th} \Delta T \mathbf{I},
+\label{eq:eps_th_0}
+$$
+
+where $\alpha_{th}$ is the thermal expansion coefficient, and $\mathbf{I}$ is the rank-2 identity tensor.
