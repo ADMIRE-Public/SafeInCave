@@ -60,19 +60,31 @@ nav:
       - Contribution Guide: contributing.md
       - Changelog: CHANGELOG.md
 
+
   - Theory:
-      - Intro: theory/index.md
-      - Constitutive models: theory/constitutive_models.md
-      - Mathematical formulation: theory/mathematical_models.md
-      # - Numerical formulation: theory/numerical_model.md
+      - Governing equations: 
+          - Introduction: theory/governing_equations/intro.md
+          - Heat Diffusion: theory/governing_equations/heat_diffusion.md
+          - Mechanics: theory/governing_equations/mechanics.md
+          - Thermodynamics: theory/governing_equations/thermodynamics.md
+
+      - Constitutive models: 
+          - Introduction: theory/constitutive_models/intro.md
+          - TUD model: theory/constitutive_models/TUD.md
+          - Munson-Dawson: theory/constitutive_models/MD.md
+          - Gunther-Salzer: theory/constitutive_models/GS.md
+      
       - Numerical formulation:
           - Heat diffusion: theory/model_heat.md
           - Momentum P1: theory/model_momentum_P1.md
           - Momentum P1-P1: theory/model_momentum_P1P1.md
+      
       - Thermodynamic model: theory/thermodynamics.md
 
-  - Usage:
+
+  - Implementation:
       - Intro: usage/index.md
+
 
   - Examples:
       - Mechanics:

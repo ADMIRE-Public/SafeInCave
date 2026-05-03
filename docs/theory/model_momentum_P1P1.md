@@ -151,7 +151,7 @@ $$
 In solid mechanics, the mass balance equation relates the mean stress $p$ to the elastic volumetric strain $\varepsilon_{e,v}$, that is,
 
 $$
-p - p_0 = K \pmb{\varepsilon}_{e,v} = K \left( \pmb{\varepsilon}_{v} - \varepsilon_{ne,v} \right)
+p - p_0 = K \varepsilon_{e,v} = K \left( \varepsilon_{v} - \varepsilon_{ne,v} \right)
 \label{eq:eq:mean_stress_0}
 $$
 
@@ -161,7 +161,7 @@ where $p_0$ is the initial mean stress, $K$ is the elastic bulk modulus, $\pmb{\
 Substituting Eq. $\eqref{eq:eps_nev}$ into Eq. $\eqref{eq:eq:mean_stress_0}$,
 
 $$
-p - p_0 = K \left( \pmb{\varepsilon}_{v} - \varepsilon_{ne,v}^k - \phi_2 \mathbf{F}^k : \delta \pmb{\sigma} + \phi_2 B_{ne,v}^k \right)
+p - p_0 = K \left( \varepsilon_{v} - \varepsilon_{ne,v}^k - \phi_2 \mathbf{F}^k : \delta \pmb{\sigma} + \phi_2 B_{ne,v}^k \right)
 \label{eq:mean_stress_1}
 $$
 
@@ -169,7 +169,7 @@ We remind that $\delta \pmb{\sigma} = \delta \tilde{\pmb{\sigma}} + \delta p \ma
 
 $$
 \begin{equation}
-    K^{-1}p = K^{-1}p_0 + \pmb{\varepsilon}_{v} - \varepsilon_{ne,v}^k - \phi_2 F_v^k \delta p + \phi_2 B_{ne,v}^k
+    K^{-1}p = K^{-1}p_0 + \varepsilon_{v} - \varepsilon_{ne,v}^k - \phi_2 F_v^k \delta p + \phi_2 B_{ne,v}^k
     \label{eq:mean_stress_2}
 \end{equation}
 $$
@@ -178,7 +178,7 @@ where $F_v^k = \mathbf{F}^k : \mathbf{I} = \mathrm{tr}(\mathbf{F}^k)$. Again, re
 
 $$
 \begin{equation}
-    K_T^k p - \pmb{\varepsilon}_{v} = K^{-1}p_0 + b_p^k
+    K_T^k p - \varepsilon_{v} = K^{-1}p_0 + b_p^k
     \label{eq:mean_stress_3}
 \end{equation}
 $$
