@@ -97,6 +97,9 @@ $$
 \label{eq:qsi_0}
 $$
 
+The left graph of [](#fig-desai-example) illustrates of how the yield surface responds when crossed by the stress state. The change in the yield surface is a consequence of the hardening parameter evolution, which is shown in the right graph of [](#fig-desai-example). The same right graph also shows the corresponding viscoplastic strain, which is triggered when the yield surface is crossed.
+
+![Example of model composition and its correspondence to different deformation mechanisms.](../../images/desai_cropped.gif){#fig-desai-example width="100%"}
 
 The initial hardening parameter can be chosen arbitrarily or based on a specific value of $F_{vp}$. For a certain value $F_{vp}^*$, for example, the initial hardening parameter can be computed as
 
@@ -106,22 +109,6 @@ $$
 $$
 
 Evidently, placing the stress state at the onset of viscoplasticity is achieved by setting $F_{vp}^* = 0$.
-
-
-
-
-
-## Thermal strain element
-
-The thermal strain element is represented in [](#fig-constitutive-model-2) as a ballon that only responds to temperature variations $\Delta T$, not stress. The termal strain is given by
-
-$$
-\pmb{\varepsilon}_{th} = \alpha_{th} \Delta T \mathbf{I},
-\label{eq:eps_th_0}
-$$
-
-where $\alpha_{th}$ is the thermal expansion coefficient, and $\mathbf{I}$ is the rank-2 identity tensor.
-
 
 
 

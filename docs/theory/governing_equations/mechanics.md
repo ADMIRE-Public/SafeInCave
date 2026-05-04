@@ -35,23 +35,21 @@ $$
 \pmb{\sigma} = \pmb{\sigma}_0 + \mathbb{C}_e : \pmb{\varepsilon}_e
 $$
 
-where $\pmb{\varepsilon}_e$ is the elastic strain tensor, and $\mathbb{C}_e$ is the rank 4 elastic tensor (yellow spring in Fig. {fig_constitutive_model_0}). However, most constitutive models for geomaterials, especially salt rocks, comprise elastic, viscoelastic (i.e., time-dependent elastic), and viscoplastic (i.e., time-dependent inelastic) deformations.
+where $\pmb{\varepsilon}_e$ is the elastic strain tensor, and $\mathbb{C}_e$ is the rank 4 elastic tensor (yellow spring in Fig. {fig_constitutive_model_0}). However, most constitutive models for geomaterials, especially salt rocks, comprise elastic, viscoelastic (i.e., time-dependent elastic), viscoplastic (i.e., time-dependent inelastic), and thermal strains.
 
->**_NOTE:_** The term non-elastic deformation includes all types of deformation that are not instantaneously elastic, that is, viscoelastic (time dependent elastic) and inelastic (viscoplastic, plastic, creep, etc) deformations.
+Additionally, under small strain assumption, the kinematic relation between the total strain $\pmb{\varepsilon}$ and the displacement vector $\mathbf{u}$ is
 
-Small strain assumption is adopted, so that the additive decomposition holds for the total strain tensor, that is
+$$
+\pmb{\varepsilon} = \frac{1}{2} \left( \nabla \mathbf{u} + \nabla \mathbf{u}^T \right).
+$$
+
+Finally, the elastic strain $\pmb{\varepsilon}_e$ relates to the total strain $\pmb{\varepsilon}$ by the additive decomposition (valid under small strain assumption), that is
 
 $$
 \pmb{\varepsilon} = \pmb{\varepsilon}_{e} + \pmb{\varepsilon}_{ne} + \pmb{\varepsilon}_{th} \quad \rightarrow \quad \pmb{\varepsilon}_{e} = \pmb{\varepsilon} - \pmb{\varepsilon}_{ne} - \pmb{\varepsilon}_{th},
 $$
 
-where the kinematic relation for small strains provides
-
-$$
-\pmb{\varepsilon} = \frac{1}{2} \left( \nabla \mathbf{u} + \nabla \mathbf{u}^T \right),
-$$
-
-and the non-elastic strains are given by
+where $\pmb{\varepsilon}_{ne}$ comprises all the time-independent elastic and inelastic strains. It can be represented as
 
 <a id="eq-eps-i"></a>
 
@@ -68,4 +66,4 @@ $$
 \label{eq:stress_1}
 $$
 
-From Section [Constitutive models](constitutive_models.md#constitutive-model), it was shown that the non-elastic elements have expressions for the strain rates (i.e., $\dot{\pmb{\varepsilon}}_{ne}$), not for the strains $\pmb{\varepsilon}_{ne}$, as required by Eq. $\eqref{eq:stress_1}$. This will be addressed later in this section.
+Expressions for the non-elastic strains $\pmb{\varepsilon}_{ne}$ depend on the constitutive model adopted. They are described in the Constitutive Models section. Additionally, these non-elastic strain often depend on the stress itself, which makes the problem to be non-linear. The stress linearization process is described in sections [Momentum P1]((../numerical_formulations/model_momentum_P1.md#sec-linearization-P1)) and [Momentum P1-P1](../numerical_formulations/model_momentum_P1.md#sec-linearization-P1P1).

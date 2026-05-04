@@ -74,16 +74,15 @@ nav:
           - Munson-Dawson: theory/constitutive_models/MD.md
           - Gunther-Salzer: theory/constitutive_models/GS.md
       
-      - Numerical formulation:
-          - Heat diffusion: theory/model_heat.md
-          - Momentum P1: theory/model_momentum_P1.md
-          - Momentum P1-P1: theory/model_momentum_P1P1.md
-      
-      - Thermodynamic model: theory/thermodynamics.md
+      - Numerical formulations:
+          - Heat diffusion: theory/numerical_formulations/model_heat.md
+          - Momentum P1: theory/numerical_formulations/model_momentum_P1.md
+          - Momentum P1-P1: theory/numerical_formulations/model_momentum_P1P1.md
 
 
   - Implementation:
       - Intro: usage/index.md
+      - Coupling: theory/governing_equations/coupling.md
 
 
   - Examples:
