@@ -90,13 +90,29 @@ nav:
           - 1 - Triaxial Test: examples/mechanics/1_triaxial.md
           - 2 - Different regions: examples/mechanics/2_cube_regions.md
           - 3 - Single cavern: examples/mechanics/3_cavern.md
+          - 4 - Single cavern operation: examples/mechanics/4_cavern.md
+          - 5 - Single cavern PT: examples/mechanics/5_single_cavern_PT.md
+          - 6 - Single cavern mass flux: examples/mechanics/6_single_cavern_MFlux.md
+          - 7 - Multicavern: examples/mechanics/7_multicavern.md
+          - 8 - Settlement: examples/mechanics/8_settlement.md
 
       - Thermal:
           - 1 - Cube: examples/thermal/1_cube.md
+          - 2 - Cavern: examples/thermal/2_cavern.md
+
+      - Thermodynamics:
+          - 1 - Adiabatic volumetric variation: examples/thermodynamics/1_adiabatic_volumetric_variation.md
+          - 2 - Isochoric heat exchange: examples/thermodynamics/2_isochoric_heat_exchange.md
+          - 3 - Mass exchange: examples/thermodynamics/3_mass_exchange.md
 
       - Thermomechanics:
           - 1 - Cube: examples/thermomechanics/1_cube.md
           - 2 - Single cavern: examples/thermomechanics/2_cavern.md
+          - 3 - Cavern PT: examples/thermomechanics/3_cavern_PT.md
+          - 4 - Cavern water: examples/thermomechanics/4_cavern_water.md
+          - 5 - Cavern methane: examples/thermomechanics/5_cavern_methane.md
+          - 6 - Cavern hydrogen: examples/thermomechanics/6_cavern_hydrogen.md
+          - 7 - Multicavern: examples/thermomechanics/7_multicavern.md
 
 
 
