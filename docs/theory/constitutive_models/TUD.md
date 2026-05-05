@@ -1,4 +1,4 @@
-# TUD Model
+# TUD Constitutive Model
 <a id="sec:TUD"></a>
 
 As depicted in [](#fig-constitutive-model-0), the TUD model attemps to capture the following deformation mechanisms:

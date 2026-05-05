@@ -49,7 +49,3 @@ uv run ruff format .
 ## 5. Open a merge request
 
 Push your branch and open an MR from your fork to the main repository on GitLab. Reference the issue number in the MR description. A maintainer will review and merge it.
-
-$$
-\nabla \cdot \sigma + b = 0
-$$
