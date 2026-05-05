@@ -10,6 +10,9 @@
 # For automatic numbering and cross-referencing
 # pip install mkdocs-caption
 
+# For automatic API documentation based on docstrings
+# pip install mkdocstrings[python]
+
 site_name: The SafeInCave Simulator
 
 extra_css:
@@ -48,6 +51,14 @@ markdown_extensions:
 plugins:
   - search
   - caption
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            show_signature_annotations: true
 
 extra_javascript:
   - javascripts/mathjax.js
@@ -116,4 +127,6 @@ nav:
 
 
   - Publications: publications/index.md
+
+  - API Reference: api/api.md
 
