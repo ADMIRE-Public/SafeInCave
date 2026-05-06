@@ -148,3 +148,9 @@ $$
 	\quad \forall \hspace{1mm} \mathbf{w} \in \mathcal{U}^0.
 \end{split}
 $$
+
+where 
+
+$$
+\pmb{\varepsilon}(\mathbf{u}) = \frac{1}{2} \left( \nabla \mathbf{u} + \nabla \mathbf{u}^T \right).
+$$

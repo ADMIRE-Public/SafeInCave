@@ -218,6 +218,13 @@ $$
 \end{split}
 $$
 
+where
+
+$$
+\tilde{\pmb{\varepsilon}} = \pmb{\varepsilon} - \frac{1}{3} \varepsilon_v \mathbf{I} = \frac{1}{2} \left( \nabla \mathbf{u} + \nabla \mathbf{u}^T \right) - \frac{1}{3} \left(\nabla \cdot \mathbf{u}\right) \mathbf{I}
+$$
+
+and the unknowns are $\mathbf{u}$ and $p$.
 
 ## References
 - [1] Honório, H.T., Franceschini, A., Ferronaro, M., Hajibeygi, H. *Salt cavern simulations with a stabilized mixed finite element formulation for low-order tetrahedral elements*. Computational Methods in Applied Mechanics and Engineering, (under review), 2026.
