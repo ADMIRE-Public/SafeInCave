@@ -152,7 +152,7 @@ $$
 In solid mechanics, the mass balance equation relates the mean stress $p$ to the elastic volumetric strain $\varepsilon_{e,v}$, that is,
 
 $$
-p - p_0 = K \varepsilon_{e,v} = K \left( \varepsilon_{v} - \varepsilon_{ne,v} \right)
+p - p_0 = K \varepsilon_{e,v} = K \left( \varepsilon_{v} - \varepsilon_{th,v} - \varepsilon_{ne,v} \right)
 \label{eq:eq:mean_stress_0}
 $$
 
@@ -162,7 +162,7 @@ where $p_0$ is the initial mean stress, $K$ is the elastic bulk modulus, $\pmb{\
 Substituting Eq. $\eqref{eq:eps_nev}$ into Eq. $\eqref{eq:eq:mean_stress_0}$,
 
 $$
-p - p_0 = K \left( \varepsilon_{v} - \varepsilon_{ne,v}^k - \phi_2 \mathbf{F}^k : \delta \pmb{\sigma} + \phi_2 B_{ne,v}^k \right)
+p - p_0 = K \left( \varepsilon_{v} - \varepsilon_{th,v} - \varepsilon_{ne,v}^k - \phi_2 \mathbf{F}^k : \delta \pmb{\sigma} + \phi_2 B_{ne,v}^k \right)
 \label{eq:mean_stress_1}
 $$
 
@@ -170,7 +170,7 @@ We remind that $\delta \pmb{\sigma} = \delta \tilde{\pmb{\sigma}} + \delta p \ma
 
 $$
 \begin{equation}
-    K^{-1}p = K^{-1}p_0 + \varepsilon_{v} - \varepsilon_{ne,v}^k - \phi_2 F_v^k \delta p + \phi_2 B_{ne,v}^k
+    K^{-1}p = K^{-1}p_0 + \varepsilon_{v} - \varepsilon_{th,v} - \varepsilon_{ne,v}^k - \phi_2 F_v^k \delta p + \phi_2 B_{ne,v}^k
     \label{eq:mean_stress_2}
 \end{equation}
 $$
@@ -179,13 +179,44 @@ where $F_v^k = \mathbf{F}^k : \mathbf{I} = \mathrm{tr}(\mathbf{F}^k)$. Again, re
 
 $$
 \begin{equation}
-    K_T^k p - \varepsilon_{v} = K^{-1}p_0 + b_p^k
+    K_T^k p - \varepsilon_{v} = K^{-1}p_0 + b_p^k - \varepsilon_{th,v}
     \label{eq:mean_stress_3}
 \end{equation}
 $$
 
 where $b_p^k = \phi_2 \left(F_v^k p^k + B_{ne,v}^k\right) - \varepsilon_{ne,v}^k$ and $K_T^k = K^{-1} + \phi_2 F_v^k$.
 
+
+## Weak formulation
+For the mixed formulation, the displacement field $\mathbf{u}$ is approximated in a first-order Sobolev space $H^1(\Omega)$, while mean stress field $p$ is sufficient to be defined in $L^2(\Omega)$. In this manner, the continuous trial function spaces are defined as
+
+$$
+\begin{align}
+    &\mathcal{U} = \lbrace \mathbf{u} : \Omega \rightarrow \mathbb{R}^3 \hspace{1mm} | \hspace{1mm} \mathbf{u} \in [H^1(\Omega)]^3, \mathbf{u} = \bar{\mathbf{u}} \hspace{1mm} \text{on} \hspace{1mm} \Gamma^u \rbrace, \nonumber
+    \\
+    &\mathcal{P} = \lbrace p : \Omega \rightarrow \mathbb{R}\hspace{1mm} | \hspace{1mm} p \in L^2(\Omega) \rbrace, \nonumber
+\end{align}
+$$
+
+Since no essential boundary conditions are imposed on the mean stress $p$, an unconstrained $L^2(\Omega)$ space is sufficient for both the trial and test functions. The continuous test (weighting) function space for the displacement field is
+
+$$
+\mathcal{U}^0 = \lbrace \mathbf{w} : \Omega \rightarrow \mathbb{R}^3 \hspace{1mm} | \hspace{1mm} \mathbf{w} \in [H^1(\Omega)]^3, \mathbf{w} = \mathbf{0} \hspace{1mm} \text{on} \hspace{1mm} \Gamma^u \rbrace, \nonumber
+$$
+
+$$
+\begin{split}
+	\int_\Omega \pmb{\varepsilon}(\mathbf{w}) : \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}} + \frac{1}{2G}p\mathbf{I} \right) \mathrm{d}\Omega
+	=
+	\int_\Omega \rho\mathbf{g} \cdot \mathbf{w} \mathrm{d}\Omega
+	+
+	\int_\Gamma \mathbf{t} \cdot \mathbf{w} \mathrm{d} \Gamma
+	+
+	\\
+	+ \int_\Omega \pmb{\varepsilon}(\mathbf{w}) : \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}}_\text{rhs}^k - \tilde{\pmb{\varepsilon}}_0 \right) \mathrm{d}\Omega,
+	\quad \forall \hspace{1mm} \mathbf{w} \in \mathcal{U}^0.
+\end{split}
+$$
 
 
 ## References

@@ -76,6 +76,7 @@ $$
 \pmb{\sigma}^{k+1} = \mathbb{C}_T : \left[ 
 		\pmb{\varepsilon}_0 
 		+ \pmb{\varepsilon}^{k+1} 
+		- \pmb{\varepsilon}_{th}
 		- \pmb{\varepsilon}_{ne}^k
 		+ \phi_2 \left( \mathbb{G}_{ne} : \pmb{\sigma}^k + \mathbf{B}_{ne} \right)
 	\right]
@@ -104,7 +105,7 @@ $$
 In this manner, the stress tensor can be expressed as
 
 $$
-\pmb{\sigma}^{k+1} = \mathbb{C}_T : \left( \pmb{\varepsilon}_0 + \pmb{\varepsilon}^{k+1} - \pmb{\varepsilon}^k_\text{rhs} \right).
+\pmb{\sigma}^{k+1} = \mathbb{C}_T : \left( \pmb{\varepsilon}_0 + \pmb{\varepsilon}^{k+1} - \pmb{\varepsilon}_{th} - \pmb{\varepsilon}^k_\text{rhs} \right).
 \label{eq:stress_4}
 $$
 
@@ -113,7 +114,7 @@ $$
 Finally, the linearized momentum balance equation reads
 
 $$
-\nabla \cdot \mathbb{C}_T : \pmb{\varepsilon}^{k+1} = \mathbf{f} + \nabla \cdot \mathbb{C}_T : \left( \pmb{\varepsilon}_\text{rhs}^k - \pmb{\varepsilon}_0 \right).
+\nabla \cdot \mathbb{C}_T : \pmb{\varepsilon}^{k+1} = \rho\mathbf{g} + \nabla \cdot \mathbb{C}_T : \left( \pmb{\varepsilon}_\text{rhs}^k + \pmb{\varepsilon}_{th} - \pmb{\varepsilon}_0 \right).
 \label{eq:mom_1}
 $$
 
@@ -122,3 +123,28 @@ $$
 
 	
 ## Weak formulation
+The displacement field is approximated in a first-order Sobolev space $H^1(\Omega)$. The continuous trial and test functions are respectively represented as
+
+$$
+\begin{align}
+	&\mathcal{U} = \lbrace \mathbf{u} : \Omega \rightarrow \mathbb{R}^3 \hspace{1mm} | \hspace{1mm} \mathbf{u} \in [H^1(\Omega)]^3, \mathbf{u} = \bar{\mathbf{u}} \hspace{1mm} \text{on} \hspace{1mm} \Gamma^u \rbrace, \nonumber
+	\\
+	&\mathcal{U}^0 = \lbrace \mathbf{w} : \Omega \rightarrow \mathbb{R}^3 \hspace{1mm} | \hspace{1mm} \mathbf{w} \in [H^1(\Omega)]^3, \mathbf{w} = \mathbf{0} \hspace{1mm} \text{on} \hspace{1mm} \Gamma^u \rbrace, \nonumber
+\end{align}
+$$
+
+The corresponding weak form of Eq. $\eqref{eq:mom_1}$ is expressed as
+
+$$
+\begin{split}
+	\int_\Omega \pmb{\varepsilon}(\mathbf{w}) : \mathbb{C}_T^k : \pmb{\varepsilon}(\mathbf{u}^{k+1}) \mathrm{d}\Omega
+	=
+	\int_\Omega \rho\mathbf{g} \cdot \mathbf{w} \mathrm{d}\Omega
+	+
+	\int_\Gamma \mathbf{t} \cdot \mathbf{w} \mathrm{d} \Gamma
+	+
+	\\
+	+ \int_\Omega \pmb{\varepsilon}(\mathbf{w}) : \mathbb{C}_T^k : \left( \pmb{\varepsilon}_\text{rhs}^k + \pmb{\varepsilon}_{th} - \pmb{\varepsilon}_0 \right) \mathrm{d}\Omega,
+	\quad \forall \hspace{1mm} \mathbf{w} \in \mathcal{U}^0.
+\end{split}
+$$
