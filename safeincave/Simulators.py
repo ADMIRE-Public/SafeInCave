@@ -1629,3 +1629,141 @@ class Simulator_H(Simulator):
 
 		for output in self.outputs:
 			output.save_mesh()
+
+
+class Simulator_H2(Simulator):
+	"""
+    Mass-only simulator.
+
+    Advances the heat equation with fully-implicit time loop and writes fields.
+
+    Parameters
+    ----------
+    eq_mass : MassEquationBase
+        Configured heat equation (materials, BCs, solver set).
+    t_control : TimeControllerBase
+        Time controller providing `t`, `dt`, and loop control.
+    outputs : list of SaveFields
+        Output writers to initialize and use at each saved time.
+    compute_elastic_response : bool, default=True
+        Unused placeholder kept for interface parity.
+
+    Attributes
+    ----------
+    eq_mass : MassEquationBase
+    t_control : TimeControllerBase
+    outputs : list[SaveFields]
+    """
+	def __init__(self, eq_mass : MassEquationBase,
+					   t_control: TimeControllerBase,
+					   outputs: list[SaveFields]):
+		self.eq_mass = eq_mass
+		self.t_control = t_control
+		self.outputs = outputs
+
+		print(id(self.eq_mass.P))
+
+		ScreenPrinter.reset_instance()
+		column_names = [
+				"Step",
+				f"dt ({self.t_control.time_unit})",
+				f"t / t_f ({self.t_control.time_unit})",
+				"#ite H",
+				"Error H ",
+		]
+		row_formats = [
+				"%i",
+				"%.3f",
+				"%s",
+				"%.i",
+				"%.2e",
+		]
+		self.screen = ScreenPrinter(
+			self.eq_mass.grid,
+			self.eq_mass.solver,
+			self.eq_mass.mat,
+			self.outputs,
+			header_names=column_names,
+			row_formats=row_formats,
+			time_unit=t_control.time_unit)
+		# self.screen = ScreenPrinter(self.eq_mass.grid, self.eq_mass.solver, self.eq_mass.mat, self.outputs, t_control.time_unit)
+
+	def run(self) -> None:
+		"""
+        Run the fluid flow simulation.
+
+        Workflow
+        --------
+        1. Initialize outputs.
+        2. (Optionally) solve an initial step.
+        3. Time loop: update BCs, solve heat equation for `(t, dt)`, and save.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Printing of progress occurs on rank 0 only.
+        """
+		# Output field
+		for output in self.outputs:
+			output.initialize()
+
+		# Save initial fields
+		for output in self.outputs:
+			output.save_fields(0)
+
+		# Time loop
+		while self.t_control.keep_looping():
+
+			# Advance time
+			self.t_control.advance_time()
+			t = self.t_control.t
+			dt = self.t_control.dt
+
+			# Update boundary conditions
+			self.eq_mass.bc.update_bcs(t)
+
+			# Iterative loop settings
+			tol = 1e-9
+			error_p = 2*tol
+			ite = 0
+			max_ite = 50
+
+			while error_p > tol and ite < max_ite:
+				
+				# Calculate permeability field
+				self.eq_mass.perm.x.array[:] = self.eq_mass.mat.kappa.compute()
+
+				# Solve mass balance equation
+				self.eq_mass.solve(t, dt)
+
+				# Compute error
+				error_p = self.eq_mass.error
+
+				# Increment iteration counter
+				ite += 1
+
+			# Update old temperature field
+			self.eq_mass.update_P_old()
+
+			# Save fields
+			for output in self.outputs:
+				output.save_fields(t)
+
+			# Print stuff
+			current_time = "%.3f"%(t/self.t_control.time_conversion)
+			screen_output_row = [
+									self.t_control.step_counter, 
+									self.t_control.dt/self.t_control.time_conversion,
+									f"{current_time} / {self.t_control.t_final/self.t_control.time_conversion}",
+									ite,
+									error_p,
+			]
+			self.screen.print_row(screen_output_row)
+
+		self.screen.close()
+
+		for output in self.outputs:
+			output.save_mesh()

@@ -1010,7 +1010,8 @@ class LinearMomentum(LinearMomentumBase):
         p_to = self.grid.smoother.dot(p_to.numpy())
         self.p_elems.x.array[:] = p_to
 
-    def solve(self, caverns: CavernHandler, t: float, dt: float) -> None:
+
+    def solve(self, stress_k_to: to.Tensor, t: float, dt: float) -> None:
         """
         Assemble and solve one implicit time step for the inelastic problem.
 
@@ -1032,14 +1033,6 @@ class LinearMomentum(LinearMomentumBase):
         - Builds `CT` and `eps_rhs`, assembles and solves the linear system.
         - Updates :attr:`X`, calls :meth:`split_solution`, then :meth:`run_after_solve`.
         """
-
-        # Update boundary conditions
-        self.bc.update_dirichlet(t)
-        self.bc.update_neumann(t)
-
-        
-
-
 
         # Compute consistent tangent matrix
         self.compute_CT(stress_k_to, dt)
@@ -1069,58 +1062,6 @@ class LinearMomentum(LinearMomentumBase):
         self.split_solution()
 
         self.run_after_solve()
-
-    # def solve(self, stress_k_to: to.Tensor, t: float, dt: float) -> None:
-    #     """
-    #     Assemble and solve one implicit time step for the inelastic problem.
-
-    #     Parameters
-    #     ----------
-    #     stress_k_to : torch.Tensor
-    #         Stress at previous iteration k, shape ``(n_elems, 3, 3)``.
-    #     t : float
-    #         Current time (used by BC handler externally).
-    #     dt : float
-    #         Time-step size.
-
-    #     Returns
-    #     -------
-    #     None
-
-    #     Side Effects
-    #     ------------
-    #     - Builds `CT` and `eps_rhs`, assembles and solves the linear system.
-    #     - Updates :attr:`X`, calls :meth:`split_solution`, then :meth:`run_after_solve`.
-    #     """
-
-    #     # Compute consistent tangent matrix
-    #     self.compute_CT(stress_k_to, dt)
-
-    #     # Compute right-hand side epsilon
-    #     self.compute_eps_rhs(dt, stress_k_to)
-
-    #     # Build bilinear form
-    #     a = ufl.inner(dotdot_ufl(self.CT, epsilon(self.du)), epsilon(self.u_))*self.dx
-    #     bilinear_form = do.fem.form(a)
-    #     A = fem_petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
-    #     A.assemble()
-
-    #     # Build linear form
-    #     b_rhs = ufl.inner(dotdot_ufl(self.CT, self.eps_rhs - self.eps_0), epsilon(self.u_))*self.dx
-    #     linear_form = do.fem.form(self.b_body + sum(self.bc.neumann_bcs) + sum(self.bc.cavern_bcs) + b_rhs)
-    #     b = fem_petsc.assemble_vector(linear_form)
-    #     fem_petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
-    #     b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
-    #     fem_petsc.set_bc(b, self.bc.dirichlet_bcs)
-    #     b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
-    #     # Solve linear system
-    #     self.solver.setOperators(A)
-    #     self.solver.solve(b, self.X.x.petsc_vec)
-    #     self.X.x.scatter_forward()
-    #     self.split_solution()
-
-    #     self.run_after_solve()
 
 
 

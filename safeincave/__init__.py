@@ -16,7 +16,7 @@ from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
 
 from .MassEquation import (
-    MassDeformablePorousMedia, MassPorousMedia, MassEquationBase
+    MassDeformablePorousMedia, MassPorousMedia, MassPorousMedia2, MassEquationBase
 )
 
 from .MomentumEquation import (
@@ -50,6 +50,7 @@ from .Simulators import (
     Simulator_T,
     Simulator_M,
     Simulator_H,
+    Simulator_H2,
     Simulator_Full,
     Simulator_GUI
 )
@@ -93,6 +94,7 @@ __all__ = [
     "Simulator_T",
     "Simulator_M",
     "Simulator_H",
+    "Simulator_H2",
     "Simulator_Full",
     "Simulator_GUI",
     "ScreenPrinter",
