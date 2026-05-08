@@ -83,7 +83,14 @@ class ScreenPrinter():
 	  info, solver and material summaries, output info, and begins the table.
 	- Use :meth:`close` when the run ends to finalize timing and write logs.
 	"""
-	def __init__(self, grid: GridHandlerGMSH, solver: PETSc.KSP, material: Material, outputs: list[SaveFields], time_unit: str="hour"):
+	def __init__(self, 
+			  grid: GridHandlerGMSH, 
+			  solver: PETSc.KSP, 
+			  material: Material, 
+			  outputs: list[SaveFields], 
+			  header_names: list[str]=["Step counter", "dt (day)", "t / t_final (day)", "#iters", "Non-linear error"],
+			  row_formats: list[str]=["%i", "%.3f", "%s", "%.i", "%.4e"],
+			  time_unit: str="hour"):
 		self.master_division_plus = "+-----------------------------------------------------------------------------------------------+"
 		self.master_division = "-----------------------------------------------------------------------------------------------"
 		self.log = ""
@@ -91,6 +98,8 @@ class ScreenPrinter():
 		self.solver = solver
 		self.mat = material
 		self.outputs = outputs
+		self.header_names = header_names
+		self.initial_row_formats = row_formats
 		self.time_unit = time_unit
 
 		self.set_welcome()
@@ -115,20 +124,8 @@ class ScreenPrinter():
 		None
 		"""
 		self.start_timer()
-		self.set_header_columns([	
-									"Step counter",
-									f"dt ({self.time_unit})",
-									f"t / t_final ({self.time_unit})",
-									"# of iters",
-									"Non-linear error"
-								], "center")
-		self.set_row_formats([
-								"%i",
-								"%.3f",
-								"%s",
-								"%.i",
-								"%.4e",
-							], ["center" for i in range(5)])
+		self.set_header_columns(self.header_names, "center")
+		self.set_row_formats(self.initial_row_formats, ["center" for i in range(len(self.initial_row_formats))])
 		self.print_header()
 
 	def print_solver_info(self) -> None:
@@ -284,14 +281,14 @@ class ScreenPrinter():
 		"""
 		# Generated at https://www.asciiart.eu/text-to-ascii-art with Standard font
 		self.max_width = len(self.master_division_plus)
-		self.welcome_text =  "+===============================================================================================+\n"
-		self.welcome_text += "|   ____    _    _____ _____   ___ _   _    ____    ___     _______         ____    ___   ___   |\n"
-		self.welcome_text += "|  / ___|  / \  |  ___| ____| |_ _| \ | |  / ___|  / \ \   / / ____| __   _|___ \  / _ \ / _ \  |\n"
-		self.welcome_text += "|  \___ \ / _ \ | |_  |  _|    | ||  \| | | |     / _ \ \ / /|  _|   \ \ / / __) || | | | | | | |\n"
-		self.welcome_text += "|   ___) / ___ \|  _| | |___   | || |\  | | |___ / ___ \ V / | |___   \ V / / __/ | |_| | |_| | |\n"
-		self.welcome_text += "|  |____/_/   \_\_|   |_____| |___|_| \_|  \____/_/   \_\_/  |_____|   \_/ |_____(_)___(_)___/  |\n"
-		self.welcome_text += "|                                                                                               |\n"
-		self.welcome_text += "+===============================================================================================+"
+		self.welcome_text =  "+=============================================================================================+\n"
+		self.welcome_text += "|   ____    _    _____ _____   ___ _   _    ____    ___     _______         ____    _   ___   |\n"
+		self.welcome_text += "|  / ___|  / \  |  ___| ____| |_ _| \ | |  / ___|  / \ \   / / ____| __   _|___ \  / | / _ \  |\n"
+		self.welcome_text += "|  \___ \ / _ \ | |_  |  _|    | ||  \| | | |     / _ \ \ / /|  _|   \ \ / / __) | | || | | | |\n"
+		self.welcome_text += "|   ___) / ___ \|  _| | |___   | || |\  | | |___ / ___ \ V / | |___   \ V / / __/ _| || |_| | |\n"
+		self.welcome_text += "|  |____/_/   \_\_|   |_____| |___|_| \_|  \____/_/   \_\_/  |_____|   \_/ |_____(_)_(_)___/  |\n"
+		self.welcome_text += "|                                                                                             |\n"
+		self.welcome_text += "+=============================================================================================+"
 
 	def set_row_formats(self, row_formats: list[str], row_align: list[str]) -> None:
 		"""

@@ -12,28 +12,74 @@ sets version information.
 __version__ = "2.1.0"
 
 from .Grid import GridHandlerGMSH
+
 from .HeatEquation import HeatDiffusion
-from .MomentumEquation import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
-from .MaterialProps import Material, NonElasticElement, Spring, Thermoelastic, Viscoelastic, DislocationCreep, PressureSolutionCreep, ViscoplasticDesai, MunsonDawsonCreep
+
+from .MassEquation import (
+    MassDeformablePorousMedia, MassPorousMedia, MassEquationBase
+)
+
+from .MomentumEquation import (
+    LinearMomentumBase,
+    LinearMomentum,
+    LinearMomentumMixed
+)
+
+from .MaterialProps import (
+    Material,
+    NonElasticElement,
+    Spring,
+    Thermoelastic,
+    Viscoelastic,
+    DislocationCreep,
+    PressureSolutionCreep,
+    ViscoplasticDesai,
+    MunsonDawsonCreep
+)
+
+from .PermeabilityModels import PermeabilityBase
+
 from .OutputHandler import SaveFields
+
 from .Thermodynamics import CavernThermodynamics
+
 from . import CavernBC
-from .Simulators import Simulator_TM, Simulator_T, Simulator_M, Simulator_Full, Simulator_GUI
+
+from .Simulators import (
+    Simulator_TM,
+    Simulator_T,
+    Simulator_M,
+    Simulator_H,
+    Simulator_Full,
+    Simulator_GUI
+)
+
 from .ScreenOutput import ScreenPrinter
-from .TimeHandler import TimeControllerBase, TimeController, TimeControllerParabolic
+
+from .TimeHandler import (
+    TimeControllerBase, TimeController, TimeControllerParabolic
+)
+
 from . import MomentumBC
+
 from . import HeatBC
+
 from . import PostProcessingTools
+
 from . import Utils
 
 
 __all__ = [
     "GridHandlerGMSH",
     "HeatDiffusion",
+    "MassDeformablePorousMedia",
+    "MassPorousMedia",
+    "MassEquationBase",
     "LinearMomentumBase",
     "LinearMomentum",
     "LinearMomentumMixed",
     "Material",
+    "PermeabilityBase",
     "NonElasticElement",
     "Spring",
     "Thermoelastic",
@@ -46,6 +92,7 @@ __all__ = [
     "Simulator_TM",
     "Simulator_T",
     "Simulator_M",
+    "Simulator_H",
     "Simulator_Full",
     "Simulator_GUI",
     "ScreenPrinter",

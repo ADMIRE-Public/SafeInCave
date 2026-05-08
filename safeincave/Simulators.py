@@ -20,7 +20,8 @@ import os
 from mpi4py import MPI
 from .Utils import numpy2torch
 from .HeatEquation import HeatDiffusion
-from .MomentumEquation import LinearMomentum
+from .MassEquation import MassEquationBase, CGA
+from .MomentumEquation import LinearMomentumBase
 from .TimeHandler import TimeControllerBase, TimeController
 from .OutputHandler import SaveFields
 from .ScreenOutput import ScreenPrinter
@@ -71,7 +72,7 @@ class Simulator_Full(Simulator):
 	-------
 	None
 	"""
-	def __init__(self, eq_mom: LinearMomentum, 
+	def __init__(self, eq_mom: LinearMomentumBase, 
 					   eq_heat: HeatDiffusion, 
 					   t_control: TimeControllerBase, 
 					   outputs: list[SaveFields],
@@ -152,6 +153,12 @@ class Simulator_Full(Simulator):
 			# Retrieve stress
 			stress_to = numpy2torch(self.eq_mom.sig.x.array.reshape((self.eq_mom.n_elems, 3, 3)))
 
+		# Save fields
+		self.eq_mom.compute_p_elems()
+		self.eq_mom.compute_q_elems()
+		self.eq_mom.compute_p_nodes()
+		self.eq_mom.compute_q_nodes()
+
 		# Calculate initial cavern volumes
 		self.caverns.calculate_volumes(self.eq_mom.u)
 
@@ -173,12 +180,6 @@ class Simulator_Full(Simulator):
 		# Calculate and eps_ie_rate_old
 		self.eq_mom.compute_eps_ne_rate(stress_to, self.t_control.t)
 		self.eq_mom.update_eps_ne_rate_old()
-
-		# Save fields
-		self.eq_mom.compute_p_elems()
-		self.eq_mom.compute_q_elems()
-		self.eq_mom.compute_p_nodes()
-		self.eq_mom.compute_q_nodes()
 
 		# Save initial fields
 		for output in self.outputs:
@@ -329,7 +330,7 @@ class Simulator_TM(Simulator):
 	-------
 	None
 	"""
-	def __init__(self, eq_mom: LinearMomentum, 
+	def __init__(self, eq_mom: LinearMomentumBase, 
 					   eq_heat: HeatDiffusion, 
 					   t_control: TimeControllerBase, 
 					   outputs: list[SaveFields],
@@ -425,7 +426,10 @@ class Simulator_TM(Simulator):
 		self.eq_mom.compute_q_elems()
 		self.eq_mom.compute_p_nodes()
 		self.eq_mom.compute_q_nodes()
-		output.save_fields(0)
+
+		# Save initial fields
+		for output in self.outputs:
+			output.save_fields(0)
 
 		# Time loop
 		while self.t_control.keep_looping():
@@ -548,7 +552,7 @@ class Simulator_M(Simulator):
     outputs : list[SaveFields]
     compute_elastic_response : bool
     """
-	def __init__(self, eq_mom: LinearMomentum, 
+	def __init__(self, eq_mom: LinearMomentumBase, 
 					   t_control: TimeControllerBase,
 					   outputs: list[SaveFields],
 					   caverns: CavernHandler | None = None,
@@ -807,8 +811,9 @@ class Simulator_T(Simulator):
 		# # Solve initial T field
 		# self.eq_heat.solve(0, self.t_control.dt)
 
-		# Save fields
-		output.save_fields(0)
+		# Save initial fields
+		for output in self.outputs:
+			output.save_fields(0)
 
 		# Time loop
 		while self.t_control.keep_looping():
@@ -843,207 +848,6 @@ class Simulator_T(Simulator):
 
 		for output in self.outputs:
 			output.save_mesh()
-
-
-
-
-
-
-class Simulator_Mout(Simulator):
-	"""
-    Mechanical-only simulator (linear momentum).
-
-    Solves the momentum equation with possible non-elastic behavior using a
-    θ-method loop and fixed-point iterations per step. No thermal coupling.
-
-    Parameters
-    ----------
-    eq_mom : LinearMomentum
-        Configured momentum equation (materials, BCs, solver set).
-    t_control : TimeControllerBase
-        Time controller providing `t`, `dt`, and loop control.
-    outputs : list of SaveFields
-        Output writers to initialize and use at each saved time.
-    compute_elastic_response : bool, default=True
-        If True, starts with a purely elastic solve to initialize fields.
-
-    Attributes
-    ----------
-    eq_mom : LinearMomentum
-    t_control : TimeControllerBase
-    outputs : list[SaveFields]
-    compute_elastic_response : bool
-    """
-	def __init__(self, eq_mom: LinearMomentum, 
-					   t_control: TimeControllerBase,
-					   outputs: list[SaveFields],
-					   compute_elastic_response: bool=True):
-		self.eq_mom = eq_mom
-		self.t_control = t_control
-		self.outputs = outputs
-		self.compute_elastic_response = compute_elastic_response
-
-		ScreenPrinter.reset_instance()
-		self.screen = ScreenPrinter(self.eq_mom.grid, self.eq_mom.solver, self.eq_mom.mat, self.outputs, t_control.time_unit)
-
-	def run(self) -> None:
-		"""
-        Run the mechanical simulation.
-
-        Workflow
-        --------
-        1. Initialize outputs and boundary conditions.
-        2. Optionally solve a purely elastic step.
-        3. Initialize non-elastic rates.
-        4. For each time step: assemble/solve, update internal variables and
-           rates, compute relevant quantities, and save fields.
-
-        Convergence
-        -----------
-        Uses a relative change in total strain between iterations as error.
-        If `theta == 1.0` or no non-elastic elements exist, iteration ends
-        immediately.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        - Printing occurs on rank 0 only.
-        - The first `output.save_fields(0)` call uses the last `output`
-          from the preceding loop variable.
-        """
-		# Output field
-		for output in self.outputs:
-			output.initialize()
-
-		# Update boundary conditions
-		self.eq_mom.bc.update_dirichlet(self.t_control.t)
-		self.eq_mom.bc.update_neumann(self.t_control.t)
-
-		if self.compute_elastic_response:
-			# Solve elasticity
-			self.eq_mom.solve_elastic_response()
-
-			# Calculate total (elastic) strain
-			eps_tot_to = self.eq_mom.compute_total_strain()
-
-			# Compute stress
-			stress_to = self.eq_mom.compute_elastic_stress(eps_tot_to)
-
-		else:
-			# Calculate total strain
-			eps_tot_to = self.eq_mom.compute_total_strain()
-
-			# Retrieve stress
-			stress_to = numpy2torch(self.eq_mom.sig.x.array.reshape((self.eq_mom.n_elems, 3, 3)))
-
-		# Calculate and eps_ie_rate_old
-		self.eq_mom.compute_eps_ne_rate(stress_to, self.t_control.t)
-		self.eq_mom.update_eps_ne_rate_old()
-
-		# Save fields
-		self.eq_mom.compute_p_elems()
-		self.eq_mom.compute_q_elems()
-		self.eq_mom.compute_p_nodes()
-		self.eq_mom.compute_q_nodes()
-		output.save_fields(0)
-
-		# Time loop
-		while self.t_control.keep_looping():
-
-			# Advance time
-			self.t_control.advance_time()
-			t = self.t_control.t
-			dt = self.t_control.dt
-
-			# Update boundary conditions
-			self.eq_mom.bc.update_dirichlet(t)
-			self.eq_mom.bc.update_neumann(t)
-
-			# Iterative loop settings
-			tol = 1e-8
-			error = 2*tol
-			ite = 0
-			maxiter = 40
-
-			while error > tol and ite < maxiter:
-
-				# Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-				eps_tot_k_to = eps_tot_to.clone()
-
-				# Update stress
-				stress_k_to = stress_to.clone()
-
-				# Build bi-linear form
-				self.eq_mom.solve(stress_k_to, t, dt)
-
-				# Compute total strain
-				eps_tot_to = self.eq_mom.compute_total_strain()
-
-				# Compute stress
-				stress_to = self.eq_mom.compute_stress(eps_tot_to)
-
-				# Increment internal variables
-				self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
-
-				# Compute inelastic strain rates
-				self.eq_mom.compute_eps_ne_rate(stress_to, dt)
-
-				# Compute error
-				if self.eq_mom.theta == 1.0:
-					error = 0.0
-				elif len(self.eq_mom.mat.elems_ne) == 0:
-					error = 0.0
-				else:
-					eps_tot_k_flat = to.flatten(eps_tot_k_to)
-					eps_tot_flat = to.flatten(eps_tot_to)
-					local_error =  np.linalg.norm(eps_tot_k_flat - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
-					error = self.eq_mom.grid.mesh.comm.allreduce(local_error, op=MPI.SUM)
-
-				ite += 1
-
-			# Update internal variables
-			self.eq_mom.update_internal_variables()
-
-			# Update strain rates
-			self.eq_mom.update_eps_ne_rate_old()
-
-			# Update strain
-			self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
-
-			# Save fields
-			self.eq_mom.compute_p_elems()
-			self.eq_mom.compute_q_elems()
-			self.eq_mom.compute_p_nodes()
-			self.eq_mom.compute_q_nodes()
-			for output in self.outputs:
-				output.save_fields(t)
-
-			# Print stuff
-			screen_output_row = [
-									self.t_control.step_counter, 
-									self.t_control.dt/self.t_control.time_conversion,
-									f"{t/self.t_control.time_conversion} / {self.t_control.t_final/self.t_control.time_conversion}",
-									ite,
-									error,
-			]
-			self.screen.print_row(screen_output_row)
-
-			# if self.eq_mom.grid.mesh.comm.rank == 0:
-			# 	print(t/self.t_control.time_unit, ite, error)
-			# 	sys.stdout.flush()
-			# 	try:
-			# 		print(float(self.eq_mom.mat.elems_ne[-1].Fvp.max()))
-			# 		sys.stdout.flush()
-			# 	except:
-			# 		pass
-
-		self.screen.close()
-		for output in self.outputs:
-			output.save_mesh()
-
 
 
 
@@ -1547,3 +1351,281 @@ class Simulator_GUI(Simulator):
 		if self.input_file["simulation_settings"]["equilibrium"]["active"] == True:
 			self.run_equilibrium()
 		self.run_operation()
+
+
+
+class Simulator_HM(Simulator):
+	def __init__(self, eq_mom: LinearMomentumBase, 
+					   eq_mass: MassEquationBase,
+					   t_control: TimeControllerBase,
+					   outputs: list[SaveFields],
+					   caverns: CavernHandler=None,
+					   compute_elastic_response: bool=True,
+					   tol: float=1e-6,
+					   max_ite: int=150):
+		self.eq_mom = eq_mom
+		self.eq_mass = eq_mass
+		self.t_control = t_control
+		self.outputs = outputs
+		self.caverns = caverns
+		self.compute_elastic_response = compute_elastic_response
+		self.tol = tol
+		self.max_ite = max_ite
+		
+		ScreenPrinter.reset_instance()
+		column_names = [
+				"Step",
+				f"dt ({self.t_control.time_unit})",
+				f"t / t_f ({self.t_control.time_unit})",
+				"#H",
+				"Error H ",
+				"#M",
+				"Error M ",
+				"#G",
+				"Error G ",
+		]
+		row_formats = [
+				"%i",
+				"%.3f",
+				"%s",
+				"%.i",
+				"%.2e",
+				"%.i",
+				"%.2e",
+				"%.i",
+				"%.2e",
+		]
+		self.screen = ScreenPrinter(
+			self.eq_mom.grid,
+			self.eq_mom.solver,
+			self.eq_mom.mat,
+			self.outputs,
+			header_names=column_names,
+			row_formats=row_formats,
+			time_unit=t_control.time_unit)
+
+	def run(self) -> None:
+		# Output field
+		for output in self.outputs:
+			output.initialize()
+
+		# Preliminary mechanical calculations
+		self.eq_mom.pre_solve(
+			self.t_control.t,
+			self.caverns,
+			self.compute_elastic_response
+		)
+
+		# Save initial fields
+		for output in self.outputs:
+			output.save_fields(0)
+
+		self.eq_mass.set_u(self.eq_mom.u)
+
+		# Accelaration setup
+		cga = CGA(self.eq_mass.delta, step=0.1)
+
+		# Time loop
+		while self.t_control.keep_looping():
+
+			# Advance time
+			self.t_control.advance_time()
+			t = self.t_control.t
+			dt = self.t_control.dt
+
+			# tol = 1e-5
+			error_global = 2*self.tol
+			ite_G = 0
+			ite_M = 0
+			ite_H = 0
+			# max_ite = 150
+
+			while error_global > self.tol and ite_G < self.max_ite:
+
+				##### SOLVE MASS BALANCE EQUATION #####
+				self.eq_mass.set_u(self.eq_mom.u)
+				ite_mass, error_mass, P_last = self.eq_mass.solve(t, dt)
+
+				##### SOLVE MOMENTUM BALANCE EQUATION #####
+				self.eq_mom.set_P(self.eq_mass.P)
+				ite_mom, error_mom, stress_to, stress_k_to = self.eq_mom.solve(t, dt)
+
+				# Increment global iteration counter
+				ite_G += 1
+				ite_H += ite_mass
+				ite_M += ite_mom
+
+				# Calculate rate
+				p_array = self.eq_mass.P.x.array
+				if ite_G == 1:
+					p1_p0 = 1.0
+				elif ite_G == 2:
+					p0 = self.eq_mass.P_old.x.array
+					p1_p0 = np.linalg.norm(p_array - p0)
+
+				error_global = np.linalg.norm(p_array - P_last.x.array) / p1_p0
+
+				print(ite_H, ite_M, ite_G, error_mass, error_mom, error_global)
+				
+			# Calculate convergence rate
+			rate = -np.log10(error_global) / (ite_G - 2)
+
+			# Climbing Goat Algorithm
+			delta, _ = cga.compute(rate)
+			self.eq_mass.delta = delta
+			self.eq_mass.initialize_biot()
+			
+			print(ite_H, ite_M, ite_G, error_mass, error_mom, error_global, rate, delta)
+
+			##### POST CALCULATION: MASS BALANCE EQUATION #####
+			self.eq_mass.update_P_old()
+			self.eq_mass.update_u_old(self.eq_mom.u)
+
+			##### POST CALCULATION: MOMENTUM BALANCE EQUATION #####
+			self.eq_mom.update_internal_variables()
+			self.eq_mom.update_eps_ne_rate_old()
+			self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
+			self.eq_mom.run_after_solve()
+
+			# Save fields
+			self.eq_mom.compute_p_elems()
+			self.eq_mom.compute_q_elems()
+			self.eq_mom.compute_p_nodes()
+			self.eq_mom.compute_q_nodes()
+			for output in self.outputs:
+				output.save_fields(t)
+
+			# Print stuff
+			current_time = "%.3f"%(t/self.t_control.time_conversion)
+			screen_output_row = [
+									self.t_control.step_counter, 
+									self.t_control.dt/self.t_control.time_conversion,
+									f"{current_time} / {self.t_control.t_final/self.t_control.time_conversion}",
+									round(ite_H/ite_G, 2),
+									error_mass,
+									round(ite_M/ite_G, 2),
+									error_mom,
+									ite_G,
+									error_global,
+			]
+			self.screen.print_row(screen_output_row)
+
+		self.screen.close()
+
+		for output in self.outputs:
+			output.save_mesh()
+
+
+class Simulator_H(Simulator):
+	"""
+    Mass-only simulator.
+
+    Advances the heat equation with fully-implicit time loop and writes fields.
+
+    Parameters
+    ----------
+    eq_mass : MassEquationBase
+        Configured heat equation (materials, BCs, solver set).
+    t_control : TimeControllerBase
+        Time controller providing `t`, `dt`, and loop control.
+    outputs : list of SaveFields
+        Output writers to initialize and use at each saved time.
+    compute_elastic_response : bool, default=True
+        Unused placeholder kept for interface parity.
+
+    Attributes
+    ----------
+    eq_mass : MassEquationBase
+    t_control : TimeControllerBase
+    outputs : list[SaveFields]
+    """
+	def __init__(self, eq_mass : MassEquationBase,
+					   t_control: TimeControllerBase,
+					   outputs: list[SaveFields]):
+		self.eq_mass = eq_mass
+		self.t_control = t_control
+		self.outputs = outputs
+
+		print(id(self.eq_mass.P))
+
+		ScreenPrinter.reset_instance()
+		column_names = [
+				"Step",
+				f"dt ({self.t_control.time_unit})",
+				f"t / t_f ({self.t_control.time_unit})",
+				"#ite H",
+				"Error H ",
+		]
+		row_formats = [
+				"%i",
+				"%.3f",
+				"%s",
+				"%.i",
+				"%.2e",
+		]
+		self.screen = ScreenPrinter(
+			self.eq_mass.grid,
+			self.eq_mass.solver,
+			self.eq_mass.mat,
+			self.outputs,
+			header_names=column_names,
+			row_formats=row_formats,
+			time_unit=t_control.time_unit)
+		# self.screen = ScreenPrinter(self.eq_mass.grid, self.eq_mass.solver, self.eq_mass.mat, self.outputs, t_control.time_unit)
+
+	def run(self) -> None:
+		"""
+        Run the fluid flow simulation.
+
+        Workflow
+        --------
+        1. Initialize outputs.
+        2. (Optionally) solve an initial step.
+        3. Time loop: update BCs, solve heat equation for `(t, dt)`, and save.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Printing of progress occurs on rank 0 only.
+        """
+		# Output field
+		for output in self.outputs:
+			output.initialize()
+
+		# Save initial fields
+		for output in self.outputs:
+			output.save_fields(0)
+
+		# Time loop
+		while self.t_control.keep_looping():
+
+			# Advance time
+			self.t_control.advance_time()
+			t = self.t_control.t
+			dt = self.t_control.dt
+
+			# Solve mass balance equation
+			ite, error = self.eq_mass.solve(t, dt)
+
+			# Save fields
+			for output in self.outputs:
+				output.save_fields(t)
+
+			# Print stuff
+			current_time = "%.3f"%(t/self.t_control.time_conversion)
+			screen_output_row = [
+									self.t_control.step_counter, 
+									self.t_control.dt/self.t_control.time_conversion,
+									f"{current_time} / {self.t_control.t_final/self.t_control.time_conversion}",
+									ite,
+									error,
+			]
+			self.screen.print_row(screen_output_row)
+
+		self.screen.close()
+
+		for output in self.outputs:
+			output.save_mesh()

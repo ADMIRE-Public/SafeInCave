@@ -19,6 +19,8 @@ Discretization of the momentum balance equations
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from safeincave.CavernBC import CavernHandler
+
 if TYPE_CHECKING:
     from MomentumBC import BcHandler
 
@@ -478,6 +480,39 @@ class LinearMomentumBase(ABC):
         None
         """
         pass
+
+    def pre_solve(self, t0: float, caverns: CavernHandler, compute_elastic_response: bool=True) -> None:
+        # Update boundary conditions
+        self.bc.update_dirichlet(t0)
+        self.bc.update_neumann(t0)
+        self.bc.update_cavern_bcs(caverns)
+
+        if compute_elastic_response:
+            # Solve elasticity
+            self.solve_elastic_response()
+
+            # Calculate total (elastic) strain
+            eps_tot_to = self.compute_total_strain()
+
+            # Compute stress
+            stress_to = self.compute_elastic_stress(eps_tot_to)
+
+        else:
+            # Calculate total strain
+            eps_tot_to = self.compute_total_strain()
+
+            # Retrieve stress
+            stress_to = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+
+        # Calculate and eps_ie_rate_old
+        self.compute_eps_ne_rate(stress_to, t0)
+        self.update_eps_ne_rate_old()
+
+        # Save fields
+        self.compute_p_elems()
+        self.compute_q_elems()
+        self.compute_p_nodes()
+        self.compute_q_nodes()
 
     @abstractmethod
     def compute_CT(self, dt: float, stress_k: to.Tensor):
@@ -975,7 +1010,7 @@ class LinearMomentum(LinearMomentumBase):
         p_to = self.grid.smoother.dot(p_to.numpy())
         self.p_elems.x.array[:] = p_to
 
-    def solve(self, stress_k_to: to.Tensor, t: float, dt: float) -> None:
+    def solve(self, caverns: CavernHandler, t: float, dt: float) -> None:
         """
         Assemble and solve one implicit time step for the inelastic problem.
 
@@ -997,6 +1032,14 @@ class LinearMomentum(LinearMomentumBase):
         - Builds `CT` and `eps_rhs`, assembles and solves the linear system.
         - Updates :attr:`X`, calls :meth:`split_solution`, then :meth:`run_after_solve`.
         """
+
+        # Update boundary conditions
+        self.bc.update_dirichlet(t)
+        self.bc.update_neumann(t)
+
+        
+
+
 
         # Compute consistent tangent matrix
         self.compute_CT(stress_k_to, dt)
@@ -1026,6 +1069,58 @@ class LinearMomentum(LinearMomentumBase):
         self.split_solution()
 
         self.run_after_solve()
+
+    # def solve(self, stress_k_to: to.Tensor, t: float, dt: float) -> None:
+    #     """
+    #     Assemble and solve one implicit time step for the inelastic problem.
+
+    #     Parameters
+    #     ----------
+    #     stress_k_to : torch.Tensor
+    #         Stress at previous iteration k, shape ``(n_elems, 3, 3)``.
+    #     t : float
+    #         Current time (used by BC handler externally).
+    #     dt : float
+    #         Time-step size.
+
+    #     Returns
+    #     -------
+    #     None
+
+    #     Side Effects
+    #     ------------
+    #     - Builds `CT` and `eps_rhs`, assembles and solves the linear system.
+    #     - Updates :attr:`X`, calls :meth:`split_solution`, then :meth:`run_after_solve`.
+    #     """
+
+    #     # Compute consistent tangent matrix
+    #     self.compute_CT(stress_k_to, dt)
+
+    #     # Compute right-hand side epsilon
+    #     self.compute_eps_rhs(dt, stress_k_to)
+
+    #     # Build bilinear form
+    #     a = ufl.inner(dotdot_ufl(self.CT, epsilon(self.du)), epsilon(self.u_))*self.dx
+    #     bilinear_form = do.fem.form(a)
+    #     A = fem_petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
+    #     A.assemble()
+
+    #     # Build linear form
+    #     b_rhs = ufl.inner(dotdot_ufl(self.CT, self.eps_rhs - self.eps_0), epsilon(self.u_))*self.dx
+    #     linear_form = do.fem.form(self.b_body + sum(self.bc.neumann_bcs) + sum(self.bc.cavern_bcs) + b_rhs)
+    #     b = fem_petsc.assemble_vector(linear_form)
+    #     fem_petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
+    #     b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
+    #     fem_petsc.set_bc(b, self.bc.dirichlet_bcs)
+    #     b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+
+    #     # Solve linear system
+    #     self.solver.setOperators(A)
+    #     self.solver.solve(b, self.X.x.petsc_vec)
+    #     self.X.x.scatter_forward()
+    #     self.split_solution()
+
+    #     self.run_after_solve()
 
 
 

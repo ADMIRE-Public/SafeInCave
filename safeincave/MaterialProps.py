@@ -18,9 +18,10 @@ from abc import ABC, abstractmethod
 import torch as to
 import numpy as np
 from .Utils import dotdot_torch, MPa
+from .PermeabilityModels import PermeabilityBase
 
 class Material():
-	"""
+    """
     Composite material model that aggregates elastic, thermoelastic,
     and non-elastic (e.g., viscoelastic/viscoplastic) elements.
 
@@ -63,33 +64,62 @@ class Material():
     Notes
     -----
     - Voigt ordering is assumed to be `[xx, yy, zz, xy, xz, yz]` with
-      **tensorial shear** convention (no engineering factors).
+        **tensorial shear** convention (no engineering factors).
     """
-	def __init__(self, n_elems: int):
-		self.n_elems = n_elems
-		self.elems_ne = []
-		self.elems_th = []
-		self.elems_e = []
+    def __init__(self, n_elems: int):
+        self.n_elems = n_elems
+        self.elems_ne = []
+        self.elems_th = []
+        self.elems_e = []
 
-		self.C_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
-		self.C = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        self.C_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        self.C = to.zeros((n_elems, 6, 6), dtype=to.float64)
 
-		self.C_tilde_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
-		self.C_tilde = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        self.C_tilde_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        self.C_tilde = to.zeros((n_elems, 6, 6), dtype=to.float64)
 
-	def set_density(self, density: to.Tensor) -> None:
-		"""
-        Set mass density per element.
+        self.solid_density = to.zeros(n_elems, dtype=to.float64)
+        self.cp = to.zeros(n_elems, dtype=to.float64)
+        self.k = to.zeros(n_elems, dtype=to.float64)
+        self.alpha_th = to.zeros(n_elems, dtype=to.float64)
+        self.fluid_density = to.zeros(n_elems, dtype=to.float64)
+        self.cs = to.zeros(n_elems, dtype=to.float64)
+        self.cf = to.zeros(n_elems, dtype=to.float64)
+        self.porosity = to.zeros(n_elems, dtype=to.float64)
+        self.biot = to.zeros(n_elems, dtype=to.float64)
+        self.gravity = [0.0, 0.0, 0.0]
+
+
+    def set_gravity(self, g_vec: list[float]) -> None:
+        """
+        Set gravity vector for the material.
+
+        Parameters
+        ----------
+        g_vec : list[float]
+            Gravity vector components [gx, gy, gz].
+
+        Returns
+        -------
+        None
+        """
+        self.gravity = g_vec
+
+
+    def set_solid_density(self, density: to.Tensor) -> None:
+        """
+        Set solid phase density per element.
 
         Parameters
         ----------
         density : torch.Tensor
             1D tensor of shape (N,) with densities.
         """
-		self.density = density
+        self.solid_density = density
 
-	def set_specific_heat_capacity(self, cp: to.Tensor) -> None:
-		"""
+
+    def set_specific_heat_capacity(self, cp: to.Tensor) -> None:
+        """
         Set specific heat capacity per element.
 
         Parameters
@@ -97,10 +127,11 @@ class Material():
         cp : torch.Tensor
             1D tensor of shape (N,) with specific heat capacities.
         """
-		self.cp = cp
+        self.cp = cp
 
-	def set_thermal_conductivity(self, k: to.Tensor) -> None:
-		"""
+
+    def set_thermal_conductivity(self, k: to.Tensor) -> None:
+        """
         Set thermal conductivity per element.
 
         Parameters
@@ -108,10 +139,11 @@ class Material():
         k : torch.Tensor
             1D tensor of shape (N,) with conductivities.
         """
-		self.k = k
+        self.k = k
 
-	def set_thermal_expansion(self, alpha_th: to.Tensor) -> None:
-		"""
+
+    def set_thermal_expansion(self, alpha_th: to.Tensor) -> None:
+        """
         Set coefficient of thermal expansion per element.
 
         Parameters
@@ -119,11 +151,83 @@ class Material():
         alpha_th : torch.Tensor
             1D tensor of shape (N,) with linear thermal expansion coefficients.
         """
-		self.alpha_th = alpha_th
+        self.alpha_th = alpha_th
 
 
-	def add_to_elastic(self, elem: Spring):
-		"""
+    def set_fluid_density(self, density: to.Tensor) -> None:
+        """
+        Set fluid phase density per element.
+
+        Parameters
+        ----------
+        density : torch.Tensor
+            1D tensor of shape (N,) with densities.
+        """
+        self.fluid_density = density
+
+
+    def set_cs(self, cs: to.Tensor) -> None:
+        """
+        Set solid grain compressibility per element.
+
+        Parameters
+        ----------
+        cs : torch.Tensor
+            1D tensor of shape (N,) with speeds of sound.
+        """
+        self.cs = cs
+
+
+    def set_cf(self, cf: to.Tensor) -> None:
+        """
+        Set fluid compressibility per element.
+
+        Parameters
+        ----------
+        cf : torch.Tensor
+            1D tensor of shape (N,) with fluid sound speeds.
+        """
+        self.cf = cf
+
+
+    def set_porosity(self, porosity: to.Tensor) -> None:
+        """
+        Set porosity per element.
+
+        Parameters
+        ----------
+        porosity : torch.Tensor
+            1D tensor of shape (N,) with porosities.
+        """
+        self.porosity = porosity
+
+
+    def set_biot_coefficient(self, biot: to.Tensor) -> None:
+        """
+        Set Biot coefficient per element.
+
+        Parameters
+        ----------
+        biot : torch.Tensor
+            1D tensor of shape (N,) with Biot coefficients.
+        """
+        self.biot = biot
+
+
+    def set_permeability_model(self, permeability: PermeabilityBase) -> None:
+        """
+        Set permeability per element.
+
+        Parameters
+        ----------
+        kappa : Permeability
+            Object of class Permeability.
+        """
+        self.kappa = permeability
+
+
+    def add_to_elastic(self, elem: Spring):
+        """
         Add an elastic (linear isotropic) contributor and accumulate stiffness.
 
         Parameters
@@ -137,18 +241,19 @@ class Material():
         - Stores `K`, `E`, and shear modulus estimate `ShearMod`.
         - Appends `elem` to `elems_e`.
         """
-		elem.initialize()
-		self.C_inv += elem.C_inv
-		self.C += elem.C
-		self.C_tilde_inv += elem.C_tilde_inv
-		self.C_tilde += elem.C_tilde
-		self.elems_e.append(elem)
-		self.K = elem.K
-		self.E = elem.E
-		self.ShearMod = 3*self.K*self.E/(9*self.K - self.E)
+        elem.initialize()
+        self.C_inv += elem.C_inv
+        self.C += elem.C
+        self.C_tilde_inv += elem.C_tilde_inv
+        self.C_tilde += elem.C_tilde
+        self.elems_e.append(elem)
+        self.K = elem.K
+        self.E = elem.E
+        self.G = 3*self.K*self.E/(9*self.K - self.E)
 
-	def add_to_non_elastic(self, elem: NonElasticElement) -> None:
-		"""
+
+    def add_to_non_elastic(self, elem: NonElasticElement) -> None:
+        """
         Add a non-elastic element contributor.
 
         Parameters
@@ -156,10 +261,11 @@ class Material():
         elem : NonElasticElement
             Inelastic mechanism (e.g., creep, viscoplasticity).
         """
-		self.elems_ne.append(elem)
+        self.elems_ne.append(elem)
 
-	def add_to_thermoelastic(self, elem: Thermoelastic) -> None:
-		"""
+
+    def add_to_thermoelastic(self, elem: Thermoelastic) -> None:
+        """
         Add a thermoelastic contributor.
 
         Parameters
@@ -167,10 +273,23 @@ class Material():
         elem : Thermoelastic
             Provides thermal strain contributions.
         """
-		self.elems_th.append(elem)
+        self.elems_th.append(elem)
 
-	def compute_G_B(self, stress: to.Tensor, dt: float, theta: float, T: to.Tensor) -> None:
-		"""
+
+    def add_to_poroelastic(self, elem: Poroelastic) -> None:
+        """
+        Add a poroelastic contributor.
+
+        Parameters
+        ----------
+        elem : Poroelastic
+            Provides poroelastic strain contributions.
+        """
+        self.elems_po.append(elem)
+
+
+    def compute_G_B(self, stress: to.Tensor, dt: float, theta: float, T: to.Tensor) -> None:
+        """
         Assemble non-elastic operators G and B over all inelastic elements.
 
         Parameters
@@ -192,15 +311,16 @@ class Material():
         ------------
         Sets `self.G` (N,6,6) and `self.B` (N,3,3) as sums of element contributions.
         """
-		self.G = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-		self.B = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
-		for elem_ne in self.elems_ne:
-			elem_ne.compute_G_B(stress, dt, theta, T)
-			self.G += elem_ne.G
-			self.B += elem_ne.B
+        self.G = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+        self.B = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+        for elem_ne in self.elems_ne:
+            elem_ne.compute_G_B(stress, dt, theta, T)
+            self.G += elem_ne.G
+            self.B += elem_ne.B
 
-	def compute_T_IT(self) -> None:
-		"""
+
+    def compute_T_IT(self) -> None:
+        """
         Assemble volumetric coupling tensors T and IT from inelastic elements.
 
         Returns
@@ -211,15 +331,16 @@ class Material():
         ------------
         Sets `self.T` (N,3,3) and `self.IT` (N,6,6) as sums of element contributions.
         """
-		self.IT = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-		self.T = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
-		for elem_ne in self.elems_ne:
-			elem_ne.compute_T_IT()
-			self.IT += elem_ne.IT
-			self.T += elem_ne.T
+        self.IT = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+        self.T = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+        for elem_ne in self.elems_ne:
+            elem_ne.compute_T_IT()
+            self.IT += elem_ne.IT
+            self.T += elem_ne.T
 
-	def compute_Bvol_Tvol(self, stress: to.Tensor, dt: float) -> None:
-		"""
+
+    def compute_Bvol_Tvol(self, stress: to.Tensor, dt: float) -> None:
+        """
         Compute volumetric parts of B and T.
 
         Parameters
@@ -237,15 +358,16 @@ class Material():
         ------------
         Sets `self.B_vol` and `self.T_vol` (shape (N,)) from element contributions.
         """
-		self.B_vol = to.zeros(self.n_elems, dtype=to.float64)
-		self.T_vol = to.zeros(self.n_elems, dtype=to.float64)
-		for elem_ne in self.elems_ne:
-			elem_ne.compute_Bvol_Tvol()
-			self.B_vol += elem_ne.B_vol
-			self.T_vol += elem_ne.T_vol
+        self.B_vol = to.zeros(self.n_elems, dtype=to.float64)
+        self.T_vol = to.zeros(self.n_elems, dtype=to.float64)
+        for elem_ne in self.elems_ne:
+            elem_ne.compute_Bvol_Tvol()
+            self.B_vol += elem_ne.B_vol
+            self.T_vol += elem_ne.T_vol
 
-	def compute_Gtilde_Btilde(self, stress: to.Tensor, dt: float) -> None:
-		"""
+
+    def compute_Gtilde_Btilde(self, stress: to.Tensor, dt: float) -> None:
+        """
         Compute deviatoric parts of G and B.
 
         Parameters
@@ -263,15 +385,16 @@ class Material():
         ------------
         Sets `self.G_tilde` and `self.B_tilde` (N,6,6) and (N,3,3).
         """
-		self.G_tilde = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-		self.B_tilde = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
-		for elem_ne in self.elems_ne:
-			elem_ne.compute_Gtilde_Btilde()
-			self.G_tilde += elem_ne.G_tilde
-			self.B_tilde += elem_ne.B_tilde
+        self.G_tilde = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+        self.B_tilde = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+        for elem_ne in self.elems_ne:
+            elem_ne.compute_Gtilde_Btilde()
+            self.G_tilde += elem_ne.G_tilde
+            self.B_tilde += elem_ne.B_tilde
 
-	def compute_CT(self, dt: float, theta: float) -> None:
-		"""
+
+    def compute_CT(self, dt: float, theta: float) -> None:
+        """
         Compute consistent tangent `CT = (C_inv + dt*(1-theta)*G)^{-1}`.
 
         Parameters
@@ -289,10 +412,11 @@ class Material():
         ------------
         Sets `self.CT` (N, 6, 6).
         """
-		self.CT = to.linalg.inv(self.C_inv + dt*(1-theta)*self.G)
+        self.CT = to.linalg.inv(self.C_inv + dt*(1-theta)*self.G)
 
-	def compute_CT_tilde(self, dt: float, theta: float) -> None:
-		"""
+
+    def compute_CT_tilde(self, dt: float, theta: float) -> None:
+        """
         Compute deviatoric consistent tangent `CT_tilde`.
 
         Parameters
@@ -310,7 +434,8 @@ class Material():
         ------------
         Sets `self.CT_tilde` (N, 6, 6).
         """
-		self.CT_tilde = to.linalg.inv(self.C_tilde_inv + dt*(1-theta)*self.G_tilde)
+        self.CT_tilde = to.linalg.inv(self.C_tilde_inv + dt*(1-theta)*self.G_tilde)
+
 
 
 class Thermoelastic():
@@ -365,6 +490,67 @@ class Thermoelastic():
 		self.eps_th = self.alpha[:,None,None]*dT_DG_vec[:,None,None]*self.I
 
 
+
+class Poroelastic():
+    """
+    Poroelastic contribution producing poroelastic strain :math:`\\varepsilon_{po}
+    = \\alpha/(3K)\\,\\Delta p\\,I`.
+
+    Parameters
+    ----------
+    alpha : torch.Tensor
+        Biot coefficient per element, shape (N,).
+    K : torch.Tensor
+        Bulk modulus per element, shape (N,).
+    name : str, optional
+        Identifier for the element, by default "poroelastic".
+
+    Attributes
+    ----------
+    alpha : torch.Tensor
+        Biot coefficients, shape (N,).
+    K : torch.Tensor
+        Bulk moduli, shape (N,).
+    n_elems : int
+        Number of elements.
+    eps_po : torch.Tensor
+        Poroelastic strain tensor per element, shape (N, 3, 3).
+    I : torch.Tensor
+        Identity tensor (broadcasted to N), shape (N, 3, 3).
+    name : str
+        Element name.
+    """
+    def __init__(self, alpha: to.Tensor, K: to.Tensor, name="poroelastic"):
+        self.alpha = alpha
+        self.K = K
+        self.alpha_bar = alpha/(3*K)
+        self.name = name
+        self.n_elems = self.alpha_bar.shape[0]
+        self.eps_po = to.zeros((self.n_elems, 3, 3))
+        self.I = to.eye(3, dtype=to.float64).unsqueeze(0).repeat(self.n_elems, 1, 1)
+
+
+    def compute_eps_po(self, dP_DG_vec: to.Tensor) -> None:
+        """
+        Compute poroelastic strain from a pore pressure increment.
+
+        Parameters
+        ----------
+        dP_DG_vec : torch.Tensor
+            Pore pressure increment per element (N,) or broadcastable to (N,).
+
+        Returns
+        -------
+        None
+
+        Side Effects
+        ------------
+        Sets `self.eps_po = (alpha/3/K) * dP * I`.
+        """
+        self.eps_po = (self.alpha[:,None,None]/3/self.K[:,None,None])*dP_DG_vec[:,None,None]*self.I
+
+
+
 class Spring():
 	"""
     Linear isotropic elastic element in Voigt notation.
@@ -402,6 +588,7 @@ class Spring():
 		self.n_elems = self.E.shape[0]
 		self.eps_e = to.tensor((self.n_elems, 3, 3), dtype=to.float64)
 
+
 	def initialize(self):
 		"""
         Build stiffness operators and bulk modulus.
@@ -419,6 +606,7 @@ class Spring():
 		self.C_tilde = self.__compute_C_tilde(self.n_elems, self.nu, self.E)
 		self.C_tilde_inv = self.__compute_C_tilde_inv(self.n_elems, self.nu, self.E)
 		self.K = self.E/(3*(1 - 2*self.nu))
+
 
 	def compute_eps_e(self, stress):
 		"""
@@ -438,6 +626,7 @@ class Spring():
         Sets `self.eps_e` (N, 3, 3).
         """
 		self.eps_e = dotdot_torch(self.C_inv, stress)
+
 
 	def __compute_C(self, n_elems, nu, E):
 		"""
@@ -469,6 +658,7 @@ class Spring():
 		C[:,0,1] = C[:,1,0] = C[:,0,2] = C[:,2,0] = C[:,2,1] = C[:,1,2] = a0*nu
 		return C
 
+
 	def __compute_C_inv(self, C):
 		"""
         Invert the stiffness matrix per element.
@@ -484,6 +674,7 @@ class Spring():
             Element-wise inverse, shape (N, 6, 6).
         """
 		return to.linalg.inv(self.C)
+
 
 	def __compute_C_tilde(self, n_elems, nu, E):
 		"""
@@ -509,6 +700,7 @@ class Spring():
 		C_tilde[:,4,4] = 2*G
 		C_tilde[:,5,5] = 2*G
 		return C_tilde
+
 
 	def __compute_C_tilde_inv(self, n_elems, nu, E):
 		G = E/(2*(1 + nu))
