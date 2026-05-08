@@ -92,8 +92,22 @@ nav:
 
 
   - Implementation:
-      - Intro: usage/index.md
-      - Coupling: theory/governing_equations/coupling.md
+      - Intro: implementation/intro.md
+      - Simulators:
+          - Simulator T: implementation/simulators/simulator_T.md
+          - Simulator M: implementation/simulators/simulator_M.md
+          - Simulator TM: implementation/simulators/simulator_TM.md
+          - Simulator Full: implementation/simulators/simulator_full.md
+      - Material: implementation/material/index.md
+      - Boundary conditions:
+          - Heat diffusion: implementation/boundary_conditions/heat_diffusion.md
+          - Mechanics: implementation/boundary_conditions/mechanics.md
+      - Equations:
+          - Heat diffusion: implementation/equations/heat_diffusion.md
+          - Mechanics: implementation/equations/mechanics.md
+      - Time controllers: implementation/time_controllers/index.md
+      - Solvers: implementation/solvers/index.md
+      - Outputs: implementation/outputs/index.md
 
 
   - Examples:
