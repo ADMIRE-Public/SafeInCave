@@ -171,7 +171,7 @@ class MassEquationBase(ABC):
 
 
     def update_Pk(self) -> None:
-        self.pk[:] = self.P.x.array
+        self.pk[:] = self.P.x.array.copy()
 
 
     @abstractmethod
@@ -185,89 +185,7 @@ class MassEquationBase(ABC):
 
 
 
-
 class MassPorousMedia(MassEquationBase):
-    def __init__(self, grid: GridHandlerGMSH, is_linear: bool=True, omega: float=1.0):
-        super().__init__(grid, is_linear)
-        self.omega = omega
-
-
-    def set_material(self, material: Material) -> None:
-        self.mat = material
-        self.M.x.array[:] = self.mat.cf*self.mat.porosity + self.mat.cs*(self.mat.biot - self.mat.porosity)
-        density = do.fem.Function(self.DG0_1)
-        density.x.array[:] = self.mat.fluid_density
-        self.rho_g = density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(self.mat.gravity)))
-
-
-    def solve(self, t: float, dt: float) -> None:
-        # Update time step
-        self.dt.value = dt
-
-        # # Update boundary conditions
-        # self.bc.update_dirichlet(t)
-        # self.bc.update_neumann(t)
-    
-        # Update boundary conditions
-        self.bc.update_bcs(t)
-
-        tol = 1e-9
-        error = 2*tol
-        ite = 0
-        max_ite = 250
-
-        while error > tol and ite < max_ite:
-            # Hold pressure field from previous iteration
-            p_k = self.P.x.array.copy()
-
-            # Calculate permeability field
-            self.perm.x.array[:] = self.mat.kappa.compute()
-
-            # Build bilinear form
-            a = (self.M*self.dp*self.p_ + self.dt*ufl.dot(self.perm*ufl.grad(self.dp), ufl.grad(self.p_)))*self.dx
-            bilinear_form = do.fem.form(a)
-            A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
-            A.assemble()
-
-            # Build linear form
-            L = 0
-            L += (self.M*self.P_old*self.p_)*self.dx 
-            L += self.dt*sum(self.bc.neumann_bcs)
-            L += self.dt*ufl.dot(self.perm*self.rho_g, ufl.grad(self.p_))*self.dx
-            linear_form = do.fem.form(L)
-            b = do.fem.petsc.assemble_vector(linear_form)
-            do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
-            b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
-            do.fem.petsc.set_bc(b, self.bc.dirichlet_bcs)
-            b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
-            # Solve linear system
-            self.solver.setOperators(A)
-            self.solver.solve(b, self.X.x.petsc_vec)
-            self.X.x.scatter_forward()
-            self.split_solution()
-
-            # Apply relaxation
-            # self.P.x.array[:] = (1 - self.omega)*p_k + self.omega*self.P.x.array
-            # print(self.P.x.array)
-
-            # Increment iteration counter
-            ite += 1
-
-            # Compute error
-            error = to.norm(to.from_numpy(self.P.x.array - p_k), p=to.inf).item()
-
-            if self.is_linear:
-                error = 0.0
-                break
-
-        # Update old temperature field
-        self.update_P_old()
-
-        return ite, error
-
-
-class MassPorousMedia2(MassEquationBase):
     def __init__(self, grid: GridHandlerGMSH, is_linear: bool=True, omega: float=1.0):
         super().__init__(grid, is_linear)
         self.omega = omega
@@ -296,6 +214,8 @@ class MassPorousMedia2(MassEquationBase):
 
 
     def solve(self, t: float, dt: float) -> None:
+        # Update time step
+        self.dt.value = dt
 
         # Update pk
         self.update_Pk()
@@ -326,7 +246,7 @@ class MassPorousMedia2(MassEquationBase):
         self.split_solution()
 
         # Apply relaxation
-        self.P.x.array[:] = (1 - self.omega)*self.pk + self.omega*self.P.x.array
+        # self.P.x.array[:] = (1 - self.omega)*self.pk + self.omega*self.P.x.array
 
         # Calculate error
         self.compute_error()
