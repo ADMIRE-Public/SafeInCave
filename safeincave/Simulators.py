@@ -1461,23 +1461,25 @@ class Simulator_HM(Simulator):
 			self.eq_mass.bc.update_bcs(t)
 
 			# Iterative loop settings
-			tol = 1e-8
-			error = 2*tol
+			tol_u = 1e-8
+			error_u = 2*tol_u
+			tol_p = 1e-8
+			error_p = 2*tol_p
 			ite = 0
 			maxiter = 40
 
-			while error > tol and ite < maxiter:
+			while error_u > tol_u and ite < maxiter:
+
+				# Get total strain and stress at previous iteration
+				eps_tot_k_to = eps_tot_to.clone()
+				stress_k_to = stress_to.clone()
+
 
 				##### SOLVE MASS BALANCE EQUATION #####
 				self.eq_mass.bc.update_cavern_bcs(self.caverns)
 				self.eq_mass.set_u(self.eq_mom.u)
 				self.eq_mass.solve(t, dt)
 
-				# Get total strain at previous iteration (eps_tot_k <-- eps_tot)
-				eps_tot_k_to = eps_tot_to.clone()
-
-				# Get stress at previous iteration (stress_k_to <-- stress_to)
-				stress_k_to = stress_to.clone()
 
 				##### SOLVE MOMENTUM BALANCE EQUATION #####
 				self.eq_mom.bc.update_cavern_bcs(self.caverns)
@@ -1499,6 +1501,28 @@ class Simulator_HM(Simulator):
 
 				# Recalculate volumes of caverns
 				self.caverns.calculate_volumes(self.eq_mom.u)
+
+
+				# Increment global iteration counter
+				ite += 1
+
+				# Calculate error_u
+				eps_tot_k_flat = to.flatten(eps_tot_k_to)
+				eps_tot_flat = to.flatten(eps_tot_to)
+				local_error =  np.linalg.norm(eps_tot_k_flat - eps_tot_flat) / np.linalg.norm(eps_tot_flat)
+				error_u = self.eq_mom.grid.mesh.comm.allreduce(local_error, op=MPI.SUM)
+
+				# Calculate error_p
+				p_array = self.eq_mass.P.x.array
+				if ite == 1:
+					p1_p0 = 1.0
+				if ite == 2:
+					p0 = self.eq_mass.P_old.x.array
+					p1_p0 = np.linalg.norm(p_array - p0)
+
+				error_global = np.linalg.norm(p_array - P_last.x.array) / p1_p0
+
+
 
 
 
