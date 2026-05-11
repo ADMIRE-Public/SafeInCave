@@ -16,6 +16,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from safeincave.CavernBC import CavernHandler
+
 if TYPE_CHECKING:
     from .MassEquation import MassDeformablePorousMedia
     
@@ -238,6 +240,7 @@ class BcHandler():
                 )
             )
 
+
     def update_neumann(self, t: float) -> None:
         """
         Build Neumann contributions to the linear form at time ``t``.
@@ -260,4 +263,22 @@ class BcHandler():
         for bc in self.neumann_boundaries:
             value = np.interp(t, bc.time_values, bc.values)
             self.neumann_bcs.append(value*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
+	
+
+    def update_cavern_bcs(self, cavern_handler: CavernHandler):
+        self.cavern_bcs = []
+        for cavern in cavern_handler.caverns_PT + cavern_handler.caverns_MFlux:
+            value = cavern.P
+            dofs = do.fem.locate_dofs_topological(
+                self.eq.V,
+                self.eq.grid.boundary_dim,
+                self.eq.grid.get_boundary_tags(cavern.cavern_name)
+            )
+            self.cavern_bcs.append(
+                do.fem.dirichletbc(
+                    do.default_scalar_type(value),
+                    dofs,
+                    self.eq.V
+                )
+            )
 

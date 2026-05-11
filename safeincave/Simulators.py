@@ -20,8 +20,8 @@ import os
 from mpi4py import MPI
 from .Utils import numpy2torch
 from .HeatEquation import HeatDiffusion
-from .MassEquation import MassEquationBase, CGA
-from .MomentumEquation import LinearMomentumBase
+from .MassEquation import MassDeformablePorousMedia, CGA
+from .MomentumEquation import LinearMomentum, LinearMomentumMixed
 from .TimeHandler import TimeControllerBase, TimeController
 from .OutputHandler import SaveFields
 from .ScreenOutput import ScreenPrinter
@@ -72,7 +72,7 @@ class Simulator_Full(Simulator):
 	-------
 	None
 	"""
-	def __init__(self, eq_mom: LinearMomentumBase, 
+	def __init__(self, eq_mom: LinearMomentum | LinearMomentumMixed, 
 					   eq_heat: HeatDiffusion, 
 					   t_control: TimeControllerBase, 
 					   outputs: list[SaveFields],
@@ -330,7 +330,7 @@ class Simulator_TM(Simulator):
 	-------
 	None
 	"""
-	def __init__(self, eq_mom: LinearMomentumBase, 
+	def __init__(self, eq_mom: LinearMomentum | LinearMomentumMixed, 
 					   eq_heat: HeatDiffusion, 
 					   t_control: TimeControllerBase, 
 					   outputs: list[SaveFields],
@@ -552,7 +552,7 @@ class Simulator_M(Simulator):
     outputs : list[SaveFields]
     compute_elastic_response : bool
     """
-	def __init__(self, eq_mom: LinearMomentumBase, 
+	def __init__(self, eq_mom: LinearMomentum | LinearMomentumMixed, 
 					   t_control: TimeControllerBase,
 					   outputs: list[SaveFields],
 					   caverns: CavernHandler | None = None,
@@ -1355,8 +1355,8 @@ class Simulator_GUI(Simulator):
 
 
 class Simulator_HM(Simulator):
-	def __init__(self, eq_mom: LinearMomentumBase, 
-					   eq_mass: MassEquationBase,
+	def __init__(self, eq_mom: LinearMomentum | LinearMomentumMixed, 
+					   eq_mass: MassDeformablePorousMedia,
 					   t_control: TimeControllerBase,
 					   outputs: list[SaveFields],
 					   caverns: CavernHandler=None,
@@ -1371,6 +1371,9 @@ class Simulator_HM(Simulator):
 		self.compute_elastic_response = compute_elastic_response
 		self.tol = tol
 		self.max_ite = max_ite
+
+		if caverns == None:
+			self.caverns = CavernHandler()
 		
 		ScreenPrinter.reset_instance()
 		column_names = [
@@ -1409,6 +1412,11 @@ class Simulator_HM(Simulator):
 		for output in self.outputs:
 			output.initialize()
 
+		# Update boundary conditions
+		self.eq_mom.bc.update_dirichlet(self.t_control.t)
+		self.eq_mom.bc.update_neumann(self.t_control.t)
+		self.eq_mom.bc.update_cavern_bcs(self.caverns)
+
 		# Preliminary mechanical calculations
 		self.eq_mom.pre_solve(
 			self.t_control.t,
@@ -1416,13 +1424,27 @@ class Simulator_HM(Simulator):
 			self.compute_elastic_response
 		)
 
+		# Calculate total strain and stress tensors
+		eps_tot_to = self.eq_mom.compute_total_strain()
+		stress_to = numpy2torch(self.eq_mom.sig.x.array.reshape((self.eq_mom.n_elems, 3, 3)))
+
+		# Calculate initial cavern volumes
+		self.caverns.calculate_volumes(self.eq_mom.u)
+
+		# Calculate initial cavern masses and volumes
+		self.caverns.calculate_initial_conditions()
+
+		# Record initial cavern data
+		self.caverns.record_cavern_data(self.t_control.t)
+
 		# Save initial fields
 		for output in self.outputs:
 			output.save_fields(0)
 
+		# Set displacement field for mass equation
 		self.eq_mass.set_u(self.eq_mom.u)
 
-		# Accelaration setup
+		# Acceleration setup
 		cga = CGA(self.eq_mass.delta, step=0.1)
 
 		# Time loop
@@ -1433,12 +1455,60 @@ class Simulator_HM(Simulator):
 			t = self.t_control.t
 			dt = self.t_control.dt
 
-			# tol = 1e-5
+			# Update boundary conditions
+			self.eq_mom.bc.update_dirichlet(t)
+			self.eq_mom.bc.update_neumann(t)
+			self.eq_mass.bc.update_bcs(t)
+
+			# Iterative loop settings
+			tol = 1e-8
+			error = 2*tol
+			ite = 0
+			maxiter = 40
+
+			while error > tol and ite < maxiter:
+
+				##### SOLVE MASS BALANCE EQUATION #####
+				self.eq_mass.bc.update_cavern_bcs(self.caverns)
+				self.eq_mass.set_u(self.eq_mom.u)
+				self.eq_mass.solve(t, dt)
+
+				# Get total strain at previous iteration (eps_tot_k <-- eps_tot)
+				eps_tot_k_to = eps_tot_to.clone()
+
+				# Get stress at previous iteration (stress_k_to <-- stress_to)
+				stress_k_to = stress_to.clone()
+
+				##### SOLVE MOMENTUM BALANCE EQUATION #####
+				self.eq_mom.bc.update_cavern_bcs(self.caverns)
+				self.eq_mom.set_P(self.eq_mass.P)
+				self.eq_mom.solve(stress_k_to, t, dt)
+
+
+				# Compute total strain
+				eps_tot_to = self.eq_mom.compute_total_strain()
+
+				# Compute stress
+				stress_to = self.eq_mom.compute_stress(eps_tot_to)
+
+				# Increment internal variables
+				self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
+
+				# Compute inelastic strain rates
+				self.eq_mom.compute_eps_ne_rate(stress_to, dt)
+
+				# Recalculate volumes of caverns
+				self.caverns.calculate_volumes(self.eq_mom.u)
+
+
+
+
+
+
 			error_global = 2*self.tol
 			ite_G = 0
 			ite_M = 0
 			ite_H = 0
-			# max_ite = 150
 
 			while error_global > self.tol and ite_G < self.max_ite:
 

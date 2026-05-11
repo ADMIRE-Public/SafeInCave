@@ -70,6 +70,7 @@ class Material():
         self.n_elems = n_elems
         self.elems_ne = []
         self.elems_th = []
+        self.elems_po = []
         self.elems_e = []
 
         self.C_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
@@ -200,18 +201,6 @@ class Material():
             1D tensor of shape (N,) with porosities.
         """
         self.porosity = porosity
-
-
-    def set_biot_coefficient(self, biot: to.Tensor) -> None:
-        """
-        Set Biot coefficient per element.
-
-        Parameters
-        ----------
-        biot : torch.Tensor
-            1D tensor of shape (N,) with Biot coefficients.
-        """
-        self.biot = biot
 
 
     def set_permeability_model(self, permeability: PermeabilityBase) -> None:

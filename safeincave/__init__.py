@@ -29,6 +29,7 @@ from .MaterialProps import (
     Material,
     NonElasticElement,
     Spring,
+    Poroelastic,
     Thermoelastic,
     Viscoelastic,
     DislocationCreep,
@@ -50,6 +51,7 @@ from .Simulators import (
     Simulator_T,
     Simulator_M,
     Simulator_H,
+    Simulator_HM,
     Simulator_Full,
     Simulator_GUI
 )
@@ -82,6 +84,7 @@ __all__ = [
     "PermeabilityBase",
     "NonElasticElement",
     "Spring",
+    "Poroelastic",
     "Thermoelastic",
     "Viscoelastic",
     "DislocationCreep",
@@ -93,6 +96,7 @@ __all__ = [
     "Simulator_T",
     "Simulator_M",
     "Simulator_H",
+    "Simulator_HM",
     "Simulator_Full",
     "Simulator_GUI",
     "ScreenPrinter",

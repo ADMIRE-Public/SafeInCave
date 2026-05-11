@@ -126,6 +126,7 @@ class LinearMomentumBase(ABC):
         self.q_nodes = do.fem.Function(self.CG1_1)
         self.p_elems = do.fem.Function(self.DG0_1)
         self.p_nodes = do.fem.Function(self.CG1_1)
+        self.P_nodes = do.fem.Function(self.CG1_1)
 
     def set_material(self, material: Material) -> None:
         """
@@ -145,7 +146,41 @@ class LinearMomentumBase(ABC):
         Calls :meth:`initialize`.
         """
         self.mat = material
+        self.build_body_force()
         self.initialize()
+
+    def set_P(self, P_nodes: to.Tensor) -> None:
+        """
+        Set the current element-wise pore pressure.
+
+        Parameters
+        ----------
+        P : torch.Tensor
+            Pore pressure per element, shape ``(n_elems,)``.
+
+        Returns
+        -------
+        None
+        """
+        P_ufl = project(P_nodes, self.DG0_1)
+        self.P = P_ufl.x.array
+        self.P_nodes.x.array[:] = P_nodes.x.array
+
+    def set_P0(self, P0_nodes: to.Tensor) -> None:
+        """
+        Set the reference element-wise pore pressure.
+
+        Parameters
+        ----------
+        P0 : torch.Tensor
+            Reference pore pressure per element, shape ``(n_elems,)``.
+
+        Returns
+        -------
+        None
+        """
+        P0_ufl = project(P0_nodes, self.DG0_1)
+        self.P0 = P0_ufl.x.array
 
     def set_T(self, T: to.Tensor) -> None:
         """
@@ -256,14 +291,13 @@ class LinearMomentumBase(ABC):
         n = ufl.FacetNormal(self.grid.mesh)
         self.normal = ufl.dot(n, self.u_)
 
-    def build_body_force(self, g: list) -> None:
+    def build_body_force(self) -> None:
         """
         Build the body-force linear form ``∫ ρ g · u_ dx``.
 
         Parameters
         ----------
-        g : list of float
-            Gravity/body acceleration vector components.
+        None
 
         Returns
         -------
@@ -274,19 +308,10 @@ class LinearMomentumBase(ABC):
         Defines :attr:`b_body` as a UFL form for the right-hand side.
         """
         density = do.fem.Function(self.DG0_1)
-        density.x.array[:] = self.mat.density
-        body_force = density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(g)))
+        density.x.array[:] = self.mat.porosity*self.mat.fluid_density + (1 - self.mat.porosity)*self.mat.solid_density
+        body_force = density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(self.mat.gravity)))
         self.b_body = ufl.dot(body_force, self.u_)*self.dx
 
-	# def compute_q_nodes(self) -> do.fem.Function:
-	# 	dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
-	# 	q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
-	# 	self.q_nodes = project(q_form, self.CG1_1)
-
-	# def compute_q_elems(self) -> do.fem.Function:
-	# 	dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
-	# 	q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
-	# 	self.q_elems = project(q_form, self.DG0_1)
 
     def compute_q_nodes(self) -> None:
         """
@@ -359,6 +384,22 @@ class LinearMomentumBase(ABC):
             elem_th.compute_eps_th(deltaT)
             eps_th += elem_th.eps_th
         return eps_th
+
+    def compute_eps_po(self) -> to.Tensor:
+        """
+        Compute element-wise poroelastic strain by aggregating poroelastic elements.
+
+        Returns
+        -------
+        torch.Tensor
+            Poroelastic strain per element, shape ``(n_elems, 3, 3)``.
+        """
+        eps_po = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+        deltaP = self.P - self.P0
+        for elem_po in self.mat.elems_po:
+            elem_po.compute_eps_po(deltaP)
+            eps_po += elem_po.eps_po
+        return eps_po
 
     def compute_eps_ne_k(self, dt: float) -> to.Tensor:
         """
@@ -498,9 +539,6 @@ class LinearMomentumBase(ABC):
             stress_to = self.compute_elastic_stress(eps_tot_to)
 
         else:
-            # Calculate total strain
-            eps_tot_to = self.compute_total_strain()
-
             # Retrieve stress
             stress_to = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
 
@@ -928,7 +966,8 @@ class LinearMomentum(LinearMomentumBase):
         """
         eps_ne_k = self.compute_eps_ne_k(dt)
         eps_th = self.compute_eps_th()
-        self.eps_rhs_to = eps_ne_k + eps_th - dt*(1 - self.theta)*(self.mat.B + dotdot_torch(self.mat.G, stress_k))
+        eps_po = self.compute_eps_po()
+        self.eps_rhs_to = eps_ne_k + eps_th + eps_po - dt*(1 - self.theta)*(self.mat.B + dotdot_torch(self.mat.G, stress_k))
         self.eps_rhs.x.array[:] = to.flatten(self.eps_rhs_to)
 
     def solve_elastic_response(self) -> None:

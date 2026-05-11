@@ -26,6 +26,7 @@ import torch as to
 import numpy as np
 from .MaterialProps import Material
 from .Grid import GridHandlerGMSH
+from .Parameter_h import ModelML
 from abc import ABC, abstractmethod
 
 
@@ -246,7 +247,7 @@ class MassPorousMedia(MassEquationBase):
         self.split_solution()
 
         # Apply relaxation
-        # self.P.x.array[:] = (1 - self.omega)*self.pk + self.omega*self.P.x.array
+        self.P.x.array[:] = (1 - self.omega)*self.pk + self.omega*self.P.x.array
 
         # Calculate error
         self.compute_error()
@@ -260,12 +261,19 @@ class MassDeformablePorousMedia(MassEquationBase):
                  is_linear: bool=True, 
                  fixed_stress: bool=True,
                  omega: float=1.0,
-                 delta: float=1.0):
+                 delta: float=1.0,
+                 stab_scaling: float=1.0):
         super().__init__(grid, is_linear)
 
         self.fixed_stress = fixed_stress
         self.omega = omega
         self.delta = delta
+
+        assert stab_scaling >= 0.0, "stab_scaling must be >= 0.0"
+        if stab_scaling == 0.0:
+            pass
+        else:
+            self.calculate_h(stab_scaling)
 
 
     def create_fenicsx_fields(self) -> None:
@@ -277,11 +285,12 @@ class MassDeformablePorousMedia(MassEquationBase):
         self.P_old = do.fem.Function(self.V)
         self.P = do.fem.Function(self.V)
         self.X = do.fem.Function(self.V)
-        self.h_cell_2 = None
-
-
-    def set_stabilization_h(self, h : to.Tensor) -> None:
         self.h_cell_2 = do.fem.Function(self.DG0_1)
+
+
+    def calculate_h(self, stab_scaling: float = 0.0) -> None:
+        model_h = ModelML()
+        h = stab_scaling*model_h.compute_mesh_h(self.grid.mesh)
         self.h_cell_2.x.array[:] = h**2
 
 
@@ -295,6 +304,10 @@ class MassDeformablePorousMedia(MassEquationBase):
         self.M.x.array[:] = self.mat.cf*self.mat.porosity + self.mat.cs*(biot_to - self.mat.porosity)
         self.Q_bar.x.array[:] = (self.mat.biot**2)/(self.delta*self.mat.K)
         self.G.x.array[:] = self.mat.G
+        density = do.fem.Function(self.DG0_1)
+        density.x.array[:] = self.mat.fluid_density
+        self.rho_g = density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(self.mat.gravity)))
+        self.stab = self.h_cell_2*self.biot**2/self.G
 
 
     def set_u(self, u: do.fem.function.Function) -> None:
@@ -332,15 +345,12 @@ class MassDeformablePorousMedia(MassEquationBase):
             # Calculate permeability field
             self.perm.x.array[:] = self.mat.kappa.compute()
 
-            if self.h_cell_2 is not None:
-                stab = self.h_cell_2*self.biot**2/self.G
-
             # Build bilinear form
             a = (self.M*self.dp*self.p_)*self.dx
             if self.fixed_stress:
                 a += (self.Q_bar*self.dp*self.p_)*self.dx
             if self.h_cell_2 is not None:
-                a += ufl.dot(stab*ufl.grad(self.dp), ufl.grad(self.p_))*self.dx
+                a += ufl.dot(self.stab*ufl.grad(self.dp), ufl.grad(self.p_))*self.dx
             a += self.dt*ufl.dot(self.perm*ufl.grad(self.dp), ufl.grad(self.p_))*self.dx
             bilinear_form = do.fem.form(a)
             A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
@@ -351,7 +361,145 @@ class MassDeformablePorousMedia(MassEquationBase):
             if self.fixed_stress:
                 L += (self.Q_bar*P_last*self.p_)*self.dx
             if self.h_cell_2 is not None:
-                L += ufl.dot(stab*ufl.grad(self.P_old), ufl.grad(self.p_))*self.dx
+                L += ufl.dot(self.stab*ufl.grad(self.P_old), ufl.grad(self.p_))*self.dx
+            L -= (self.biot*self.p_*(ufl.div(self.u - self.u_old)))*self.dx
+            L += self.dt*ufl.dot(self.perm*self.rho_g, ufl.grad(self.p_))*self.dx
+            L += self.dt*sum(self.bc.neumann_bcs)
+            linear_form = do.fem.form(L)
+            b = do.fem.petsc.assemble_vector(linear_form)
+            do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
+            b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
+            do.fem.petsc.set_bc(b, self.bc.dirichlet_bcs)
+            b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+
+            # Solve linear system
+            self.solver.setOperators(A)
+            self.solver.solve(b, self.X.x.petsc_vec)
+            self.X.x.scatter_forward()
+            self.split_solution()
+
+            self.P.x.array[:] = (1 - self.omega)*p_k + self.omega*self.P.x.array
+
+            # Increment iteration counter
+            ite += 1
+
+            # Compute error
+            error = to.norm(to.from_numpy(self.P.x.array - p_k), p=to.inf).item()
+
+            if self.is_linear:
+                error = 0.0
+                break
+
+        return ite, error, P_last
+
+
+class MassDeformablePorousMedia_old(MassEquationBase):
+    def __init__(self, 
+                 grid: GridHandlerGMSH, 
+                 is_linear: bool=True, 
+                 fixed_stress: bool=True,
+                 omega: float=1.0,
+                 delta: float=1.0,
+                 stab_scaling: float=1.0):
+        super().__init__(grid, is_linear)
+
+        self.fixed_stress = fixed_stress
+        self.omega = omega
+        self.delta = delta
+
+        assert stab_scaling >= 0.0, "stab_scaling must be >= 0.0"
+        if stab_scaling == 0.0:
+            pass
+        else:
+            self.calculate_h(stab_scaling)
+
+
+    def create_fenicsx_fields(self) -> None:
+        self.biot = do.fem.Function(self.DG0_1)
+        self.Q_bar = do.fem.Function(self.DG0_1)
+        self.perm = do.fem.Function(self.DG0_1)
+        self.M = do.fem.Function(self.DG0_1)
+        self.G = do.fem.Function(self.DG0_1)
+        self.P_old = do.fem.Function(self.V)
+        self.P = do.fem.Function(self.V)
+        self.X = do.fem.Function(self.V)
+        self.h_cell_2 = do.fem.Function(self.DG0_1)
+
+
+    def calculate_h(self, stab_scaling: float = 0.0) -> None:
+        model_h = ModelML()
+        h = stab_scaling*model_h.compute_mesh_h(self.grid.mesh)
+        self.h_cell_2.x.array[:] = h**2
+
+
+    def set_material(self, material: Material) -> None:
+        self.mat = material
+        try:
+            biot_to = 1 - self.mat.cs/self.mat.K
+        except:
+            raise ValueError("Material property 'K' has not been set. Elastic element was probably not defined.")
+        self.biot.x.array[:] = biot_to
+        self.M.x.array[:] = self.mat.cf*self.mat.porosity + self.mat.cs*(biot_to - self.mat.porosity)
+        self.Q_bar.x.array[:] = (self.mat.biot**2)/(self.delta*self.mat.K)
+        self.G.x.array[:] = self.mat.G
+        density = do.fem.Function(self.DG0_1)
+        density.x.array[:] = self.mat.fluid_density
+        self.rho_g = density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(self.mat.gravity)))
+        self.stab = self.h_cell_2*self.biot**2/self.G
+
+
+    def set_u(self, u: do.fem.function.Function) -> None:
+        self.u = u
+
+
+    def update_u_old(self, u: do.fem.function.Function) -> None:
+        self.u_old = u.copy()
+
+
+    def solve(self, t: float, dt: float) -> None:
+        # Update time step
+        self.dt.value = dt
+
+        # Update boundary conditions
+        self.bc.update_dirichlet(t)
+        self.bc.update_neumann(t)
+    
+        # Update boundary conditions
+        self.bc.update_bcs(t)
+
+        # Hold pressure from previous fixed-stress iteration
+        P_last = self.P.copy()
+
+        # Define tolerances for non-linear loop
+        tol = 1e-5
+        error = 2*tol
+        ite = 0
+        max_ite = 50
+
+        while error > tol and ite < max_ite:
+            # Hold pressure field from previous iteration
+            p_k = self.P.x.array.copy()
+
+            # Calculate permeability field
+            self.perm.x.array[:] = self.mat.kappa.compute()
+
+            # Build bilinear form
+            a = (self.M*self.dp*self.p_)*self.dx
+            if self.fixed_stress:
+                a += (self.Q_bar*self.dp*self.p_)*self.dx
+            if self.h_cell_2 is not None:
+                a += ufl.dot(self.stab*ufl.grad(self.dp), ufl.grad(self.p_))*self.dx
+            a += self.dt*ufl.dot(self.perm*ufl.grad(self.dp), ufl.grad(self.p_))*self.dx
+            bilinear_form = do.fem.form(a)
+            A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
+            A.assemble()
+
+            # Build linear form
+            L = (self.M*self.P_old*self.p_)*self.dx
+            if self.fixed_stress:
+                L += (self.Q_bar*P_last*self.p_)*self.dx
+            if self.h_cell_2 is not None:
+                L += ufl.dot(self.stab*ufl.grad(self.P_old), ufl.grad(self.p_))*self.dx
             L -= (self.biot*self.p_*(ufl.div(self.u - self.u_old)))*self.dx
             L += self.dt*ufl.dot(self.perm*self.rho_g, ufl.grad(self.p_))*self.dx
             L += self.dt*sum(self.bc.neumann_bcs)

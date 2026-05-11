@@ -1,0 +1,15 @@
+{
+    "WATER": {
+        "Compressibility": 4.44e-10,
+        "Viscosity": 0.001,
+        "Density": 1000.0
+    },
+    "ROCK": {
+        "PoissonsRatio": 0.3,
+        "ShearModulus": 9790000.0,
+        "Compressibility": 2.06e-10,
+        "Porosity": 0.48,
+        "Permeability": 3.62e-12,
+        "Density": 2500.0
+    }
+}

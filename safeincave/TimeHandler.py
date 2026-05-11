@@ -60,6 +60,7 @@ class TimeControllerBase(ABC):
         self.t_final = final_time*self.time_conversion
         self.t_initial = initial_time*self.time_conversion
         self.t = initial_time*self.time_conversion
+        self.dt = 0.0
         self.step_counter = 0
 
     def __decide_time_unit(self) -> None:
