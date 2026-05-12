@@ -473,7 +473,7 @@ class ScreenPrinter():
 		self.print_on_screen(header_line)
 		self.print_on_screen(self.divider)
 
-	def print_row(self, values: str) -> None:
+	def print_row(self, values: list[str]) -> None:
 		"""
 		Print a single row of values under the current header.
 

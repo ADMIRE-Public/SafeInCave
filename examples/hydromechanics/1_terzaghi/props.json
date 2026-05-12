@@ -6,7 +6,8 @@
     },
     "ROCK": {
         "PoissonsRatio": 0.3,
-        "ShearModulus": 9790000.0,
+        "ShearModulus": 9.79e6,
+        "ShearModulus_old": 9790000.0,
         "Compressibility": 2.06e-10,
         "Porosity": 0.48,
         "Permeability": 3.62e-12,

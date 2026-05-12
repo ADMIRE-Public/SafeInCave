@@ -122,7 +122,7 @@ class MassEquationBase(ABC):
         self.create_ds_dx()
         self.create_fenicsx_fields()
 
-        self.pk = np.zeros(self.n_nodes, dtype=np.float64)
+        self.Pk_np = np.zeros(self.n_nodes, dtype=np.float64)
         self.error = 0.0
 
 
@@ -131,6 +131,7 @@ class MassEquationBase(ABC):
         self.M = do.fem.Function(self.DG0_1)
         self.P_old = do.fem.Function(self.V)
         self.P = do.fem.Function(self.V)
+        self.Pk = do.fem.Function(self.V)
         self.X = do.fem.Function(self.V)
 
 
@@ -168,11 +169,13 @@ class MassEquationBase(ABC):
     def set_initial_P(self, P_field: to.Tensor) -> None:
         self.P_old.x.array[:] = P_field
         self.P.x.array[:] = P_field
-        self.pk[:] = P_field
+        self.Pk_np[:] = P_field
+        self.Pk.x.array[:] = P_field
 
 
     def update_Pk(self) -> None:
-        self.pk[:] = self.P.x.array.copy()
+        self.Pk_np[:] = self.P.x.array.copy()
+        self.Pk.x.array[:] = self.P.x.array.copy()
 
 
     @abstractmethod
@@ -211,7 +214,7 @@ class MassPorousMedia(MassEquationBase):
         if self.is_linear:
             self.error = 0.0
         else:
-            self.error = to.norm(to.from_numpy(self.P.x.array - self.pk), p=to.inf).item()
+            self.error = to.norm(to.from_numpy(self.P.x.array - self.Pk_np), p=to.inf).item()
 
 
     def solve(self, t: float, dt: float) -> None:
@@ -247,7 +250,7 @@ class MassPorousMedia(MassEquationBase):
         self.split_solution()
 
         # Apply relaxation
-        self.P.x.array[:] = (1 - self.omega)*self.pk + self.omega*self.P.x.array
+        self.P.x.array[:] = (1 - self.omega)*self.Pk_np + self.omega*self.P.x.array
 
         # Calculate error
         self.compute_error()
@@ -284,6 +287,7 @@ class MassDeformablePorousMedia(MassEquationBase):
         self.G = do.fem.Function(self.DG0_1)
         self.P_old = do.fem.Function(self.V)
         self.P = do.fem.Function(self.V)
+        self.Pk = do.fem.Function(self.V)
         self.X = do.fem.Function(self.V)
         self.h_cell_2 = do.fem.Function(self.DG0_1)
 
@@ -294,16 +298,21 @@ class MassDeformablePorousMedia(MassEquationBase):
         self.h_cell_2.x.array[:] = h**2
 
 
+    def calculate_biot_modulus(self):
+        self.Q_bar.x.array[:] = (self.mat.biot**2)/(self.delta*self.mat.K)
+
+
     def set_material(self, material: Material) -> None:
         self.mat = material
         try:
-            biot_to = 1 - self.mat.cs/self.mat.K
+            biot_to = 1 - self.mat.cs*self.mat.K
+            self.mat.biot = biot_to
         except:
             raise ValueError("Material property 'K' has not been set. Elastic element was probably not defined.")
         self.biot.x.array[:] = biot_to
         self.M.x.array[:] = self.mat.cf*self.mat.porosity + self.mat.cs*(biot_to - self.mat.porosity)
-        self.Q_bar.x.array[:] = (self.mat.biot**2)/(self.delta*self.mat.K)
         self.G.x.array[:] = self.mat.G
+        self.calculate_biot_modulus()
         density = do.fem.Function(self.DG0_1)
         density.x.array[:] = self.mat.fluid_density
         self.rho_g = density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(self.mat.gravity)))
@@ -311,86 +320,67 @@ class MassDeformablePorousMedia(MassEquationBase):
 
 
     def set_u(self, u: do.fem.function.Function) -> None:
-        self.u = u
+        self.u = u.copy()
 
 
     def update_u_old(self, u: do.fem.function.Function) -> None:
         self.u_old = u.copy()
 
 
+    def compute_error(self) -> None:
+        self.error = to.norm(to.from_numpy(self.P.x.array - self.Pk_np), p=to.inf).item()
+
+
     def solve(self, t: float, dt: float) -> None:
         # Update time step
         self.dt.value = dt
 
-        # Update boundary conditions
-        self.bc.update_dirichlet(t)
-        self.bc.update_neumann(t)
-    
-        # Update boundary conditions
-        self.bc.update_bcs(t)
+        # Update pk
+        self.update_Pk()
 
-        # Hold pressure from previous fixed-stress iteration
-        P_last = self.P.copy()
+        # Calculate permeability field
+        self.perm.x.array[:] = self.mat.kappa.compute()
 
-        # Define tolerances for non-linear loop
-        tol = 1e-5
-        error = 2*tol
-        ite = 0
-        max_ite = 50
 
-        while error > tol and ite < max_ite:
-            # Hold pressure field from previous iteration
-            p_k = self.P.x.array.copy()
+        # Build bilinear form
+        a = (self.M*self.dp*self.p_)*self.dx
+        if self.fixed_stress:
+            a += (self.Q_bar*self.dp*self.p_)*self.dx
+        if self.h_cell_2 is not None:
+            a += ufl.dot(self.stab*ufl.grad(self.dp), ufl.grad(self.p_))*self.dx
+        a += self.dt*ufl.dot(self.perm*ufl.grad(self.dp), ufl.grad(self.p_))*self.dx
+        bilinear_form = do.fem.form(a)
+        A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
+        A.assemble()
 
-            # Calculate permeability field
-            self.perm.x.array[:] = self.mat.kappa.compute()
+        # Build linear form
+        L = (self.M*self.P_old*self.p_)*self.dx
+        if self.fixed_stress:
+            L += (self.Q_bar*self.Pk*self.p_)*self.dx
+        if self.h_cell_2 is not None:
+            L += ufl.dot(self.stab*ufl.grad(self.P_old), ufl.grad(self.p_))*self.dx
+        L -= (self.biot*self.p_*ufl.div(self.u - self.u_old))*self.dx
+        L += self.dt*ufl.dot(self.perm*self.rho_g, ufl.grad(self.p_))*self.dx
+        L += self.dt*sum(self.bc.neumann_bcs)
+        linear_form = do.fem.form(L)
+        b = do.fem.petsc.assemble_vector(linear_form)
+        do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
+        b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
+        do.fem.petsc.set_bc(b, self.bc.dirichlet_bcs)
+        b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
-            # Build bilinear form
-            a = (self.M*self.dp*self.p_)*self.dx
-            if self.fixed_stress:
-                a += (self.Q_bar*self.dp*self.p_)*self.dx
-            if self.h_cell_2 is not None:
-                a += ufl.dot(self.stab*ufl.grad(self.dp), ufl.grad(self.p_))*self.dx
-            a += self.dt*ufl.dot(self.perm*ufl.grad(self.dp), ufl.grad(self.p_))*self.dx
-            bilinear_form = do.fem.form(a)
-            A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
-            A.assemble()
+        # Solve linear system
+        self.solver.setOperators(A)
+        self.solver.solve(b, self.X.x.petsc_vec)
+        self.X.x.scatter_forward()
+        self.split_solution()
 
-            # Build linear form
-            L = (self.M*self.P_old*self.p_)*self.dx
-            if self.fixed_stress:
-                L += (self.Q_bar*P_last*self.p_)*self.dx
-            if self.h_cell_2 is not None:
-                L += ufl.dot(self.stab*ufl.grad(self.P_old), ufl.grad(self.p_))*self.dx
-            L -= (self.biot*self.p_*(ufl.div(self.u - self.u_old)))*self.dx
-            L += self.dt*ufl.dot(self.perm*self.rho_g, ufl.grad(self.p_))*self.dx
-            L += self.dt*sum(self.bc.neumann_bcs)
-            linear_form = do.fem.form(L)
-            b = do.fem.petsc.assemble_vector(linear_form)
-            do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
-            b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
-            do.fem.petsc.set_bc(b, self.bc.dirichlet_bcs)
-            b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        self.P.x.array[:] = (1 - self.omega)*self.Pk_np + self.omega*self.P.x.array
 
-            # Solve linear system
-            self.solver.setOperators(A)
-            self.solver.solve(b, self.X.x.petsc_vec)
-            self.X.x.scatter_forward()
-            self.split_solution()
+        # Compute error
+        self.compute_error()
 
-            self.P.x.array[:] = (1 - self.omega)*p_k + self.omega*self.P.x.array
 
-            # Increment iteration counter
-            ite += 1
-
-            # Compute error
-            error = to.norm(to.from_numpy(self.P.x.array - p_k), p=to.inf).item()
-
-            if self.is_linear:
-                error = 0.0
-                break
-
-        return ite, error, P_last
 
 
 class MassDeformablePorousMedia_old(MassEquationBase):

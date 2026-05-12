@@ -20,7 +20,7 @@ import os
 from mpi4py import MPI
 from .Utils import numpy2torch
 from .HeatEquation import HeatDiffusion
-from .MassEquation import MassDeformablePorousMedia, CGA
+from .MassEquation import MassDeformablePorousMedia, MassPorousMedia, CGA
 from .MomentumEquation import LinearMomentum, LinearMomentumMixed
 from .TimeHandler import TimeControllerBase, TimeController
 from .OutputHandler import SaveFields
@@ -89,7 +89,13 @@ class Simulator_Full(Simulator):
 			self.caverns = CavernHandler()
 		
 		ScreenPrinter.reset_instance()
-		self.screen = ScreenPrinter(self.eq_mom.grid, self.eq_mom.solver, self.eq_mom.mat, self.outputs, t_control.time_unit)
+		self.screen = ScreenPrinter(
+			self.eq_mom.grid,
+			self.eq_mom.solver,
+			self.eq_mom.mat,
+			self.outputs, 
+			time_unit=t_control.time_unit
+		)
 
 	def run(self) -> None:
 		"""
@@ -568,7 +574,13 @@ class Simulator_M(Simulator):
 
 		
 		ScreenPrinter.reset_instance()
-		self.screen = ScreenPrinter(self.eq_mom.grid, self.eq_mom.solver, self.eq_mom.mat, self.outputs, t_control.time_unit)
+		self.screen = ScreenPrinter(
+			self.eq_mom.grid,
+			self.eq_mom.solver,
+			self.eq_mom.mat,
+			self.outputs,
+			time_unit=t_control.time_unit
+		)
 
 	def run(self) -> None:
 		"""
@@ -1376,36 +1388,33 @@ class Simulator_HM(Simulator):
 			self.caverns = CavernHandler()
 		
 		ScreenPrinter.reset_instance()
-		column_names = [
-				"Step",
-				f"dt ({self.t_control.time_unit})",
-				f"t / t_f ({self.t_control.time_unit})",
-				"#H",
-				"Error H ",
-				"#M",
-				"Error M ",
-				"#G",
-				"Error G ",
-		]
-		row_formats = [
-				"%i",
-				"%.3f",
-				"%s",
-				"%.i",
-				"%.2e",
-				"%.i",
-				"%.2e",
-				"%.i",
-				"%.2e",
-		]
 		self.screen = ScreenPrinter(
-			self.eq_mom.grid,
+			self.eq_mom.grid, 
 			self.eq_mom.solver,
 			self.eq_mom.mat,
 			self.outputs,
-			header_names=column_names,
-			row_formats=row_formats,
-			time_unit=t_control.time_unit)
+			header_names=[
+				"Step counter",
+				"dt (day)",
+				"t / t_final (day)",
+				"#iters",
+				" error-u  ",
+				" error-p  "],
+			row_formats=["%i",
+				"%.3f",
+				"%s",
+				"%.i",
+				"%.4e",
+				"%.4e"],
+			time_unit=t_control.time_unit
+		)
+
+		
+	def keep_nonlinear_looping(self, ite, error_u, error_p):
+		ans = error_u >= self.tol
+		ans = ans or error_p >= self.tol
+		ans = ans and ite <= self.max_ite
+		return ans
 
 	def run(self) -> None:
 		# Output field
@@ -1449,7 +1458,7 @@ class Simulator_HM(Simulator):
 
 		# Time loop
 		while self.t_control.keep_looping():
-
+				
 			# Advance time
 			self.t_control.advance_time()
 			t = self.t_control.t
@@ -1460,32 +1469,40 @@ class Simulator_HM(Simulator):
 			self.eq_mom.bc.update_neumann(t)
 			self.eq_mass.bc.update_bcs(t)
 
+			# Get total strain and stress at previous iteration
+			eps_tot_k_to = eps_tot_to.clone()
+			stress_k_to = stress_to.clone()
+
 			# Iterative loop settings
-			tol_u = 1e-8
-			error_u = 2*tol_u
-			tol_p = 1e-8
-			error_p = 2*tol_p
+			error_u = 2*self.tol
+			error_p = 2*self.tol
+			p1_p0 = 1.0
 			ite = 0
-			maxiter = 40
+			while self.keep_nonlinear_looping(ite, error_u, error_p):
+				
+				# +----------------------------------------------+
+				# |  SOLVE CAVERNS THERMODYNAMICS                |
+				# +----------------------------------------------+
+				# Recalculate volumes of caverns
+				self.caverns.calculate_volumes(self.eq_mom.u)
+				# self.caverns.calculate_permeation(self.eq_mass.P)
 
-			while error_u > tol_u and ite < maxiter:
 
-				# Get total strain and stress at previous iteration
-				eps_tot_k_to = eps_tot_to.clone()
-				stress_k_to = stress_to.clone()
-
-
-				##### SOLVE MASS BALANCE EQUATION #####
+				# +----------------------------------------------+
+				# |  SOLVE MASS BALANCE EQUATION                 |
+				# +----------------------------------------------+
 				self.eq_mass.bc.update_cavern_bcs(self.caverns)
 				self.eq_mass.set_u(self.eq_mom.u)
 				self.eq_mass.solve(t, dt)
+				# print(self.eq_mass.P.x.array)
 
 
-				##### SOLVE MOMENTUM BALANCE EQUATION #####
+				# +----------------------------------------------+
+				# |  SOLVE MOMENTUM BALANCE EQUATION             |
+				# +----------------------------------------------+
 				self.eq_mom.bc.update_cavern_bcs(self.caverns)
 				self.eq_mom.set_P(self.eq_mass.P)
 				self.eq_mom.solve(stress_k_to, t, dt)
-
 
 				# Compute total strain
 				eps_tot_to = self.eq_mom.compute_total_strain()
@@ -1499,10 +1516,10 @@ class Simulator_HM(Simulator):
 				# Compute inelastic strain rates
 				self.eq_mom.compute_eps_ne_rate(stress_to, dt)
 
-				# Recalculate volumes of caverns
-				self.caverns.calculate_volumes(self.eq_mom.u)
 
-
+				# +----------------------------------------------+
+				# |  LOOP CONTROL					             |
+				# +----------------------------------------------+
 				# Increment global iteration counter
 				ite += 1
 
@@ -1519,66 +1536,51 @@ class Simulator_HM(Simulator):
 				if ite == 2:
 					p0 = self.eq_mass.P_old.x.array
 					p1_p0 = np.linalg.norm(p_array - p0)
+				error_p = self.eq_mass.error / p1_p0
 
-				error_global = np.linalg.norm(p_array - P_last.x.array) / p1_p0
-
-
-
-
-
+				# Get total strain and stress at previous iteration
+				eps_tot_k_to = eps_tot_to.clone()
+				stress_k_to = stress_to.clone()
 
 
+			# +----------------------------------------------+
+			# |  POST CALCULATION: CAVERNS                   |
+			# +----------------------------------------------+
+			# Calculate next cavern masses and volumes
+			self.caverns.calculate_initial_conditions()
 
-			error_global = 2*self.tol
-			ite_G = 0
-			ite_M = 0
-			ite_H = 0
+			# Record thermodynamic data for caverns
+			self.caverns.record_cavern_data(t)
 
-			while error_global > self.tol and ite_G < self.max_ite:
 
-				##### SOLVE MASS BALANCE EQUATION #####
-				self.eq_mass.set_u(self.eq_mom.u)
-				ite_mass, error_mass, P_last = self.eq_mass.solve(t, dt)
-
-				##### SOLVE MOMENTUM BALANCE EQUATION #####
-				self.eq_mom.set_P(self.eq_mass.P)
-				ite_mom, error_mom, stress_to, stress_k_to = self.eq_mom.solve(t, dt)
-
-				# Increment global iteration counter
-				ite_G += 1
-				ite_H += ite_mass
-				ite_M += ite_mom
-
-				# Calculate rate
-				p_array = self.eq_mass.P.x.array
-				if ite_G == 1:
-					p1_p0 = 1.0
-				elif ite_G == 2:
-					p0 = self.eq_mass.P_old.x.array
-					p1_p0 = np.linalg.norm(p_array - p0)
-
-				error_global = np.linalg.norm(p_array - P_last.x.array) / p1_p0
-
-				print(ite_H, ite_M, ite_G, error_mass, error_mom, error_global)
-				
-			# Calculate convergence rate
-			rate = -np.log10(error_global) / (ite_G - 2)
-
+			# +----------------------------------------------+
+			# |  POST CALCULATION: MASS BALANCE EQUATION     |
+			# +----------------------------------------------+
 			# Climbing Goat Algorithm
+			rate = -np.log10(error_p) / (ite - 2)
 			delta, _ = cga.compute(rate)
 			self.eq_mass.delta = delta
-			self.eq_mass.initialize_biot()
-			
-			print(ite_H, ite_M, ite_G, error_mass, error_mom, error_global, rate, delta)
+			self.eq_mass.calculate_biot_modulus()
 
-			##### POST CALCULATION: MASS BALANCE EQUATION #####
+			# Update P_old and u_old
 			self.eq_mass.update_P_old()
 			self.eq_mass.update_u_old(self.eq_mom.u)
 
-			##### POST CALCULATION: MOMENTUM BALANCE EQUATION #####
+			# print(f"ite: {ite}, error_u: {error_u:.4e}, error_p: {error_p:.4e}, delta: {delta:.4f}")
+
+
+			# +----------------------------------------------+
+			# |  POST CALCULATION: MOMENTUM BALANCE EQUATION |
+			# +----------------------------------------------+
+			# Update internal variables
 			self.eq_mom.update_internal_variables()
+
+			# Update strain rates
 			self.eq_mom.update_eps_ne_rate_old()
+
+			# Update strain
 			self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
+
 			self.eq_mom.run_after_solve()
 
 			# Save fields
@@ -1595,12 +1597,9 @@ class Simulator_HM(Simulator):
 									self.t_control.step_counter, 
 									self.t_control.dt/self.t_control.time_conversion,
 									f"{current_time} / {self.t_control.t_final/self.t_control.time_conversion}",
-									round(ite_H/ite_G, 2),
-									error_mass,
-									round(ite_M/ite_G, 2),
-									error_mom,
-									ite_G,
-									error_global,
+									ite,
+									error_u,
+									error_p,
 			]
 			self.screen.print_row(screen_output_row)
 
@@ -1608,6 +1607,8 @@ class Simulator_HM(Simulator):
 
 		for output in self.outputs:
 			output.save_mesh()
+
+
 
 
 
@@ -1619,7 +1620,7 @@ class Simulator_H(Simulator):
 
     Parameters
     ----------
-    eq_mass : MassEquationBase
+    eq_mass : MassPorousMedia
         Configured heat equation (materials, BCs, solver set).
     t_control : TimeControllerBase
         Time controller providing `t`, `dt`, and loop control.
@@ -1630,11 +1631,11 @@ class Simulator_H(Simulator):
 
     Attributes
     ----------
-    eq_mass : MassEquationBase
+    eq_mass : MassPorousMedia
     t_control : TimeControllerBase
     outputs : list[SaveFields]
     """
-	def __init__(self, eq_mass : MassEquationBase,
+	def __init__(self, eq_mass : MassPorousMedia,
 					   t_control: TimeControllerBase,
 					   outputs: list[SaveFields]):
 		self.eq_mass = eq_mass

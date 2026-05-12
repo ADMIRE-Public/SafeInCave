@@ -53,15 +53,11 @@ def main():
 
     # Read poromechanical properties
     props = Props()
-    print(props.permeability/props.mu)
 
     # Define output folder
     output_folder = os.path.join("output", "case_g_stab_1")
     # output_folder = os.path.join("output", "case_g_nonstab")
 
-
-    # Time settings for equilibrium stage
-    t_eq = sf.TimeController(dt=0.5, initial_time=0.0, final_time=5, time_unit="second")
 
 
     # Build material properties
@@ -90,6 +86,7 @@ def main():
 
     # Set gravitational vector
     mat.set_gravity([0.0, 0.0, -9.81])
+    # mat.set_gravity([0.0, 0.0, 0.0])
 
     # Set elastic strain model
     E = props.E*to.ones(grid.n_elems, dtype=to.float64)
@@ -99,7 +96,6 @@ def main():
 
     # Create poroelastic strain model
     K = E/(3*(1-2*nu))
-    G = 3*K*E/(9*K - E)
     biot = 1 - cs*K
     pore_p = sf.Poroelastic(alpha=biot, K=K, name="poroelastic")
     mat.add_to_poroelastic(pore_p)
@@ -111,8 +107,8 @@ def main():
 
     # Define solver
     solver_mass = PETSc.KSP().create(grid.mesh.comm)
-    solver_mass.setType("gmres")
-    solver_mass.getPC().setType("asm")
+    solver_mass.setType("preonly")
+    solver_mass.getPC().setType("lu")
     solver_mass.setTolerances(rtol=1e-12, max_it=100)
     mass_eq.set_solver(solver_mass)
 
@@ -134,8 +130,8 @@ def main():
 
 
     ######### Define Momentum equation #########
-    # mom_eq = sf.LinearMomentumMixed(grid, 0.5)
-    mom_eq = sf.LinearMomentum(grid, 0.5)
+    # mom_eq = sf.LinearMomentumMixed(grid, 0.0)
+    mom_eq = sf.LinearMomentum(grid, 0.0)
 
     # Define solver
     mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -144,17 +140,22 @@ def main():
     mom_solver.setTolerances(rtol=1e-12, max_it=100)
     mom_eq.set_solver(mom_solver)
 
-    # Set initial temperature field
-    T0_field = 293*to.ones(mom_eq.n_elems)
-    mom_eq.set_T0(T0_field)
-    mom_eq.set_T(T0_field)
-
     # Set initial pore pressure field
     mom_eq.set_P0(mass_eq.P)
     mom_eq.set_P(mass_eq.P)
 
     # Set material
     mom_eq.set_material(mat)
+
+
+
+
+    # +-------------------------------------------------------------+
+    # |  RUN EQUILIBRIUM STAGE                                      |
+    # +-------------------------------------------------------------+
+
+    # Time settings for equilibrium stage
+    t_eq = sf.TimeController(dt=5, initial_time=0.0, final_time=5, time_unit="second")
 
     # Boundary conditions
     bc_west = momBC.DirichletBC(boundary_name = "WEST", 
@@ -219,48 +220,63 @@ def main():
     outputs = [output_mom, output_mass]
 
     # Define simulator
-    sim = sf.Simulator_HM(mom_eq, mass_eq, t_eq, outputs, compute_elastic_response=True)
+    sim = sf.Simulator_HM(
+        mom_eq,
+        mass_eq,
+        t_eq,
+        outputs,
+        compute_elastic_response=True,
+        tol=1e-5,
+        max_ite=20
+    )
     sim.run()
 
 
 
-    # ###############################################################
-    # #################### RUN OPERATIONAL STAGE ####################
-    # ###############################################################
+    # +-------------------------------------------------------------+
+    # |  RUN OPERATIONAL STAGE                                      |
+    # +-------------------------------------------------------------+
 
+    # Time settings for equilibrium stage
+    t_op = sf.TimeController(dt=0.05, initial_time=0.0, final_time=5.0, time_unit="second")
 
-    # # Time settings for equilibrium stage
-    # t_op = sf.TimeController(dt=0.05, initial_time=0.0, final_time=5.0, time_unit="second")
+    # Define boundary conditions for mass equation
+    bc_handler = massBC.BcHandler(mass_eq)
 
-    # # Define boundary conditions for mass equation
-    # bc_handler = massBC.BcHandler(mass_eq)
+    # Define boundary conditions for mass equation
+    bc_top = massBC.DirichletBC(boundary_name = "TOP", 
+                            values = [0.0, 0.0],
+                            time_values = [t_op.t_initial, t_op.t_final])
 
-    # # Define boundary conditions for mass equation
-    # bc_top = massBC.DirichletBC(boundary_name = "TOP", 
-    #                         values = [0.0, 0.0],
-    #                         time_values = [t_op.t_initial, t_op.t_final])
+    bc_handler = massBC.BcHandler(mass_eq)
+    bc_handler.add_boundary_condition(bc_top)
+    mass_eq.set_boundary_conditions(bc_handler)
 
-    # bc_handler = massBC.BcHandler(mass_eq)
-    # bc_handler.add_boundary_condition(bc_top)
-    # mass_eq.set_boundary_conditions(bc_handler)
+    # Create output handlers
+    output_mom = sf.SaveFields(mom_eq)
+    output_folder_op = os.path.join(output_folder, "operation")
+    output_mom.set_output_folder(output_folder_op)
+    output_mom.add_output_field("u", "Displacement (m)")
+    output_mom.add_output_field("sig", "Stress (Pa)")
+    output_mom.add_output_field("p_elems", "Mean stress (Pa)")
 
-    # # Create output handlers
-    # output_mom = sf.SaveFields(mom_eq)
-    # output_folder_op = os.path.join(output_folder, "operation")
-    # output_mom.set_output_folder(output_folder_op)
-    # output_mom.add_output_field("u", "Displacement (m)")
-    # output_mom.add_output_field("sig", "Stress (Pa)")
-    # output_mom.add_output_field("p_elems", "Mean stress (Pa)")
+    output_mass = sf.SaveFields(mass_eq)
+    output_mass.set_output_folder(output_folder_op)
+    output_mass.add_output_field("P", "Pressure (Pa)")
 
-    # output_mass = sf.SaveFields(mass_eq)
-    # output_mass.set_output_folder(output_folder_op)
-    # output_mass.add_output_field("P", "Pressure (Pa)")
+    outputs = [output_mom, output_mass]
 
-    # outputs = [output_mom, output_mass]
-
-    # # Define simulator
-    # sim = sf.Simulator_HM_twoway(mom_eq, mass_eq, t_op, outputs, False)
-    # sim.run()
+    # Define simulator
+    sim = sf.Simulator_HM(
+        mom_eq,
+        mass_eq,
+        t_op,
+        outputs,
+        compute_elastic_response=False,
+        tol=1e-5,
+        max_ite=20
+    )
+    sim.run()
 
 
 
