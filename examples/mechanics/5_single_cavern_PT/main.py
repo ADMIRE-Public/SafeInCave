@@ -28,7 +28,8 @@ def main():
 
     # Define momentum equation
     theta = 0.0
-    mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
+    # mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
+    mom_eq = sf.LinearMomentum(grid, theta=theta)
 
     # Define solver
     mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -43,7 +44,7 @@ def main():
     # Set material density
     salt_density = 2200
     rho = salt_density*to.ones(mom_eq.n_elems, dtype=to.float64)
-    mat.set_density(rho)
+    mat.set_solid_density(rho)
 
     # Constitutive model
     E0 = 102*GPa*to.ones(mom_eq.n_elems)
@@ -60,13 +61,18 @@ def main():
     mat.add_to_elastic(spring_0)
     mat.add_to_non_elastic(creep_0)
 
+    # Set gravitational vector
+    g = -9.81
+    g_vec = [0.0, 0.0, g]
+    mat.set_gravity(g_vec)
+
     # Set constitutive model
     mom_eq.set_material(mat)
 
-    # Set body forces
-    g = -9.81
-    g_vec = [0.0, 0.0, g]
-    mom_eq.build_body_force(g_vec)
+    # # Set body forces
+    # g = -9.81
+    # g_vec = [0.0, 0.0, g]
+    # mom_eq.build_body_force(g_vec)
 
     # Set initial temperature field
     def T_field_fun(x,y,z):
