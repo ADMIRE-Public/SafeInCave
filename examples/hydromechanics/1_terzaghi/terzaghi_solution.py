@@ -21,7 +21,7 @@ class Solution(object):
         self.rho_s = solid[solid_name]["Density"]
 
 
-        self.rho = self.rho_f * self.phi + ( 1 - self.phi) * self.rho_s;
+        self.rho = self.rho_f * self.phi + (1 - self.phi) * self.rho_s;
         self.lame1st = 2 * self.G * self.nu / ( 1 - 2 * self.nu );
         self.M = 2 * self.G + self.lame1st;
 

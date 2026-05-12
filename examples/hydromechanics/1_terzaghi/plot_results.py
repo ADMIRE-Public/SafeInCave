@@ -94,10 +94,11 @@ def main():
     props = read_json("props.json")
     solid_json = {"ROCK": props["ROCK"]}
     fluid_json = {"WATER": props["WATER"]}
+    g = props["g"]
 
     # Read analytical solution
-    terza = Solution(height=1.0, tao_0=10*kPa, solid=solid_json, fluid=fluid_json, gravity=9.81)
-    # terza = Solution(height=1.0, tao_0=10*kPa, solid=solid_json, fluid=fluid_json, gravity=0.0)
+    # terza = Solution(height=1.0, tao_0=10*kPa, solid=solid_json, fluid=fluid_json, gravity=9.81)
+    terza = Solution(height=1.0, tao_0=10*kPa, solid=solid_json, fluid=fluid_json, gravity=g)
 
     # Plot pressure schedule
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3.5))

@@ -12,5 +12,6 @@
         "Porosity": 0.48,
         "Permeability": 3.62e-12,
         "Density": 2500.0
-    }
+    },
+    "g": 15
 }

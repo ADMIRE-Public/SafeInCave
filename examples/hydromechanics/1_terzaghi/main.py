@@ -26,6 +26,8 @@ class Props():
         self.rho_s = props[solid_name]["Density"]
         self.E = 2*self.G*(1 + self.nu)
 
+        self.g = props["g"]
+
 
 class Permeability(sf.PermeabilityBase):
     def __init__(self, n_elems: int, p: do.fem.function.Function, props: Props):
@@ -64,8 +66,8 @@ def main():
     mat = sf.Material(grid.n_elems)
 
     # Set material density
-    rho_m = props.phi*props.rho_f + (1 - props.phi)*props.rho_s
-    rho = rho_m*to.ones(grid.n_elems, dtype=to.float64)
+    # rho_m = props.phi*props.rho_f + (1 - props.phi)*props.rho_s
+    rho = props.rho_s*to.ones(grid.n_elems, dtype=to.float64)
     mat.set_solid_density(rho)
 
     # Set fluid density
@@ -85,7 +87,7 @@ def main():
     mat.set_porosity(phi)
 
     # Set gravitational vector
-    mat.set_gravity([0.0, 0.0, -9.81])
+    mat.set_gravity([0.0, 0.0, -props.g])
     # mat.set_gravity([0.0, 0.0, 0.0])
 
     # Set elastic strain model
@@ -238,7 +240,7 @@ def main():
     # +-------------------------------------------------------------+
 
     # Time settings for equilibrium stage
-    t_op = sf.TimeController(dt=0.05, initial_time=0.0, final_time=5.0, time_unit="second")
+    t_op = sf.TimeController(dt=0.05, initial_time=0.0, final_time=2.0, time_unit="second")
 
     # Define boundary conditions for mass equation
     bc_handler = massBC.BcHandler(mass_eq)

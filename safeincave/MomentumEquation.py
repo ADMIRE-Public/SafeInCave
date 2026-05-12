@@ -151,6 +151,28 @@ class LinearMomentumBase(ABC):
         self.build_body_force()
         self.initialize()
 
+    def build_body_force(self) -> None:
+        """
+        Build the body-force linear form ``∫ ρ g · u_ dx``.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        Side Effects
+        ------------
+        Defines :attr:`b_body` as a UFL form for the right-hand side.
+        """
+        density = do.fem.Function(self.DG0_1)
+        density.x.array[:] = self.mat.porosity*self.mat.fluid_density + (1 - self.mat.porosity)*self.mat.solid_density
+        # density.x.array[:] = self.mat.solid_density
+        body_force = density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(self.mat.gravity)))
+        self.b_body = ufl.dot(body_force, self.u_)*self.dx
+
     def set_P(self, P_nodes: to.Tensor) -> None:
         """
         Set the current element-wise pore pressure.
@@ -292,27 +314,6 @@ class LinearMomentumBase(ABC):
         """
         n = ufl.FacetNormal(self.grid.mesh)
         self.normal = ufl.dot(n, self.u_)
-
-    def build_body_force(self) -> None:
-        """
-        Build the body-force linear form ``∫ ρ g · u_ dx``.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
-        Side Effects
-        ------------
-        Defines :attr:`b_body` as a UFL form for the right-hand side.
-        """
-        density = do.fem.Function(self.DG0_1)
-        density.x.array[:] = self.mat.porosity*self.mat.fluid_density + (1 - self.mat.porosity)*self.mat.solid_density
-        body_force = density*do.fem.Constant(self.grid.mesh, do.default_scalar_type(tuple(self.mat.gravity)))
-        self.b_body = ufl.dot(body_force, self.u_)*self.dx
 
 
     def compute_q_nodes(self) -> None:
@@ -970,6 +971,7 @@ class LinearMomentum(LinearMomentumBase):
         eps_th = self.compute_eps_th()
         eps_po = self.compute_eps_po()
         self.eps_rhs_to = eps_ne_k + eps_th + eps_po - dt*(1 - self.theta)*(self.mat.B + dotdot_torch(self.mat.G, stress_k))
+        # self.eps_rhs_to = eps_ne_k + eps_th - dt*(1 - self.theta)*(self.mat.B + dotdot_torch(self.mat.G, stress_k))
         self.eps_rhs.x.array[:] = to.flatten(self.eps_rhs_to)
 
     def solve_elastic_response(self) -> None:
