@@ -148,6 +148,12 @@ class HeatDiffusion():
         -------
         None
         """
+        bc.set_V(self.V)
+        bc.set_boudary_tags(self.grid.boundary_tags)
+        bc.set_boundary_dim(self.grid.boundary_dim)
+        bc.set_ds(self.ds)
+        bc.set_test_function(self.T_)
+        bc.set_trial_function(self.dT)
         self.bc = bc
 
     def create_trial_test_functions(self) -> None:
@@ -230,7 +236,7 @@ class HeatDiffusion():
         from the arrays stored in :attr:`mat`.
         """
         self.k.x.array[:] = self.mat.k
-        self.rho.x.array[:] = self.mat.density
+        self.rho.x.array[:] = self.mat.solid_density
         self.cp.x.array[:] = self.mat.cp
 
     def split_solution(self) -> None:

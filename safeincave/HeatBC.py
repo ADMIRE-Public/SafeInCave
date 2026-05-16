@@ -186,6 +186,24 @@ class BcHandler():
         self.neumann_boundaries = []
         self.robin_boundaries = []
 
+    def set_V(self, V):
+        self.V = V
+
+    def set_boudary_tags(self, boundary_tags):
+        self.boundary_tags = boundary_tags
+
+    def set_boundary_dim(self, boundary_dim):
+        self.boundary_dim = boundary_dim
+
+    def set_ds(self, ds):
+        self.ds = ds
+
+    def set_test_function(self, T_):
+        self.T_ = T_
+
+    def set_trial_function(self, dT):
+        self.dT = dT
+
     def reset_boundary_conditions(self) -> None:
         """
         Clear all registered boundary conditions of all types.
