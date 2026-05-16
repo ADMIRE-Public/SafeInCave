@@ -176,7 +176,10 @@ class BcHandler():
         self.boundary_dim = boundary_dim
 
     def set_boudary_tags(self, boundary_tags):
-        self.boundary_tags = boundary_tags[self.boundary_dim]
+        self.boundary_tags = boundary_tags
+
+    def set_dolfin_tags(self, dolfin_tags):
+        self.dolfin_tags = dolfin_tags
 
     def set_normal(self, normal):
         self.normal = normal
@@ -246,9 +249,6 @@ class BcHandler():
         self.dirichlet_bcs = []
         for bc in self.dirichlet_boundaries:
             value = np.interp(t, bc.time_values, bc.values)
-            print(self.boundary_tags[bc.boundary_name])
-            print(self.boundary_dim)
-            print(self.uV.sub(bc.component))
             dofs = do.fem.locate_dofs_topological(
                 self.uV.sub(bc.component),
                 self.boundary_dim,
@@ -292,7 +292,11 @@ class BcHandler():
             H = bc.ref_pos
             p = -np.interp(t, bc.time_values, bc.values)
             value_neumann = p + rho*bc.gravity*(H - self.x[i])
-            self.neumann_bcs.append(value_neumann*self.normal*self.ds(self.boundary_tags[bc.boundary_name]))
+            self.neumann_bcs.append(
+                value_neumann*self.normal*self.ds(
+                    self.dolfin_tags[self.boundary_dim][bc.boundary_name]
+                )
+            )
 
     def update_cavern_bcs(self, cavern_handler: CavernHandler):
         self.cavern_bcs = []
@@ -302,7 +306,11 @@ class BcHandler():
             H = cavern.ref_pos
             p = -cavern.P
             load = p + rho*cavern.gravity*(H - self.x[i])
-            self.cavern_bcs.append(load*self.normal*self.ds(self.boundary_tags[cavern.cavern_name]))
+            self.cavern_bcs.append(
+                load*self.normal*self.ds(
+                    self.dolfin_tags[self.boundary_dim][cavern.cavern_name]
+                )
+            )
 			
 	
 

@@ -205,7 +205,8 @@ class LinearMomentumBase(ABC):
         """
         bc.set_uV(self.get_uV())
         bc.set_boundary_dim(self.grid.boundary_dim)
-        bc.set_boudary_tags(self.grid.dolfin_tags)
+        bc.set_boudary_tags(self.grid.boundary_tags)
+        bc.set_dolfin_tags(self.grid.dolfin_tags)
         bc.set_normal(self.normal)
         bc.set_ds(self.ds)
         bc.set_spatial_coordinates(self.grid.mesh)
