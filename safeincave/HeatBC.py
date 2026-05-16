@@ -192,6 +192,9 @@ class BcHandler():
     def set_boudary_tags(self, boundary_tags):
         self.boundary_tags = boundary_tags
 
+    def set_dolfin_tags(self, dolfin_tags):
+        self.dolfin_tags = dolfin_tags
+
     def set_boundary_dim(self, boundary_dim):
         self.boundary_dim = boundary_dim
 
@@ -287,15 +290,15 @@ class BcHandler():
         for bc in self.dirichlet_boundaries:
             value = np.interp(t, bc.time_values, bc.values)
             dofs = do.fem.locate_dofs_topological(
-                self.eq.V,
-                self.eq.grid.boundary_dim,
-                self.eq.grid.get_boundary_tags(bc.boundary_name)
+                self.V,
+                self.boundary_dim,
+                self.boundary_tags[bc.boundary_name]
             )
             self.dirichlet_bcs.append(
                 do.fem.dirichletbc(
                     do.default_scalar_type(value),
                     dofs,
-                    self.eq.V
+                    self.V
                 )
             )
 
@@ -320,7 +323,11 @@ class BcHandler():
         self.neumann_bcs = []
         for bc in self.neumann_boundaries:
             value = np.interp(t, bc.time_values, bc.values)
-            self.neumann_bcs.append(value*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
+            self.neumann_bcs.append(
+                value*self.T_*self.eq.ds(
+                    self.dolfin_tags[self.boundary_dim][bc.boundary_name]
+                )
+            )
 
     def update_robin(self, t: float) -> None:
         """
@@ -348,8 +355,16 @@ class BcHandler():
         self.robin_bcs_b = []
         for bc in self.robin_boundaries:
             T_inf = np.interp(t, bc.time_values, bc.values)
-            self.robin_bcs_a.append(bc.h*self.eq.dT*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
-            self.robin_bcs_b.append(bc.h*T_inf*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(bc.boundary_name)))
+            self.robin_bcs_a.append(
+                bc.h*self.dT*self.T_*self.ds(
+                    self.dolfin_tags[self.boundary_dim][bc.boundary_name]
+                )
+            )
+            self.robin_bcs_b.append(
+                bc.h*T_inf*self.T_*self.ds(
+                    self.dolfin_tags[self.boundary_dim][bc.boundary_name]
+                )
+            )
 	
     def update_cavern_bcs(self, cavern_handler: CavernHandler):
         self.cavern_bcs_a = []
@@ -357,6 +372,13 @@ class BcHandler():
         for cavern in cavern_handler.caverns_PT + cavern_handler.caverns_MFlux + cavern_handler.caverns_T:
             T_inf = cavern.T
             h = cavern.h_conv
-            self.cavern_bcs_a.append(h*self.eq.dT*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(cavern.cavern_name)))
-            self.cavern_bcs_b.append(h*T_inf*self.eq.T_*self.eq.ds(self.eq.grid.get_boundary_tag(cavern.cavern_name)))
-            
+            self.cavern_bcs_a.append(
+                h*self.dT*self.T_*self.ds(
+                    self.dolfin_tags[self.boundary_dim][cavern.cavern_name]
+                )
+            )
+            self.cavern_bcs_b.append(
+                h*T_inf*self.T_*self.ds(
+                    self.dolfin_tags[self.boundary_dim][cavern.cavern_name]
+                )
+            )

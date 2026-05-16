@@ -53,7 +53,7 @@ def main():
 	T_top = 273 + 20
 	h_conv = 5.0
 
-	bc_handler = heatBC.BcHandler(heat_eq)
+	bc_handler = heatBC.BcHandler()
 
 	bc_top = heatBC.DirichletBC("Top", nt*[T_top], time_values)
 	bc_handler.add_boundary_condition(bc_top)

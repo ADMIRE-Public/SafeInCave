@@ -67,7 +67,7 @@ def main():
 	heat_eq.set_boundary_conditions(bc_handler)
 
 	# Set initial temperature field
-	T0_field = 293*to.ones(heat_eq.n_elems, dtype=to.float64)
+	T0_field = 293*to.ones(heat_eq.n_nodes, dtype=to.float64)
 	heat_eq.set_initial_T(T0_field)
 
 	# Create output handlers
@@ -82,7 +82,7 @@ def main():
 		sys.stdout.flush()
 
 	# Define simulator
-	sim = sf.Simulator_T(heat_eq, t_control, outputs, True)
+	sim = sf.Simulator_T(heat_eq, t_control, outputs)
 	sim.run()
 
 
