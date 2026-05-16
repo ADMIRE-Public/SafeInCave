@@ -180,8 +180,7 @@ class BcHandler():
     :func:`numpy.interp` between ``values`` and ``time_values`` stored in each
     boundary-condition object.
     """
-    def __init__(self, equation: HeatDiffusion):
-        self.eq = equation
+    def __init__(self):
         self.dirichlet_boundaries = []
         self.neumann_boundaries = []
         self.robin_boundaries = []
@@ -324,7 +323,7 @@ class BcHandler():
         for bc in self.neumann_boundaries:
             value = np.interp(t, bc.time_values, bc.values)
             self.neumann_bcs.append(
-                value*self.T_*self.eq.ds(
+                value*self.T_*self.ds(
                     self.dolfin_tags[self.boundary_dim][bc.boundary_name]
                 )
             )
