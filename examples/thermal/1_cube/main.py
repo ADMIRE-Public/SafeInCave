@@ -59,7 +59,7 @@ def main():
 							h = 5.0,
 							time_values = [t_control.t_initial, t_control.t_final])
 
-	bc_handler = heatBC.BcHandler(heat_eq)
+	bc_handler = heatBC.BcHandler()
 	bc_handler.add_boundary_condition(bc_east)
 	bc_handler.add_boundary_condition(bc_west)
 

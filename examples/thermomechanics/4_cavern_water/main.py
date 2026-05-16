@@ -120,7 +120,7 @@ def main():
     nt = len(time_values)
 
     # Boundary conditions for momentum balance equation
-    bc_mom = momBC.BcHandler(mom_eq)
+    bc_mom = momBC.BcHandler()
 
     # Apply Dirichlet boundary conditions
     boundaries = [("West", 0),
@@ -151,7 +151,7 @@ def main():
     heat_eq.set_initial_T(T0_field_nodes)
 
     # Boundary conditions for heat diffusion equation
-    bc_heat = heatBC.BcHandler(heat_eq)
+    bc_heat = heatBC.BcHandler()
 
     bc_top = heatBC.DirichletBC("Top", nt*[T_top], time_values)
     bc_bottom = heatBC.NeumannBC("Bottom", nt*[dTdZ], time_values)
@@ -209,8 +209,14 @@ def main():
     outputs = [output_mom, output_heat]
 
     # Define simulator
-    sim = sf.Simulator_Full(mom_eq, heat_eq, time_ctrl, outputs, cavern_handler, True)
-    # sim = sf.Simulator_M(mom_eq, time_ctrl, outputs, cavern_handler, True)
+    sim = sf.Simulator_Full(
+        eq_mom=mom_eq,
+        eq_heat=heat_eq,
+        t_control=time_ctrl,
+        outputs=outputs,
+        caverns=cavern_handler,
+        compute_elastic_response=True
+    )
     sim.run()
 
 

@@ -87,7 +87,7 @@ def main_1():
     fig.subplots_adjust(top=0.935, bottom=0.155, left=0.119, right=0.980, hspace=0.35, wspace=0.38)
     fig.patch.set_alpha(0.0)
 
-    file_path = os.path.join("output", "case_1", "cavern_data.json")
+    file_path = os.path.join("output", "case_0", "cavern_data.json")
     plot_cavern_data(axis, file_path, color="forestgreen", label="Methane")
 
     apply_grey_theme(fig, axis.flatten(), transparent=True)

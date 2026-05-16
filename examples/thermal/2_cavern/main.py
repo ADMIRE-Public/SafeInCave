@@ -13,8 +13,20 @@ def main():
 	# Define output folder
 	output_folder = os.path.join("output", "case_0")
 
-	# Time settings for equilibrium stage
-	t_control = sf.TimeControllerParabolic(n_time_steps=100, initial_time=0, final_time=5, time_unit="year")
+	# Build material properties
+	mat = sf.Material(grid.n_elems)
+
+	# Set material density
+	rho = 2000.0*to.ones(grid.n_elems, dtype=to.float64)
+	mat.set_density(rho)
+
+	# Set specific heat capacity
+	cp = 850*to.ones(grid.n_elems, dtype=to.float64)
+	mat.set_specific_heat_capacity(cp)
+
+	# Set thermal conductivity
+	k = 7*to.ones(grid.n_elems, dtype=to.float64)
+	mat.set_thermal_conductivity(k)
 
 	# Define equation
 	heat_eq = sf.HeatDiffusion(grid)
@@ -26,23 +38,11 @@ def main():
 	solver_heat.setTolerances(rtol=1e-12, max_it=100)
 	heat_eq.set_solver(solver_heat)
 
-	# Build material properties
-	mat = sf.Material(heat_eq.n_elems)
-
-	# Set material density
-	rho = 2000.0*to.ones(heat_eq.n_elems, dtype=to.float64)
-	mat.set_density(rho)
-
-	# Set specific heat capacity
-	cp = 850*to.ones(heat_eq.n_elems, dtype=to.float64)
-	mat.set_specific_heat_capacity(cp)
-
-	# Set thermal conductivity
-	k = 7*to.ones(heat_eq.n_elems, dtype=to.float64)
-	mat.set_thermal_conductivity(k)
-
 	# Set material properties to heat_equation
 	heat_eq.set_material(mat)
+
+	# Time settings for equilibrium stage
+	t_control = sf.TimeControllerParabolic(n_time_steps=100, initial_time=0, final_time=5, time_unit="year")
 
 	# Define boundary conditions for heat diffusion
 	time_values = [t_control.t_initial, t_control.t_final]
@@ -108,7 +108,7 @@ def main():
 	outputs = [output_heat]
 
 	# Define simulator
-	sim = sf.Simulator_T(heat_eq, t_control, outputs, True)
+	sim = sf.Simulator_T(heat_eq, t_control, outputs)
 	sim.run()
 
 

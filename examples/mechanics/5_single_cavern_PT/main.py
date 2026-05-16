@@ -79,13 +79,15 @@ def main():
     mom_eq.set_T(T0_field)
 
     # Time settings for equilibrium stage
-    tc_eq = sf.TimeControllerParabolic(n_time_steps=100,
-                                        initial_time=0.0,
-                                        final_time=365,
-                                        time_unit="day")
+    tc_eq = sf.TimeControllerParabolic(
+        n_time_steps=100,
+        initial_time=0.0,
+        final_time=365,
+        time_unit="day"
+    )
 
     # Boundary conditions
-    bc_equilibrium = momBC.BcHandler(mom_eq)
+    bc_equilibrium = momBC.BcHandler()
 
     # Apply Dirichlet boundary conditions
     boundaries = [("West", 0),
@@ -94,7 +96,12 @@ def main():
                     ("North", 1),
                     ("Bottom", 2)]
     for b_name, component in boundaries:
-        bc = momBC.DirichletBC(boundary_name=b_name, component=component, values=[0.0, 0.0], time_values=[0.0, tc_eq.t_final])
+        bc = momBC.DirichletBC(
+            boundary_name=b_name,
+            component=component,
+            values=[0.0, 0.0],
+            time_values=[0.0, tc_eq.t_final]
+        )
         bc_equilibrium.add_boundary_condition(bc)
 
     # Apply overburden
