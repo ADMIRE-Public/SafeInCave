@@ -19,13 +19,13 @@ def get_geometry_parameters(path_to_grid):
 	return ovb_thickness, salt_thickness, hanging_wall
 
 
-def run(formulation):
+def main():
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_overburden_coarse")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0", f"{formulation}")
+	output_folder = os.path.join("output", "case_0")
 
 	# Extract region indices
 	ind_salt = grid.region_indices["Salt"]
@@ -33,12 +33,7 @@ def run(formulation):
 
 	# Define momentum equation
 	theta = 0.0
-	if formulation == "P1":
-		mom_eq = sf.LinearMomentum(grid, theta=theta)
-	elif formulation == "P1P1":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=0.0)
-	elif formulation == "P1P1_Stab":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
+	mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -174,7 +169,7 @@ def run(formulation):
 						time_values = [0*day,  tc_eq.t_final],
 						g = g_vec[2])
 
-	bc_equilibrium = momBC.BcHandler(mom_eq)
+	bc_equilibrium = momBC.BcHandler()
 	bc_equilibrium.add_boundary_condition(bc_west_salt)
 	bc_equilibrium.add_boundary_condition(bc_west_ovb)
 	bc_equilibrium.add_boundary_condition(bc_east_salt)
@@ -208,7 +203,12 @@ def run(formulation):
 	outputs = [output_mom]
 
 	# Define simulator
-	sim = sf.Simulator_M(mom_eq, tc_eq, outputs, True)
+	sim = sf.Simulator_M(
+		eq_mom = mom_eq,
+		t_control = tc_eq, 
+		outputs = outputs,
+		compute_elastic_response = True
+	)
 	sim.run()
 
 
@@ -248,7 +248,7 @@ def run(formulation):
 	time_values = [tc_op.t_initial, tc_op.t_final]
 	nt = len(time_values)
 
-	bc_handler = heatBC.BcHandler(heat_eq)
+	bc_handler = heatBC.BcHandler()
 
 	bc_top = heatBC.DirichletBC("Top", nt*[T_top], time_values)
 	bc_bottom = heatBC.NeumannBC("Bottom", nt*[dTdZ], time_values)
@@ -314,7 +314,7 @@ def run(formulation):
 						g = g_vec[2])
 
 
-	bc_operation = momBC.BcHandler(mom_eq)
+	bc_operation = momBC.BcHandler()
 	bc_operation.add_boundary_condition(bc_west_salt)
 	bc_operation.add_boundary_condition(bc_west_ovb)
 	bc_operation.add_boundary_condition(bc_east_salt)
@@ -352,14 +352,14 @@ def run(formulation):
 	outputs = [output_mom, output_heat]
 
 	# Define simulator
-	sim = sf.Simulator_TM(mom_eq, heat_eq, tc_op, outputs, False)
+	sim = sf.Simulator_TM(
+		eq_mom = mom_eq,
+		eq_heat = heat_eq,
+		t_control = tc_op,
+		outputs = outputs,
+		compute_elastic_response = False
+	)
 	sim.run()
-
-
-def main():
-	run("P1")
-	run("P1P1")
-	run("P1P1_Stab")
 
 
 if __name__ == '__main__':

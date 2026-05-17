@@ -131,7 +131,7 @@ def run(formulation):
 						time_values = [0.0,           t_control.t_final],
 						g = g_vec[2])
 
-	bc_handler = momBC.BcHandler(mom_eq)
+	bc_handler = momBC.BcHandler()
 	bc_handler.add_boundary_condition(bc_west)
 	bc_handler.add_boundary_condition(bc_bottom)
 	bc_handler.add_boundary_condition(bc_south)

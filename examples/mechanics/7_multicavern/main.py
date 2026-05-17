@@ -85,7 +85,7 @@ def main():
     tc = sf.TimeController(dt=dt, initial_time=t_0, final_time=t_final, time_unit="day")
 
     # Boundary conditions
-    bc_equilibrium = momBC.BcHandler(mom_eq)
+    bc_equilibrium = momBC.BcHandler()
 
     # Apply Dirichlet boundary conditions
     boundaries = [("West", 0), ("East", 0), ("South", 1), ("North", 1), ("Bottom", 2)]

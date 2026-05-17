@@ -17,23 +17,18 @@ def get_geometry_parameters(path_to_grid):
 
 
 
-def run(formulation):
+def main():
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_overburden_coarse")
 	# grid_path = os.path.join("..", "..", "grids", "cavern_overburden")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0", f"{formulation}")
+	output_folder = os.path.join("output", "case_0")
 
 	# Define momentum equation
 	theta = 0.0
-	if formulation == "P1":
-		mom_eq = sf.LinearMomentum(grid, theta=theta)
-	elif formulation == "P1P1":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=0.0)
-	elif formulation == "P1P1_Stab":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
+	mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -109,7 +104,7 @@ def run(formulation):
 										time_unit="day")
 
 	# Boundary conditions
-	bc_equilibrium = momBC.BcHandler(mom_eq)
+	bc_equilibrium = momBC.BcHandler()
 
 	# Apply Dirichlet boundary conditions
 	boundaries = [("West_salt", 0),
@@ -173,7 +168,7 @@ def run(formulation):
 	tc_op = sf.TimeController(dt=2, initial_time=0.0, final_time=240, time_unit="hour")
 
 	# Boundary conditions
-	bc_operation = momBC.BcHandler(mom_eq)
+	bc_operation = momBC.BcHandler()
 
 	# Dirichlet boundary conditions
 	boundaries = [("West_salt", 0), ("West_ovb", 0), ("East_salt", 0), ("East_ovb", 0), 
@@ -211,11 +206,6 @@ def run(formulation):
 	sim = sf.Simulator_M(mom_eq, tc_op, outputs, compute_elastic_response=False)
 	sim.run()
 
-
-def main():
-	run("P1")
-	# run("P1P1")
-	# run("P1P1_Stab")
 
 if __name__ == '__main__':
 	main()

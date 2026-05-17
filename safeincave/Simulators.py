@@ -771,13 +771,19 @@ class Simulator_T(Simulator):
     t_control : TimeControllerBase
     outputs : list[SaveFields]
     """
-	def __init__(self, eq_heat: HeatDiffusion,
-					   t_control: TimeControllerBase,
-					   outputs: list[SaveFields],
-					   compute_elastic_response: bool=True):
+	def __init__(
+		self, eq_heat: HeatDiffusion,
+		t_control: TimeControllerBase,
+		outputs: list[SaveFields],
+		caverns: CavernHandler | None = None
+	):
 		self.eq_heat = eq_heat
 		self.t_control = t_control
 		self.outputs = outputs
+		self.caverns = caverns
+		
+		if caverns == None:
+			self.caverns = CavernHandler()
 
 		ScreenPrinter.reset_instance()
 		self.screen = ScreenPrinter(self.eq_heat.grid, self.eq_heat.solver, self.eq_heat.mat, self.outputs, t_control.time_unit)
@@ -820,6 +826,7 @@ class Simulator_T(Simulator):
 
 			# Update boundary conditions
 			self.eq_heat.bc.update_bcs(t)
+			self.eq_heat.bc.update_cavern_bcs(self.caverns)
 
 			# Solve heat
 			self.eq_heat.solve(t, dt)
