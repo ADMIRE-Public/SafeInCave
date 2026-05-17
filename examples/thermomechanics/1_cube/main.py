@@ -10,13 +10,13 @@ import sys
 
 
 
-def run(formulation):
+def main():
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cube_regions")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0", f"{formulation}")
+	output_folder = os.path.join("output", "case_0")
 
 	# Time settings for equilibrium stage
 	t_control = sf.TimeControllerParabolic(n_time_steps=100, initial_time=0.0, final_time=10, time_unit="day")
@@ -57,7 +57,7 @@ def run(formulation):
 							values = nt*[273 + 1.0],
 							time_values = time_values)
 
-	bc_handler = heatBC.BcHandler(heat_eq)
+	bc_handler = heatBC.BcHandler()
 	bc_handler.add_boundary_condition(bc_east)
 	heat_eq.set_boundary_conditions(bc_handler)
 
@@ -70,12 +70,7 @@ def run(formulation):
 
 	# Define momentum equation
 	theta = 0.5
-	if formulation == "P1":
-		mom_eq = sf.LinearMomentum(grid, theta=theta)
-	elif formulation == "P1P1":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=0.0)
-	elif formulation == "P1P1_Stab":
-		mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
+	mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -133,7 +128,7 @@ def run(formulation):
 					 	  values = nt*[0.0],
 					 	  time_values = time_values)
 
-	bc_handler = momBC.BcHandler(mom_eq)
+	bc_handler = momBC.BcHandler()
 	bc_handler.add_boundary_condition(bc_west_0)
 	bc_handler.add_boundary_condition(bc_west_1)
 	bc_handler.add_boundary_condition(bc_west_2)
@@ -164,14 +159,14 @@ def run(formulation):
 		sys.stdout.flush()
 
 	# Define simulator
-	sim = sf.Simulator_TM(mom_eq, heat_eq, t_control, outputs, True)
+	sim = sf.Simulator_Full(
+		eq_mom = mom_eq,
+		eq_heat = heat_eq,
+		t_control = t_control,
+		outputs = outputs,
+		compute_elastic_response = True
+	)
 	sim.run()
-
-
-def main():
-	run("P1")
-	run("P1P1")
-	run("P1P1_Stab")
 
 
 

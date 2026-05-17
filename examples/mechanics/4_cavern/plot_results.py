@@ -335,10 +335,11 @@ def dashboard(output_folder):
 
 def main():
 	# Specify folder to load the results from
-	output_folder = os.path.join("output", "case_0", "P1", "operation")
-	# output_folder = os.path.join("output", "case_0", "P1P1", "operation")
-	# output_folder = os.path.join("output", "case_0", "P1P1_Stab", "operation")
-	# output_folder = os.path.join("output", "case_gui", "operation")
+	# output_folder = os.path.join("output", "case_0", "operation")
+	output_folder = os.path.join("output", "P1P1_Stab", "cave_Dirichlet", "Hydrogen", "equilibrium")
+	output_folder = os.path.join("output", "P1P1_Stab", "cave_Dirichlet", "Methane", "equilibrium")
+	output_folder = os.path.join("output", "case_0", "P1P1_Stab", "equilibrium")
+	output_folder = os.path.join("output", "case_0", "P1", "equilibrium")
 
 	# Plot results                        
 	dashboard(output_folder)

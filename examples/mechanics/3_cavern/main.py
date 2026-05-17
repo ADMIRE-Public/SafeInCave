@@ -44,22 +44,17 @@ class LinearMomentumMixedMod(sf.LinearMomentumMixed):
 
 
 
-def run(formulation):
+def main():
 	# Read grid
 	grid_path = os.path.join("..", "..", "..", "grids", "cavern_irregular")
 	grid = sf.GridHandlerGMSH("geom", grid_path)
 
 	# Define output folder
-	output_folder = os.path.join("output", "case_0", f"{formulation}")
+	output_folder = os.path.join("output", "case_0")
 
 	# Define momentum equation
 	theta = 0.5
-	if formulation == "P1":
-		mom_eq = LinearMomentumMod(grid, theta=theta)
-	elif formulation == "P1P1":
-		mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=0.0)
-	elif formulation == "P1P1_Stab":
-		mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=1.0)
+	mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=1.0)
 
 	# Define solver
 	mom_solver = PETSc.KSP().create(grid.mesh.comm)
@@ -69,28 +64,28 @@ def run(formulation):
 	mom_eq.set_solver(mom_solver)
 
 	# Define material properties
-	mat = sf.Material(mom_eq.n_elems)
+	mat = sf.Material(grid.n_elems)
 
 	# Set material density
 	salt_density = 2000
-	rho = salt_density*to.ones(mom_eq.n_elems, dtype=to.float64)
+	rho = salt_density*to.ones(grid.n_elems, dtype=to.float64)
 	mat.set_density(rho)
 
 	# Constitutive model
-	E0 = 102*ut.GPa*to.ones(mom_eq.n_elems)
-	nu0 = 0.3*to.ones(mom_eq.n_elems)
+	E0 = 102*ut.GPa*to.ones(grid.n_elems)
+	nu0 = 0.3*to.ones(grid.n_elems)
 	spring_0 = sf.Spring(E0, nu0, "spring")
 
 	# Create Kelvin-Voigt viscoelastic element
-	eta = 105e11*to.ones(mom_eq.n_elems)
-	E1 = 10*ut.GPa*to.ones(mom_eq.n_elems)
-	nu1 = 0.32*to.ones(mom_eq.n_elems)
+	eta = 105e11*to.ones(grid.n_elems)
+	E1 = 10*ut.GPa*to.ones(grid.n_elems)
+	nu1 = 0.32*to.ones(grid.n_elems)
 	kelvin = sf.Viscoelastic(eta, E1, nu1, "kelvin")
 
 	# Create creep
-	A = 1.9e-20*to.ones(mom_eq.n_elems)
-	Q = 51600*to.ones(mom_eq.n_elems)
-	n = 3.0*to.ones(mom_eq.n_elems)
+	A = 1.9e-20*to.ones(grid.n_elems)
+	Q = 51600*to.ones(grid.n_elems)
+	n = 3.0*to.ones(grid.n_elems)
 	creep_0 = sf.DislocationCreep(A, Q, n, "creep")
 
 	# Create constitutive model
@@ -171,7 +166,7 @@ def run(formulation):
 						time_values = [0.0,            tc_equilibrium.t_final],
 						g = g_vec[2])
 
-	bc_equilibrium = momBC.BcHandler(mom_eq)
+	bc_equilibrium = momBC.BcHandler()
 	bc_equilibrium.add_boundary_condition(bc_west)
 	bc_equilibrium.add_boundary_condition(bc_bottom)
 	bc_equilibrium.add_boundary_condition(bc_south)
@@ -280,7 +275,7 @@ def run(formulation):
 						time_values = [0.0, 2.0*ut.hour, 14*ut.hour, 16*ut.hour, 24*ut.hour],
 						g = g_vec[2])
 
-	bc_operation = momBC.BcHandler(mom_eq)
+	bc_operation = momBC.BcHandler()
 	bc_operation.add_boundary_condition(bc_west)
 	bc_operation.add_boundary_condition(bc_bottom)
 	bc_operation.add_boundary_condition(bc_south)
@@ -315,11 +310,6 @@ def run(formulation):
 	sim = sf.Simulator_M(mom_eq, tc_operation, outputs, compute_elastic_response=False)
 	sim.run()
 
-
-def main():
-	# run("P1")
-	# run("P1P1")
-	run("P1P1_Stab")
 
 if __name__ == '__main__':
 	main()

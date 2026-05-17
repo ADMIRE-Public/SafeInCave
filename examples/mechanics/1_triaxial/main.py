@@ -163,7 +163,7 @@ def run(formulation):
 						time_values = [0*ut.hour,  2*ut.hour, 14*ut.hour, 16*ut.hour, 24*ut.hour],
 						g = g_vec[2])
 
-	bc_handler = momBC.BcHandler(mom_eq)
+	bc_handler = momBC.BcHandler()
 	bc_handler.add_boundary_condition(bc_west)
 	bc_handler.add_boundary_condition(bc_bottom)
 	bc_handler.add_boundary_condition(bc_south)

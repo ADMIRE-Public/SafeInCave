@@ -21,7 +21,7 @@ def main():
 
 
     # Define momentum equation
-    mom_eq = sf.LinearMomentumMixed(grid, theta=1.0, stab_scaling=1.0)
+    mom_eq = sf.LinearMomentumMixed(grid, theta=0.0, stab_scaling=1.0)
     mom_solver = PETSc.KSP().create(grid.mesh.comm)
     mom_solver.setType("gmres")
     mom_solver.getPC().setType("asm")
@@ -109,7 +109,7 @@ def main():
     nt = len(time_values)
 
     # Boundary conditions for momemtum equation
-    bc_mom = momBC.BcHandler(mom_eq)
+    bc_mom = momBC.BcHandler()
 
     # Apply Dirichlet boundary conditions
     boundaries = [("West", 0), ("East", 0), ("South", 1), ("North", 1), ("Bottom", 2)]
@@ -145,7 +145,7 @@ def main():
 
 
     # Boundary conditions for heat diffusion equation
-    bc_heat = heatBC.BcHandler(heat_eq)
+    bc_heat = heatBC.BcHandler()
     bc_top = heatBC.DirichletBC("Top",      [T_top, T_top], time_values)
     bc_bottom = heatBC.NeumannBC("Bottom",  [dTdZ, dTdZ],   time_values)
     bc_west = heatBC.NeumannBC("West",      [0.0, 0.0],     time_values)
@@ -242,7 +242,14 @@ def main():
     outputs = [output_mom, output_heat]
 
     # Define simulator
-    sim = sf.Simulator_Full(mom_eq, heat_eq, time_ctrl, outputs, cavern_handler, True)
+    sim = sf.Simulator_Full(
+        eq_mom = mom_eq,
+        eq_heat = heat_eq,
+        t_control = time_ctrl,
+        outputs = outputs,
+        caverns = cavern_handler,
+        compute_elastic_response = True
+    )
     sim.run()
 
 
