@@ -111,7 +111,7 @@ Finally, substituting Eq. $\eqref{eq:tilde_sigma_1}$ into Eq. $\eqref{eq:stress_
 
 $$
 \begin{equation}
-    \pmb{\sigma} = \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}}_0 + \tilde{\pmb{\varepsilon}} + \frac{1}{2G} p \mathbf{I} - \tilde{\pmb{\varepsilon}}_\text{rhs}^k \right)
+    \pmb{\sigma} = \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}} + \tilde{\pmb{\varepsilon}}_0 + \frac{1}{2G} p \mathbf{I} - \tilde{\pmb{\varepsilon}}_\text{rhs}^k \right)
     \label{eq:stress_linearized}
 \end{equation}
 $$
@@ -227,4 +227,4 @@ $$
 and the unknowns are $\mathbf{u}$ and $p$.
 
 ## References
-- [1] Honório, H.T., Franceschini, A., Ferronaro, M., Hajibeygi, H. *Salt cavern simulations with a stabilized mixed finite element formulation for low-order tetrahedral elements*. Computational Methods in Applied Mechanics and Engineering, (under review), 2026.
+- [1] Honório, H.T., Franceschini, A., Ferronaro, M., Hajibeygi, H. *Salt cavern simulations with a stabilized mixed finite element formulation for low-order tetrahedral elements*. Computational Methods in Applied Mechanics and Engineering, 2026.

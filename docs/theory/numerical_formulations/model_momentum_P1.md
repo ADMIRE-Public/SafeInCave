@@ -105,7 +105,7 @@ $$
 In this manner, the stress tensor can be expressed as
 
 $$
-\pmb{\sigma} = \mathbb{C}_T^k : \left( \pmb{\varepsilon}_0 + \pmb{\varepsilon} - \pmb{\varepsilon}_{th} - \pmb{\varepsilon}^k_\text{rhs} \right).
+\pmb{\sigma} = \mathbb{C}_T^k : \left( \pmb{\varepsilon} + \pmb{\varepsilon}_0 - \pmb{\varepsilon}_{th} - \pmb{\varepsilon}^k_\text{rhs} \right).
 \label{eq:stress_4}
 $$
 

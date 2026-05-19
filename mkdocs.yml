@@ -83,7 +83,8 @@ nav:
           - Introduction: theory/constitutive_models/intro.md
           - TUD model: theory/constitutive_models/TUD.md
           - Munson-Dawson: theory/constitutive_models/MD.md
-          - Gunther-Salzer: theory/constitutive_models/GS.md
+        #   - Cam-Clay model: theory/constitutive_models/CC.md
+        #   - Gunther-Salzer: theory/constitutive_models/GS.md
       
       - Numerical formulations:
           - Heat diffusion: theory/numerical_formulations/model_heat.md
@@ -92,12 +93,11 @@ nav:
 
 
   - Implementation:
-      - Intro: implementation/intro.md
+      - Overview: implementation/intro.md
       - Simulators:
           - Simulator T: implementation/simulators/simulator_T.md
           - Simulator M: implementation/simulators/simulator_M.md
           - Simulator TM: implementation/simulators/simulator_TM.md
-          - Simulator Full: implementation/simulators/simulator_full.md
       - Material: implementation/material/index.md
       - Boundary conditions:
           - Heat diffusion: implementation/boundary_conditions/heat_diffusion.md
