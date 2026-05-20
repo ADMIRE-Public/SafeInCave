@@ -7,7 +7,7 @@ In SafeInCave, the user needs to combine different objects to setup a simulation
 - and at least one *Equation* object.
 
 
-![Basic representation of SafeInCave objects.](../../../images/objects_basic.svg){#basic-objects width="110%"}
+![Basic representation of SafeInCave objects.](../images/objects_basic.svg){#basic-objects width="110%"}
 
 ## *Equation* object
 This is the governing equation of the problem. Currently, it can be the momentum equation, for mechanics simulations, or the heat diffusion equation, for thermal simulations. To build an *Equation* object, three other objects are necessary:

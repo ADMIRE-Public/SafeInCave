@@ -40,6 +40,10 @@ theme:
 repo_name: SafeInCave
 repo_url: https://github.com/ADMIRE-Public/SafeInCave
 
+# Documentation
+site_name: SafeInCave Documentation
+site_url: https://ADMIRE-Public.github.io/SafeInCave/
+
 markdown_extensions:
   - attr_list
   - admonition

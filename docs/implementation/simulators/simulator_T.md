@@ -14,5 +14,5 @@ If the cavern operates under prescribed $T$, then the problem is linear. This is
 If the cavern operates under prescribed mass flow rate, then the fluid temperature $T_1$ is calculated from the thermodynamic model, which makes the problem to be non-linear and fully coupled with the thermodynamic model. This coupling is shown in [](#fig-simulator-T).
 
 
-![Coupling scheme for the mechanical simulator.](../../../images/simulator_T.svg){#fig-simulator-T .wide-figure style="width: min(700px, 95vw);"}
+![Coupling scheme for the mechanical simulator.](../../images/simulator_T.svg){#fig-simulator-T .wide-figure style="width: min(700px, 95vw);"}
 
