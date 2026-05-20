@@ -1,0 +1,4040 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ADMIRE-Public.github.io/SafeInCave/examples/mechanics/4_cavern/">
+      
+      
+        <link rel="prev" href="../3_cavern/">
+      
+      
+        <link rel="next" href="../5_single_cavern_PT/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../images/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>4 - Single cavern operation - SafeInCave Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#example-4-single-cavern-with-operation-stage" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="SafeInCave Documentation" class="md-header__button md-logo" aria-label="SafeInCave Documentation" data-md-component="logo">
+      
+  <img src="../../../images/logo_2.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SafeInCave Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              4 - Single cavern operation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ADMIRE-Public/SafeInCave" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SafeInCave
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../.." class="md-tabs__link">
+          
+  
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../theory/governing_equations/intro/" class="md-tabs__link">
+          
+  
+  
+  Theory
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../implementation/intro/" class="md-tabs__link">
+          
+  
+  
+  Implementation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../1_triaxial/" class="md-tabs__link">
+          
+  
+  
+  Examples
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../publications/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Publications
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../api/api/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  API Reference
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="SafeInCave Documentation" class="md-nav__button md-logo" aria-label="SafeInCave Documentation" data-md-component="logo">
+      
+  <img src="../../../images/logo_2.png" alt="logo">
+
+    </a>
+    SafeInCave Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ADMIRE-Public/SafeInCave" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SafeInCave
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Welcome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contribution Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../CHANGELOG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Theory
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Theory
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Governing equations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Governing equations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/governing_equations/intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/governing_equations/heat_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Heat Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/governing_equations/mechanics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/governing_equations/thermodynamics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thermodynamics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constitutive models
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Constitutive models
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/constitutive_models/intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/constitutive_models/TUD/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TUD model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/constitutive_models/MD/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Munson-Dawson
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Numerical formulations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Numerical formulations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/numerical_formulations/model_heat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Heat diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/numerical_formulations/model_momentum_P1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Momentum P1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../theory/numerical_formulations/model_momentum_P1P1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Momentum P1-P1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Implementation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulators
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simulators
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/simulators/simulator_T/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulator T
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/simulators/simulator_M/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulator M
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/simulators/simulator_TM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulator TM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/material/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Material
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boundary conditions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Boundary conditions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/boundary_conditions/heat_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Heat diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/boundary_conditions/mechanics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Equations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Equations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/equations/heat_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Heat diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/equations/mechanics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/time_controllers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time controllers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/solvers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solvers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../implementation/outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mechanics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Mechanics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1_triaxial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1 - Triaxial Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2_cube_regions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2 - Different regions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../3_cavern/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3 - Single cavern
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4 - Single cavern operation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4 - Single cavern operation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Introduction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#problem-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem description
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Problem description">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#block-1-imports-and-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 1: Imports and dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-2-function-get_geometry_parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 2: Function get_geometry_parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-3-read-grid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 3: Read grid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-4-define-output-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 4: Define output folder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-5-define-momentum-equation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 5: Define momentum equation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-6-define-solver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 6: Define solver
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-7-define-material-properties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 7: Define material properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-8-extract-region-indices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 8: Extract region indices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-9-set-material-density" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 9: Set material density
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-10-constitutive-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 10: Constitutive model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-11-create-kelvin-voigt-viscoelastic-element" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 11: Create Kelvin-Voigt viscoelastic element
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-12-create-creep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 12: Create creep
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-13-create-constitutive-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 13: Create constitutive model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-14-set-constitutive-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 14: Set constitutive model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-15-set-body-forces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 15: Set body forces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-16-set-initial-temperature-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 16: Set initial temperature field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-17-time-settings-for-equilibrium-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 17: Time settings for equilibrium stage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-18-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 18: Boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-19-apply-dirichlet-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 19: Apply Dirichlet boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-20-extract-geometry-dimensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 20: Extract geometry dimensions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-21-calculate-lithostatic-pressure-at-the-caverns-roof" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 21: Calculate lithostatic pressure at the cavern's roof
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-22-impose-loading-condition-on-the-cavern-walls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 22: Impose loading condition on the cavern walls
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-23-set-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 23: Set boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-24-equilibrium-output-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 24: Equilibrium output folder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-25-create-output-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 25: Create output handlers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-26-define-simulator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 26: Define simulator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-27-time-settings-for-operation-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 27: Time settings for operation stage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-28-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 28: Boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-29-dirichlet-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 29: Dirichlet boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-30-impose-loading-condition-on-the-cavern-walls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 30: Impose loading condition on the cavern walls
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-31-set-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 31: Set boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-32-define-output-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 32: Define output folder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-33-create-output-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 33: Create output handlers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-34-define-simulator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 34: Define simulator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-35-runp1p1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 35: run("P1P1")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-36-script-entry-point" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 36: Script entry point
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main Functions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conclusion
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../5_single_cavern_PT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5 - Single cavern PT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../6_single_cavern_MFlux/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6 - Single cavern mass flux
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../7_multicavern/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7 - Multicavern
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../8_settlement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8 - Settlement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thermal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Thermal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermal/1_cube/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1 - Cube
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermal/2_cavern/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2 - Cavern
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thermodynamics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Thermodynamics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermodynamics/1_adiabatic_volumetric_variation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1 - Adiabatic volumetric variation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermodynamics/2_isochoric_heat_exchange/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2 - Isochoric heat exchange
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermodynamics/3_mass_exchange/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3 - Mass exchange
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thermomechanics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Thermomechanics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermomechanics/1_cube/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1 - Cube
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermomechanics/2_cavern/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2 - Single cavern
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermomechanics/3_cavern_PT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3 - Cavern PT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermomechanics/4_cavern_water/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4 - Cavern water
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermomechanics/5_cavern_methane/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5 - Cavern methane
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermomechanics/6_cavern_hydrogen/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6 - Cavern hydrogen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thermomechanics/7_multicavern/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7 - Multicavern
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../publications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Publications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Introduction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#problem-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem description
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Problem description">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#block-1-imports-and-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 1: Imports and dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-2-function-get_geometry_parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 2: Function get_geometry_parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-3-read-grid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 3: Read grid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-4-define-output-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 4: Define output folder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-5-define-momentum-equation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 5: Define momentum equation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-6-define-solver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 6: Define solver
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-7-define-material-properties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 7: Define material properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-8-extract-region-indices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 8: Extract region indices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-9-set-material-density" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 9: Set material density
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-10-constitutive-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 10: Constitutive model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-11-create-kelvin-voigt-viscoelastic-element" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 11: Create Kelvin-Voigt viscoelastic element
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-12-create-creep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 12: Create creep
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-13-create-constitutive-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 13: Create constitutive model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-14-set-constitutive-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 14: Set constitutive model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-15-set-body-forces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 15: Set body forces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-16-set-initial-temperature-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 16: Set initial temperature field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-17-time-settings-for-equilibrium-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 17: Time settings for equilibrium stage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-18-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 18: Boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-19-apply-dirichlet-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 19: Apply Dirichlet boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-20-extract-geometry-dimensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 20: Extract geometry dimensions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-21-calculate-lithostatic-pressure-at-the-caverns-roof" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 21: Calculate lithostatic pressure at the cavern's roof
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-22-impose-loading-condition-on-the-cavern-walls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 22: Impose loading condition on the cavern walls
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-23-set-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 23: Set boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-24-equilibrium-output-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 24: Equilibrium output folder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-25-create-output-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 25: Create output handlers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-26-define-simulator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 26: Define simulator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-27-time-settings-for-operation-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 27: Time settings for operation stage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-28-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 28: Boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-29-dirichlet-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 29: Dirichlet boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-30-impose-loading-condition-on-the-cavern-walls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 30: Impose loading condition on the cavern walls
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-31-set-boundary-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 31: Set boundary conditions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-32-define-output-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 32: Define output folder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-33-create-output-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 33: Create output handlers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-34-define-simulator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 34: Define simulator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-35-runp1p1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 35: run("P1P1")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block-36-script-entry-point" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block 36: Script entry point
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main Functions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conclusion
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+      
+        
+  
+  
+    
+    
+      
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../1_triaxial/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Examples
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../1_triaxial/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Mechanics
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="example-4-single-cavern-with-operation-stage">Example 4: Single Cavern With Operation Stage</h1>
+<h2 id="introduction">Introduction</h2>
+<p>This example extends the single-cavern mechanical workflow by separating the calculation into an equilibrium stage and a later operation stage. It uses salt creep and viscoelasticity to compute stress and deformation around the cavern.</p>
+<h2 id="problem-description">Problem description</h2>
+<p>This section walks through <code>examples/mechanics/4_cavern/main.py</code> as an annotated, notebook-style listing. The code blocks follow the script in order and include all non-empty lines from <code>main.py</code>. Each block explains not only what the code does, but why the SafeInCave object is needed in the simulation workflow.</p>
+<h3 id="block-1-imports-and-dependencies">Block 1: Imports and dependencies</h3>
+<p>The imports reveal the physics activated by this example: mechanical boundary conditions, PETSc linear solvers, field sampling utilities. Loading these modules up front keeps the script explicit about which SafeInCave subsystems will be wired together.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">safeincave</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sf</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">safeincave.Utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">day</span><span class="p">,</span> <span class="n">GPa</span><span class="p">,</span> <span class="n">create_field_elems</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">safeincave.MomentumBC</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">momBC</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">petsc4py</span><span class="w"> </span><span class="kn">import</span> <span class="n">PETSc</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mpi4py</span><span class="w"> </span><span class="kn">import</span> <span class="n">MPI</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">to</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+</code></pre></div>
+<h3 id="block-2-function-get_geometry_parameters">Block 2: Function <code>get_geometry_parameters</code></h3>
+<p>This helper reads geometric constants directly from the mesh-generation file. The example uses those dimensions to derive physically meaningful pressure references, instead of hard-coding cavern roof or overburden values in several places.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_geometry_parameters</span><span class="p">(</span><span class="n">path_to_grid</span><span class="p">):</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path_to_grid</span><span class="p">,</span> <span class="s2">"geom.geo"</span><span class="p">),</span> <span class="s2">"r"</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+    <span class="n">ovb_thickness</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">10</span><span class="p">][</span><span class="nb">len</span><span class="p">(</span><span class="s2">"ovb_thickness = "</span><span class="p">):</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">hanging_wall</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">12</span><span class="p">][</span><span class="nb">len</span><span class="p">(</span><span class="s2">"hanging_wall = "</span><span class="p">):</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">ovb_thickness</span><span class="p">,</span> <span class="n">hanging_wall</span>
+</code></pre></div>
+<h3 id="block-3-read-grid">Block 3: Read grid</h3>
+<p>This function is the procedural spine of the example. The following blocks fill in the mesh, equation objects, material model, boundary data, outputs, and simulator call that this function orchestrates.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="n">formulation</span><span class="p">):</span>
+    <span class="c1"># Read grid</span>
+    <span class="n">grid_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">".."</span><span class="p">,</span> <span class="s2">".."</span><span class="p">,</span> <span class="s2">".."</span><span class="p">,</span> <span class="s2">"grids"</span><span class="p">,</span> <span class="s2">"cavern_overburden_coarse"</span><span class="p">)</span>
+    <span class="c1"># grid_path = os.path.join("..", "..", "grids", "cavern_overburden")</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">GridHandlerGMSH</span><span class="p">(</span><span class="s2">"geom"</span><span class="p">,</span> <span class="n">grid_path</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-4-define-output-folder">Block 4: Define output folder</h3>
+<p>This path groups all files from the run. <code>SaveFields</code> later creates one XDMF subfolder per registered field, and cavern handlers use the same folder to store fluid-operation histories.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Define output folder</span>
+    <span class="n">output_folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">"output"</span><span class="p">,</span> <span class="s2">"case_0"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">formulation</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-5-define-momentum-equation">Block 5: Define momentum equation</h3>
+<p>The mixed momentum formulation is selected when pressure-related stability or volumetric behavior matters. The <code>stab_scaling</code> parameter controls the pressure-stabilization contribution, while <code>theta</code> sets the time-integration convention used by inelastic updates.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Define momentum equation</span>
+    <span class="n">theta</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">if</span> <span class="n">formulation</span> <span class="o">==</span> <span class="s2">"P1"</span><span class="p">:</span>
+        <span class="n">mom_eq</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">LinearMomentum</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">theta</span><span class="o">=</span><span class="n">theta</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">formulation</span> <span class="o">==</span> <span class="s2">"P1P1"</span><span class="p">:</span>
+        <span class="n">mom_eq</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">LinearMomentumMixed</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">theta</span><span class="o">=</span><span class="n">theta</span><span class="p">,</span> <span class="n">stab_scaling</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">formulation</span> <span class="o">==</span> <span class="s2">"P1P1_Stab"</span><span class="p">:</span>
+        <span class="n">mom_eq</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">LinearMomentumMixed</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">theta</span><span class="o">=</span><span class="n">theta</span><span class="p">,</span> <span class="n">stab_scaling</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-6-define-solver">Block 6: Define solver</h3>
+<p>The mechanical linear system is handed to PETSc. GMRES is used for the momentum formulations because mixed forms, stabilization, and history-dependent tangents can make the assembled system less friendly to simple symmetric solvers.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Define solver</span>
+    <span class="n">mom_solver</span> <span class="o">=</span> <span class="n">PETSc</span><span class="o">.</span><span class="n">KSP</span><span class="p">()</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">grid</span><span class="o">.</span><span class="n">mesh</span><span class="o">.</span><span class="n">comm</span><span class="p">)</span>
+    <span class="n">mom_solver</span><span class="o">.</span><span class="n">setType</span><span class="p">(</span><span class="s2">"gmres"</span><span class="p">)</span>
+    <span class="n">mom_solver</span><span class="o">.</span><span class="n">getPC</span><span class="p">()</span><span class="o">.</span><span class="n">setType</span><span class="p">(</span><span class="s2">"asm"</span><span class="p">)</span>
+    <span class="n">mom_solver</span><span class="o">.</span><span class="n">setTolerances</span><span class="p">(</span><span class="n">rtol</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">,</span> <span class="n">max_it</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">mom_eq</span><span class="o">.</span><span class="n">set_solver</span><span class="p">(</span><span class="n">mom_solver</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-7-define-material-properties">Block 7: Define material properties</h3>
+<p><code>Material</code> is the central container for element-wise properties and constitutive mechanisms. The equation object later asks this container for stiffness, density, creep operators, thermal expansion, and thermal transport data.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Define material properties</span>
+    <span class="n">mat</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Material</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-8-extract-region-indices">Block 8: Extract region indices</h3>
+<p>The region-index dictionaries come from <code>GridHandlerGMSH</code>. They let the script assign arrays element by element, so salt, overburden, or separate cube regions can share one mesh while keeping distinct properties.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Extract region indices</span>
+    <span class="n">ind_salt</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">region_indices</span><span class="p">[</span><span class="s2">"Salt"</span><span class="p">]</span>
+    <span class="n">ind_ovb</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">region_indices</span><span class="p">[</span><span class="s2">"Overburden"</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="block-9-set-material-density">Block 9: Set material density</h3>
+<p>Density is assigned as an element-wise tensor rather than a scalar so each geological region can carry its own body-force contribution. The same vector is also available to material routines that need density-dependent quantities.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Set material density</span>
+    <span class="n">salt_density</span> <span class="o">=</span> <span class="mi">2200</span>
+    <span class="n">ovb_density</span> <span class="o">=</span> <span class="mi">2800</span>
+    <span class="n">gas_density</span> <span class="o">=</span> <span class="mf">0.082</span>
+    <span class="n">rho</span> <span class="o">=</span> <span class="n">to</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">to</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">rho</span><span class="p">[</span><span class="n">ind_salt</span><span class="p">]</span> <span class="o">=</span> <span class="n">salt_density</span>
+    <span class="n">rho</span><span class="p">[</span><span class="n">ind_ovb</span><span class="p">]</span> <span class="o">=</span> <span class="n">ovb_density</span>
+    <span class="n">mat</span><span class="o">.</span><span class="n">set_density</span><span class="p">(</span><span class="n">rho</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-10-constitutive-model">Block 10: Constitutive model</h3>
+<p>The spring is the elastic part of the constitutive model. Here its Young modulus and Poisson ratio are assembled as element-wise arrays, which is why different mesh regions can receive different elastic stiffness.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Constitutive model</span>
+    <span class="n">E0</span> <span class="o">=</span> <span class="n">to</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">)</span>
+    <span class="n">E0</span><span class="p">[</span><span class="n">ind_salt</span><span class="p">]</span> <span class="o">=</span> <span class="mi">102</span><span class="o">*</span><span class="n">GPa</span>
+    <span class="n">E0</span><span class="p">[</span><span class="n">ind_ovb</span><span class="p">]</span> <span class="o">=</span> <span class="mi">180</span><span class="o">*</span><span class="n">GPa</span>
+    <span class="n">nu0</span> <span class="o">=</span> <span class="mf">0.3</span><span class="o">*</span><span class="n">to</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">)</span>
+    <span class="n">spring_0</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Spring</span><span class="p">(</span><span class="n">E0</span><span class="p">,</span> <span class="n">nu0</span><span class="p">,</span> <span class="s2">"spring"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-11-create-kelvin-voigt-viscoelastic-element">Block 11: Create Kelvin-Voigt viscoelastic element</h3>
+<p>The Kelvin-Voigt <code>Viscoelastic</code> element adds delayed, rate-dependent strain. It is included when the example needs short-term transient deformation beyond purely elastic response.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Create Kelvin-Voigt viscoelastic element</span>
+    <span class="n">eta</span> <span class="o">=</span> <span class="mf">105e11</span><span class="o">*</span><span class="n">to</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">)</span>
+    <span class="n">E1</span> <span class="o">=</span> <span class="mi">10</span><span class="o">*</span><span class="n">GPa</span><span class="o">*</span><span class="n">to</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">)</span>
+    <span class="n">nu1</span> <span class="o">=</span> <span class="mf">0.32</span><span class="o">*</span><span class="n">to</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">)</span>
+    <span class="n">kelvin</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Viscoelastic</span><span class="p">(</span><span class="n">eta</span><span class="p">,</span> <span class="n">E1</span><span class="p">,</span> <span class="n">nu1</span><span class="p">,</span> <span class="s2">"kelvin"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-12-create-creep">Block 12: Create creep</h3>
+<p><code>DislocationCreep</code> adds a temperature- and stress-dependent salt-creep mechanism. The parameters <code>A</code>, <code>Q</code>, and <code>n</code> define the Arrhenius-type power law used to update non-elastic strain rates inside the simulator loop.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Create creep</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">to</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">)</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">ind_salt</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.9e-20</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">ind_ovb</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">Q</span> <span class="o">=</span> <span class="mi">51600</span><span class="o">*</span><span class="n">to</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="mf">3.0</span><span class="o">*</span><span class="n">to</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">mom_eq</span><span class="o">.</span><span class="n">n_elems</span><span class="p">)</span>
+    <span class="n">creep_0</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">DislocationCreep</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="s2">"creep"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-13-create-constitutive-model">Block 13: Create constitutive model</h3>
+<p>These calls register elastic stiffness, history-dependent inelastic mechanisms with the <code>Material</code> container. Registration order matters because the simulator loops over these lists when assembling tangents and updating internal variables.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Create constitutive model</span>
+    <span class="n">mat</span><span class="o">.</span><span class="n">add_to_elastic</span><span class="p">(</span><span class="n">spring_0</span><span class="p">)</span>
+    <span class="c1"># mat.add_to_non_elastic(kelvin)</span>
+    <span class="n">mat</span><span class="o">.</span><span class="n">add_to_non_elastic</span><span class="p">(</span><span class="n">creep_0</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-14-set-constitutive-model">Block 14: Set constitutive model</h3>
+<p>Attaching the material to the momentum equation initializes stiffness-related fields and makes the constitutive mechanisms available to the mechanical solver.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Set constitutive model</span>
+    <span class="n">mom_eq</span><span class="o">.</span><span class="n">set_material</span><span class="p">(</span><span class="n">mat</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-15-set-body-forces">Block 15: Set body forces</h3>
+<p>The gravity vector serves two purposes in mechanics: it builds the volume body-force term through density, and it is passed to pressure boundary objects so hydrostatic variation has the correct vertical sign.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Set body forces</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="o">-</span><span class="mf">9.81</span>
+    <span class="n">g_vec</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">g</span><span class="p">]</span>
+    <span class="n">mom_eq</span><span class="o">.</span><span class="n">build_body_force</span><span class="p">(</span><span class="n">g_vec</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-16-set-initial-temperature-field">Block 16: Set initial temperature field</h3>
+<p>The temperature function is evaluated at element centroids. This is the right representation for mechanical constitutive laws because creep and thermoelastic strain are stored per element.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Set initial temperature field</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">T_field_fun</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">):</span>
+        <span class="n">km</span> <span class="o">=</span> <span class="mi">1000</span>
+        <span class="n">dTdZ</span> <span class="o">=</span> <span class="mi">27</span><span class="o">/</span><span class="n">km</span>
+        <span class="n">T_surface</span> <span class="o">=</span> <span class="mi">20</span> <span class="o">+</span> <span class="mi">273</span>
+        <span class="k">return</span> <span class="n">T_surface</span> <span class="o">-</span> <span class="n">dTdZ</span><span class="o">*</span><span class="n">z</span>
+    <span class="n">T0_field</span> <span class="o">=</span> <span class="n">create_field_elems</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">T_field_fun</span><span class="p">)</span>
+    <span class="n">mom_eq</span><span class="o">.</span><span class="n">set_T0</span><span class="p">(</span><span class="n">T0_field</span><span class="p">)</span>
+    <span class="n">mom_eq</span><span class="o">.</span><span class="n">set_T</span><span class="p">(</span><span class="n">T0_field</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-17-time-settings-for-equilibrium-stage">Block 17: Time settings for equilibrium stage</h3>
+<p>A parabolic time controller is chosen to distribute a fixed number of time levels nonuniformly between the initial and final times. SafeInCave stores these times internally in seconds, so the examples can be written in hours, days, or years while the solvers use consistent units.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Time settings for equilibrium stage</span>
+    <span class="n">tc_eq</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">TimeControllerParabolic</span><span class="p">(</span><span class="n">n_time_steps</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+                                        <span class="n">initial_time</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                                        <span class="n">final_time</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                                        <span class="n">time_unit</span><span class="o">=</span><span class="s2">"day"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-18-boundary-conditions">Block 18: Boundary conditions</h3>
+<p>The boundary handler is the bridge between simple Python boundary objects and the assembled variational problem. It stores each condition by type, updates time-dependent values, and supplies the forms or DOF constraints needed by the solver.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Boundary conditions</span>
+    <span class="n">bc_equilibrium</span> <span class="o">=</span> <span class="n">momBC</span><span class="o">.</span><span class="n">BcHandler</span><span class="p">(</span><span class="n">mom_eq</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-19-apply-dirichlet-boundary-conditions">Block 19: Apply Dirichlet boundary conditions</h3>
+<p>These displacement constraints are expressed component by component. SafeInCave locates the DOFs on the named mesh boundary and pins only the requested component, which is how roller or symmetry conditions are represented without overconstraining the model.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Apply Dirichlet boundary conditions</span>
+    <span class="n">boundaries</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">"West_salt"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">"West_ovb"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">"East_salt"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">"East_ovb"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">"South_salt"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">"South_ovb"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">"North_salt"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">"North_ovb"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">"Bottom"</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">b_name</span><span class="p">,</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">boundaries</span><span class="p">:</span>
+        <span class="n">bc</span> <span class="o">=</span> <span class="n">momBC</span><span class="o">.</span><span class="n">DirichletBC</span><span class="p">(</span><span class="n">boundary_name</span><span class="o">=</span><span class="n">b_name</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="n">component</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">time_values</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">tc_eq</span><span class="o">.</span><span class="n">t_final</span><span class="p">])</span>
+        <span class="n">bc_equilibrium</span><span class="o">.</span><span class="n">add_boundary_condition</span><span class="p">(</span><span class="n">bc</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-20-extract-geometry-dimensions">Block 20: Extract geometry dimensions</h3>
+<p>The mesh is loaded through <code>GridHandlerGMSH</code>, which does more than read coordinates and cells. It also exposes named facet tags for boundary conditions, region tags for material assignment, mesh dimensions, cell volumes, and smoothing operators used when element stresses are reported at nodes or smoothed back to elements.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Extract geometry dimensions</span>
+    <span class="n">ovb_thickness</span><span class="p">,</span> <span class="n">hanging_wall</span> <span class="o">=</span> <span class="n">get_geometry_parameters</span><span class="p">(</span><span class="n">grid_path</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-21-calculate-lithostatic-pressure-at-the-caverns-roof">Block 21: Calculate lithostatic pressure at the cavern's roof</h3>
+<p>This small block connects the surrounding setup steps and is retained so the annotated listing remains complete and in the same order as <code>main.py</code>.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Calculate lithostatic pressure at the cavern's roof</span>
+    <span class="n">cavern_roof</span> <span class="o">=</span> <span class="n">ovb_thickness</span> <span class="o">+</span> <span class="n">hanging_wall</span>
+    <span class="n">p_roof</span> <span class="o">=</span> <span class="mi">0</span> <span class="o">+</span> <span class="n">salt_density</span><span class="o">*</span><span class="nb">abs</span><span class="p">(</span><span class="n">g</span><span class="p">)</span><span class="o">*</span><span class="n">hanging_wall</span> <span class="o">+</span> <span class="n">ovb_density</span><span class="o">*</span><span class="nb">abs</span><span class="p">(</span><span class="n">g</span><span class="p">)</span><span class="o">*</span><span class="n">ovb_thickness</span>
+    <span class="nb">print</span><span class="p">(</span><span class="mf">0.2</span><span class="o">*</span><span class="n">p_roof</span><span class="o">/</span><span class="mf">1e6</span><span class="p">,</span> <span class="mf">0.8</span><span class="o">*</span><span class="n">p_roof</span><span class="o">/</span><span class="mf">1e6</span><span class="p">,</span> <span class="n">cavern_roof</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-22-impose-loading-condition-on-the-cavern-walls">Block 22: Impose loading condition on the cavern walls</h3>
+<p>This Neumann condition applies a pressure or traction history. The base value is interpolated in time, and the optional density/reference-position terms add hydrostatic variation along the selected coordinate direction.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Impose loading condition on the cavern walls</span>
+    <span class="n">bc_cavern</span> <span class="o">=</span> <span class="n">momBC</span><span class="o">.</span><span class="n">NeumannBC</span><span class="p">(</span><span class="n">boundary_name</span> <span class="o">=</span> <span class="s2">"Cavern"</span><span class="p">,</span>
+                        <span class="n">direction</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+                        <span class="n">density</span> <span class="o">=</span> <span class="n">gas_density</span><span class="p">,</span>
+                        <span class="n">ref_pos</span> <span class="o">=</span> <span class="n">cavern_roof</span><span class="p">,</span>
+                        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.8</span><span class="o">*</span><span class="n">p_roof</span><span class="p">,</span> <span class="mf">0.8</span><span class="o">*</span><span class="n">p_roof</span><span class="p">],</span>
+                        <span class="n">time_values</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="o">*</span><span class="n">day</span><span class="p">,</span>  <span class="n">tc_eq</span><span class="o">.</span><span class="n">t_final</span><span class="p">],</span>
+                        <span class="n">g</span> <span class="o">=</span> <span class="n">g_vec</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">bc_equilibrium</span><span class="o">.</span><span class="n">add_boundary_condition</span><span class="p">(</span><span class="n">bc_cavern</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-23-set-boundary-conditions">Block 23: Set boundary conditions</h3>
+<p>The boundary handler is the bridge between simple Python boundary objects and the assembled variational problem. It stores each condition by type, updates time-dependent values, and supplies the forms or DOF constraints needed by the solver.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Set boundary conditions</span>
+    <span class="n">mom_eq</span><span class="o">.</span><span class="n">set_boundary_conditions</span><span class="p">(</span><span class="n">bc_equilibrium</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-24-equilibrium-output-folder">Block 24: Equilibrium output folder</h3>
+<p>This path groups all files from the run. <code>SaveFields</code> later creates one XDMF subfolder per registered field, and cavern handlers use the same folder to store fluid-operation histories.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Equilibrium output folder</span>
+    <span class="n">ouput_folder_equilibrium</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">"equilibrium"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-25-create-output-handlers">Block 25: Create output handlers</h3>
+<p>This path groups all files from the run. <code>SaveFields</code> later creates one XDMF subfolder per registered field, and cavern handlers use the same folder to store fluid-operation histories.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Create output handlers</span>
+    <span class="n">output_mom</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">SaveFields</span><span class="p">(</span><span class="n">mom_eq</span><span class="p">)</span>
+    <span class="n">output_mom</span><span class="o">.</span><span class="n">set_output_folder</span><span class="p">(</span><span class="n">ouput_folder_equilibrium</span><span class="p">)</span>
+    <span class="n">output_mom</span><span class="o">.</span><span class="n">add_output_field</span><span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="s2">"Displacement (m)"</span><span class="p">)</span>
+    <span class="n">output_mom</span><span class="o">.</span><span class="n">add_output_field</span><span class="p">(</span><span class="s2">"eps_tot"</span><span class="p">,</span> <span class="s2">"Total strain (-)"</span><span class="p">)</span>
+    <span class="n">output_mom</span><span class="o">.</span><span class="n">add_output_field</span><span class="p">(</span><span class="s2">"p_elems"</span><span class="p">,</span> <span class="s2">"Mean stress (Pa)"</span><span class="p">)</span>
+    <span class="n">output_mom</span><span class="o">.</span><span class="n">add_output_field</span><span class="p">(</span><span class="s2">"q_elems"</span><span class="p">,</span> <span class="s2">"Von Mises stress (Pa)"</span><span class="p">)</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">output_mom</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="block-26-define-simulator">Block 26: Define simulator</h3>
+<p><code>Simulator_M</code> advances the mechanical problem only. When a cavern handler is supplied, the simulator still updates cavern volumes and pressure boundary loads, but it does not solve a surrounding heat equation.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Define simulator</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Simulator_M</span><span class="p">(</span><span class="n">mom_eq</span><span class="p">,</span> <span class="n">tc_eq</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">compute_elastic_response</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="block-27-time-settings-for-operation-stage">Block 27: Time settings for operation stage</h3>
+<p>This fixed-step controller sets the operational cadence explicitly. It is useful when the imposed pressure, temperature, or mass-flow schedule should be sampled with a predictable step size.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Time settings for operation stage</span>
+    <span class="n">tc_op</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">TimeController</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">initial_time</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">final_time</span><span class="o">=</span><span class="mi">240</span><span class="p">,</span> <span class="n">time_unit</span><span class="o">=</span><span class="s2">"hour"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-28-boundary-conditions">Block 28: Boundary conditions</h3>
+<p>The boundary handler is the bridge between simple Python boundary objects and the assembled variational problem. It stores each condition by type, updates time-dependent values, and supplies the forms or DOF constraints needed by the solver.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Boundary conditions</span>
+    <span class="n">bc_operation</span> <span class="o">=</span> <span class="n">momBC</span><span class="o">.</span><span class="n">BcHandler</span><span class="p">(</span><span class="n">mom_eq</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-29-dirichlet-boundary-conditions">Block 29: Dirichlet boundary conditions</h3>
+<p>These displacement constraints are expressed component by component. SafeInCave locates the DOFs on the named mesh boundary and pins only the requested component, which is how roller or symmetry conditions are represented without overconstraining the model.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Dirichlet boundary conditions</span>
+    <span class="n">boundaries</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">"West_salt"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"West_ovb"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"East_salt"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s2">"East_ovb"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                  <span class="p">(</span><span class="s2">"South_salt"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"South_ovb"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"North_salt"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">"North_ovb"</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                  <span class="p">(</span><span class="s2">"Bottom"</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">b_name</span><span class="p">,</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">boundaries</span><span class="p">:</span>
+        <span class="n">bc</span> <span class="o">=</span> <span class="n">momBC</span><span class="o">.</span><span class="n">DirichletBC</span><span class="p">(</span><span class="n">boundary_name</span><span class="o">=</span><span class="n">b_name</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="n">component</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">time_values</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">tc_op</span><span class="o">.</span><span class="n">t_final</span><span class="p">])</span>
+        <span class="n">bc_operation</span><span class="o">.</span><span class="n">add_boundary_condition</span><span class="p">(</span><span class="n">bc</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-30-impose-loading-condition-on-the-cavern-walls">Block 30: Impose loading condition on the cavern walls</h3>
+<p>This Neumann condition applies a pressure or traction history. The base value is interpolated in time, and the optional density/reference-position terms add hydrostatic variation along the selected coordinate direction.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Impose loading condition on the cavern walls</span>
+    <span class="n">bc_cavern</span> <span class="o">=</span> <span class="n">momBC</span><span class="o">.</span><span class="n">NeumannBC</span><span class="p">(</span><span class="n">boundary_name</span> <span class="o">=</span> <span class="s2">"Cavern"</span><span class="p">,</span>
+                        <span class="n">direction</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+                        <span class="n">density</span> <span class="o">=</span> <span class="n">gas_density</span><span class="p">,</span>
+                        <span class="n">ref_pos</span> <span class="o">=</span> <span class="n">cavern_roof</span><span class="p">,</span>
+                        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.8</span><span class="o">*</span><span class="n">p_roof</span><span class="p">,</span> <span class="mf">0.2</span><span class="o">*</span><span class="n">p_roof</span><span class="p">,</span> <span class="mf">0.2</span><span class="o">*</span><span class="n">p_roof</span><span class="p">,</span> <span class="mf">0.8</span><span class="o">*</span><span class="n">p_roof</span><span class="p">,</span> <span class="mf">0.8</span><span class="o">*</span><span class="n">p_roof</span><span class="p">],</span>
+                        <span class="n">time_values</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="o">*</span><span class="n">day</span><span class="p">,</span>  <span class="mi">2</span><span class="o">*</span><span class="n">day</span><span class="p">,</span>  <span class="mi">6</span><span class="o">*</span><span class="n">day</span><span class="p">,</span> <span class="mi">8</span><span class="o">*</span><span class="n">day</span><span class="p">,</span> <span class="mi">10</span><span class="o">*</span><span class="n">day</span><span class="p">],</span>
+                        <span class="n">g</span> <span class="o">=</span> <span class="n">g_vec</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">bc_operation</span><span class="o">.</span><span class="n">add_boundary_condition</span><span class="p">(</span><span class="n">bc_cavern</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-31-set-boundary-conditions">Block 31: Set boundary conditions</h3>
+<p>The boundary handler is the bridge between simple Python boundary objects and the assembled variational problem. It stores each condition by type, updates time-dependent values, and supplies the forms or DOF constraints needed by the solver.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Set boundary conditions</span>
+    <span class="n">mom_eq</span><span class="o">.</span><span class="n">set_boundary_conditions</span><span class="p">(</span><span class="n">bc_operation</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-32-define-output-folder">Block 32: Define output folder</h3>
+<p>This path groups all files from the run. <code>SaveFields</code> later creates one XDMF subfolder per registered field, and cavern handlers use the same folder to store fluid-operation histories.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Define output folder</span>
+    <span class="n">output_folder_operation</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">"operation"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="block-33-create-output-handlers">Block 33: Create output handlers</h3>
+<p>This path groups all files from the run. <code>SaveFields</code> later creates one XDMF subfolder per registered field, and cavern handlers use the same folder to store fluid-operation histories.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Create output handlers</span>
+    <span class="n">output_mom</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">SaveFields</span><span class="p">(</span><span class="n">mom_eq</span><span class="p">)</span>
+    <span class="n">output_mom</span><span class="o">.</span><span class="n">set_output_folder</span><span class="p">(</span><span class="n">output_folder_operation</span><span class="p">)</span>
+    <span class="n">output_mom</span><span class="o">.</span><span class="n">add_output_field</span><span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="s2">"Displacement (m)"</span><span class="p">)</span>
+    <span class="n">output_mom</span><span class="o">.</span><span class="n">add_output_field</span><span class="p">(</span><span class="s2">"p_elems"</span><span class="p">,</span> <span class="s2">"Mean stress (Pa)"</span><span class="p">)</span>
+    <span class="n">output_mom</span><span class="o">.</span><span class="n">add_output_field</span><span class="p">(</span><span class="s2">"q_elems"</span><span class="p">,</span> <span class="s2">"Von Mises stress (Pa)"</span><span class="p">)</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">output_mom</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="block-34-define-simulator">Block 34: Define simulator</h3>
+<p><code>Simulator_M</code> advances the mechanical problem only. When a cavern handler is supplied, the simulator still updates cavern volumes and pressure boundary loads, but it does not solve a surrounding heat equation.</p>
+<div class="highlight"><pre><span></span><code>    <span class="c1"># Define simulator</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Simulator_M</span><span class="p">(</span><span class="n">mom_eq</span><span class="p">,</span> <span class="n">tc_op</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">compute_elastic_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="block-35-runp1p1">Block 35: run("P1P1")</h3>
+<p>This function is the procedural spine of the example. The following blocks fill in the mesh, equation objects, material model, boundary data, outputs, and simulator call that this function orchestrates.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="n">run</span><span class="p">(</span><span class="s2">"P1"</span><span class="p">)</span>
+    <span class="c1"># run("P1P1")</span>
+    <span class="c1"># run("P1P1_Stab")</span>
+</code></pre></div>
+<h3 id="block-36-script-entry-point">Block 36: Script entry point</h3>
+<p>The entry-point guard keeps the file importable while still running <code>main()</code> when executed as a script.</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'__main__'</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="main-functions">Main Functions</h2>
+<ul>
+<li><code>safeincave.GridHandlerGMSH</code>: loads the cavern mesh.</li>
+<li><code>safeincave.LinearMomentum</code> and <code>safeincave.LinearMomentumMixed</code>: define alternative mechanical formulations.</li>
+<li><code>safeincave.Material</code>: stores material density and constitutive elements.</li>
+<li><code>safeincave.Spring</code>, <code>safeincave.Viscoelastic</code>, and <code>safeincave.DislocationCreep</code>: define the salt mechanical model.</li>
+<li><code>safeincave.TimeControllerParabolic</code> and <code>safeincave.TimeController</code>: control equilibrium and operation stages.</li>
+<li><code>safeincave.MomentumBC.DirichletBC</code> and <code>safeincave.MomentumBC.NeumannBC</code>: apply displacement constraints, overburden loading, and cavern pressure.</li>
+<li><code>safeincave.Simulator_M</code>: runs each mechanical stage.</li>
+</ul>
+<h2 id="running-the-example">Running the Example</h2>
+<p>From the repository root, run:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>examples/mechanics/4_cavern
+python<span class="w"> </span>main.py
+</code></pre></div>
+<p>The folder also contains helper scripts for alternative runs and post-processing:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>plot_results.py
+python<span class="w"> </span>plot_cavern_data.py
+python<span class="w"> </span>plot_volume_loss.py
+</code></pre></div>
+<h2 id="conclusion">Conclusion</h2>
+<p>This example demonstrates a staged cavern mechanics analysis with equilibrium initialization followed by operation. It can be adapted for pressure histories, convergence comparisons, and long-term creep studies.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.path", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.expand"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
