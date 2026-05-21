@@ -77,8 +77,9 @@ nav:
 
 
   - Theory:
+      - Introduction: theory/intro.md
       - Governing equations: 
-          - Introduction: theory/governing_equations/intro.md
+          # - Introduction: theory/governing_equations/intro.md
           - Heat Diffusion: theory/governing_equations/heat_diffusion.md
           - Mechanics: theory/governing_equations/mechanics.md
           - Thermodynamics: theory/governing_equations/thermodynamics.md

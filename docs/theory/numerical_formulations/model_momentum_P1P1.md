@@ -80,7 +80,9 @@ $$
 \end{align}
 $$
 
-> **Note:** See [1] for further details on the derivation of the above equations.
+??? note "Note"
+
+    See [1] for further details on the derivation of the above equations.
 
 Substituting Eq. $\eqref{eq:tilde_eps_ne_1}$ into Eq. $\eqref{eq:tilde_sigma_0}$ leads to
 

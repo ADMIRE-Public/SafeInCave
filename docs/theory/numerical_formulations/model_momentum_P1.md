@@ -24,7 +24,9 @@ $$
 \label{eq:stress_2}
 $$
 
->**_NOTE:_** No superscript is used for the thermal strain $\pmb{\varepsilon}_{th}$ as it only depends on temperature, so the nonlinear iterations do not apply. But keep in mind it refers to the current time level $t+\Delta t$.
+???+ warning "Attention"
+
+    No superscript is used for the thermal strain $\pmb{\varepsilon}_{th}$ as it only depends on temperature, so the nonlinear iterations do not apply. But keep in mind it refers to the current time level $t+\Delta t$.
 
 $$
 \dot{\pmb{\varepsilon}}_i = \dot{\pmb{\varepsilon}}_i^{k} 
@@ -35,7 +37,9 @@ $$
 
 where $\delta\pmb{\sigma} = \pmb{\sigma}^{k+1} - \pmb{\sigma}^k$ and $\delta\omega_i = \omega_i^{k+1} - \omega_i^k$.
 
->**_NOTE:_** The term $\frac{\partial \dot{\pmb{\varepsilon}}_i}{\partial \pmb{\sigma}}$ is a rank-4 tensor, while $\delta\pmb{\sigma}$ is arank-2, hence the double dot product between them, which results a rank-2 tensor. For further support on tensorial operations, check [here](https://youtu.be/w5KX3F_rdzU?si=QQLVBq1NcrvOiS32), and [here](https://youtu.be/JiN6jwp0RPk?si=K1Qhe3lAxJD4LI5w) for practical examples.
+??? note "Note"
+
+    The term $\frac{\partial \dot{\pmb{\varepsilon}}_i}{\partial \pmb{\sigma}}$ is a rank-4 tensor, while $\delta\pmb{\sigma}$ is arank-2, hence the double dot product between them, which results a rank-2 tensor. For further support on tensorial operations, check [here](https://youtu.be/w5KX3F_rdzU?si=QQLVBq1NcrvOiS32), and [here](https://youtu.be/JiN6jwp0RPk?si=K1Qhe3lAxJD4LI5w) for practical examples.
 
 The increment of state variable $\delta\omega_i$ can be obtained by defining a residual equation based on the evolution equation of $\omega_i$ and using Newton-Raphson to drive the residual to zero. Considering the residual equation is of the form $r_i = r_i(\pmb{\sigma}, \omega_i)$, it follows that
 

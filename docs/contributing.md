@@ -1,51 +1,47 @@
-# Contribution Guide
+# Contributing to SafeInCave
 
-All contributions are welcome: bug fixes, new features, documentation improvements, or just questions. Here's how to get involved.
+We appreciate contributions of all kinds, whether you are fixing a bug, adding functionality, improving the documentation, or simply opening a discussion. The steps below describe the recommended workflow.
 
-## 1. Open an issue first
+## 1. Start by creating an issue
 
-Before starting any work, open an issue to describe what you want to fix or add. This avoids duplicate effort and gives maintainers a chance to give early feedback on the approach.
+Please open an issue before you begin working on a change. Use it to explain the problem you want to solve or the feature you would like to add. This helps avoid duplicated work and allows the maintainers to comment on the proposed approach early.
 
-## 2. Fork the repo and clone your fork
+## 2. Fork the repository and clone it locally
 
-Fork the repository on GitLab, then clone your fork locally:
-
-```bash
-git clone https://gitlab.tsn.tno.nl/<your-username>/subsidence-modelling
-cd subsidence-modelling
-```
-
-Install the project and its dev dependencies:
+Create a fork of the repository on GitHub and then clone your fork to your machine:
 
 ```bash
-uv sync
+git clone https://github.com/<your-username>/SafeInCave.git
+cd SafeInCave
 ```
 
-> Note: the project requires Linux. On Windows, use WSL.
+Then install the package in editable mode:
 
-## 3. Create a branch
+```bash
+pip install -e .
+```
 
-Create a branch in your fork with a short descriptive name:
+> Note: SafeInCave is intended to run on Linux. If you are using Windows, please work through WSL.
+
+## 3. Create a working branch
+
+Create a new branch in your fork for the changes you plan to make. Choose a short name that clearly describes the purpose of the branch:
 
 ```bash
 git checkout -b my-feature
 ```
 
-## 4. Make your changes
+## 4. Implement and test your changes
 
-Run the tests locally to make sure everything passes:
-
-```bash
-uv run pytest
-```
-
-Run the linter and formatter:
+Make the required modifications in your branch. Before submitting them, run the test suite locally to check that the existing functionality still works:
 
 ```bash
-uv run ruff check .
-uv run ruff format .
+cd tests
+python3 -m unittest discover -p "test_*.py"
 ```
 
-## 5. Open a merge request
+## 5. Submit a pull request
 
-Push your branch and open an MR from your fork to the main repository on GitLab. Reference the issue number in the MR description. A maintainer will review and merge it.
+Push your branch to your fork and open a pull request from your fork to the main SafeInCave repository on GitHub. Include the related issue number in the pull request description so the discussion and the proposed changes can be tracked together.
+
+A maintainer will review the contribution and, once everything is ready, merge it into the project.

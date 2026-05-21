@@ -25,30 +25,41 @@ Being **open-source** is perhaps the most important aspect of SafeInCave. This h
 
 <!-- --- -->
 
+???+ tip "Open by default"
+
+    This dropdown starts expanded.
+
+??? question "FAQ"
+
+    This is useful for questions and answers.
+
+??? example "Example"
+
+    ```python
+    print("Hello")
+    ```
+
+??? warning "Be careful"
+
+    This is a warning-style dropdown.
+
+??? note "General note"
+
+    This is hidden by default.
+
 ## Key Features
 
 <!-- - **MPI-powered parallelism**: Scale simulations efficiently with mpi4py for distributed computing -->
-- **Tetrahedral meshes**: Easily discretize complex geometries without compromising numerical stability
-- **Thermodynamics**: Different fluids with different operational conditions are possible
-- **Coupled physics**: Mechanics, heat diffusion, and thermodynamic models are fully coupled
-- **Thermal effects**: Solve heat diffusion equation and include thermal strains and creep thermal responses
-- **Constitutive model**: Munson-Dawson model, two branches model, thermal strains, Cam-Clay model
-- **Robust linearization**: Provides robustness and flexibility to include new constitutive models
-- **Time discretization**: Choose between Explicit, Crank-Nicolson, and Fully-Implicit schemes
-- **XDMF output**: Efficient output format in terms of size and postprocessing
+- **Tetrahedral meshes**: Easily discretize complex geometries without compromising numerical stability.
+- **Thermodynamics**: Different fluids with different operational conditions are possible.
+- **Coupled physics**: Mechanics, heat diffusion, and thermodynamic models are fully coupled.
+- **Thermal effects**: Solve heat diffusion equation and include thermal strains and creep thermal responses.
+- **Constitutive model**: Munson-Dawson model, two branches model, thermal strains, Cam-Clay model, etc.
+- **Robust linearization**: Provides robustness and flexibility to include new constitutive models.
+- **Time discretization**: Choose between Explicit, Crank-Nicolson, and Fully-Implicit schemes.
+- **XDMF output**: Efficient output format in terms of size and postprocessing.
 
 <!-- --- -->
-
-## Extra material
-Video lectures and video tutorials can be found in the [ADMIRE](https://www.youtube.com/@ADMIRE1/featured) YouTube channel. The following videos are currently available:
-
-1) [Tensorial operations (theory)](https://youtu.be/w5KX3F_rdzU?si=QQLVBq1NcrvOiS32)
-
-2) [Tensorial operations (exercises)](https://www.youtube.com/watch?v=JiN6jwp0RPk&t=0s)
-
-3) [Constitutive modeling](https://www.youtube.com/watch?v=fCeJIbjIL10)
-
-4) Stay tuned to [ADMIRE](https://www.youtube.com/@ADMIRE1/featured) YouTube channel for upcoming video lectures.
 
 <!-- --- -->
 
@@ -59,10 +70,54 @@ Video lectures and video tutorials can be found in the [ADMIRE](https://www.yout
 
 ---
 
-## How to cite
-If you use SafeInCave in your publications, you can cite it as follows:
+## How to cite SafeInCave
+If you use SafeInCave in your publications, you can cite it according to your preferred style:
 
+<details>
+<summary>APA</summary>
+ADMIRE-Public. (2025). ADMIRE-Public/SafeInCave: SafeInCave v2.0.0 (v2.0.0). Zenodo. https://doi.org/10.5281/zenodo.17169591
+</details>
+
+<details>
+<summary>Harvard</summary>
+ADMIRE-Public (2025) “ADMIRE-Public/SafeInCave: SafeInCave v2.0.0”. Zenodo. doi:10.5281/zenodo.17169591.
+</details>
+
+<details>
+<summary>MLA</summary>
+ADMIRE-Public. ADMIRE-Public/SafeInCave: SafeInCave V2.0.0. v2.0.0, Zenodo, 21 Sept. 2025, https://doi.org/10.5281/zenodo.17169591.
+</details>
+
+<details>
+<summary>Vancouver</summary>
+1. ADMIRE-Public. ADMIRE-Public/SafeInCave: SafeInCave v2.0.0. Zenodo; 2025.
+</details>
+
+<details>
+<summary>Chicago</summary>
 ADMIRE-Public. “ADMIRE-Public/SafeInCave: SafeInCave V2.0.0”. Zenodo, September 21, 2025. https://doi.org/10.5281/zenodo.17169591.
+</details>
+
+<details>
+<summary>IEEE</summary>
+[1] ADMIRE-Public, “ADMIRE-Public/SafeInCave: SafeInCave v2.0.0”. Zenodo, Sep. 21, 2025. doi: 10.5281/zenodo.17169591.
+</details>
+
+<details>
+<summary>.bib</summary>
+```latex
+@software{admirepublic_safeincave_2025,
+  author    = {{ADMIRE-Public}},
+  title     = {{ADMIRE-Public/SafeInCave: SafeInCave V2.0.0}},
+  publisher = {Zenodo},
+  date      = {2025-09-21},
+  doi       = {10.5281/zenodo.17169591},
+  url       = {https://doi.org/10.5281/zenodo.17169591},
+  version   = {V2.0.0}
+}
+```
+</details>
+
 
 ---
 
