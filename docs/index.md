@@ -25,7 +25,7 @@ Being **open-source** is perhaps the most important aspect of SafeInCave. This h
 
 <!-- --- -->
 
-???+ tip "Open by default"
+<!-- ???+ tip "Open by default"
 
     This dropdown starts expanded.
 
@@ -45,7 +45,7 @@ Being **open-source** is perhaps the most important aspect of SafeInCave. This h
 
 ??? note "General note"
 
-    This is hidden by default.
+    This is hidden by default. -->
 
 ## Key Features
 
