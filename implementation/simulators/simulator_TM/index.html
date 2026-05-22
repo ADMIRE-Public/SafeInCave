@@ -453,7 +453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting_started/" class="md-nav__link">
+      <a href="../../../home/" class="md-nav__link">
         
   
   
@@ -489,6 +489,34 @@
     
   
     Contribution Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../home/cite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cite SafeInCave
   
 
     
@@ -2680,8 +2708,16 @@
 
 
 <h1 id="thermo-mechanical-simulator-tm">Thermo-mechanical simulator (TM)</h1>
+<p>This simulator is designed to handle thermo-mechanical problems, in which the cavern mechanics is also affected by temperature distribution. Consequently, it requires objects of both momentum equation (either <em>LinearMomentum</em> or <em>LinearMomentumMixed</em>) and heat diffusion (<em>HeatDiffusion</em>). As the other simulators, <em>Simulator_TM</em> also receives the usual <em>TimeController</em>, <em>Outputs</em>, and <em>CavernHandler</em> objects.</p>
+<details class="example" open="open">
+<summary>Example</summary>
 <div class="highlight"><pre><span></span><code><span class="n">sim</span> <span class="o">=</span> <span class="n">Simulator_TM</span><span class="p">(</span><span class="n">eq_mom</span><span class="p">,</span> <span class="n">eq_heat</span><span class="p">,</span> <span class="n">time_control</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">caverns</span><span class="p">)</span>
 </code></pre></div>
+</details>
+<p>The <em>CavernHandler</em> object is optional. If a <em>None</em> object is provided instead, then the user needs to provide appropriate boundary conditions for the cavern walls in both mechanical and heat diffusion models. If <em>CavernHandler</em> is provided, then the cavern walls are subjected to a dynamic <em>Neumann</em> boundary condition for the momentum equation, and <em>Robin</em> boundary condition is imposed on the heat diffusion equation.</p>
+<p>The thermo-mechanical coupling in salt cavern is largely adopted in the literature. The fact that salt deformations occur very slowly, the heat generate by such deformations is fairly negligible. As a result, the mechanical model has no effect on the heat diffusion process. On the other side, the temperature evolution has a strong impact on the mechanical behavior of the salt caverns as it (i) causes thermal strains to appear and (ii) strongly affect dislocation and pressure solution creep through the Arrhenius law.</p>
+<p>The previous paragraph suggests a <strong>one-way</strong> coupling between mechanical and thermal models. However, the presence of a thermodynamic model for the fluid inside the cavern introduces a <strong>two-way</strong> coupling between the two governing equations. This is because the temperature and pressure of the fluid inside the cavern -- used as boundary conditions for mechanical and thermal model, respectively -- are a result of the thermodynamic model, which depends on (i) the heat transferred through the cavern walls, and (ii) the work done by the cavern walls. The heat transferred through the cavern walls to the fluid inside the cavern is calculated from heat diffusion model. The work done by the cavern walls on the cavern fluid is calculated by mechanical model. With heat <span class="arithmatex">\(Q\)</span> and work <span class="arithmatex">\(W\)</span>, the thermodynamic model is calculated and provides temperature (<span class="arithmatex">\(T_1\)</span>), pressure (<span class="arithmatex">\(P_1\)</span>), and density (<span class="arithmatex">\(\rho_1\)</span>) for the fluid. These quantities are used as boundary conditions for the two governing equations, as illustrated in <a href="#fig-simulator-TM">Figure 1</a>. </p>
+<p>This process is repeated until convergence is reached, before advancing to the next time level. Notice that these iterations simultaneously handle the coupling between the governing equations and the non-linearities of the mechanical model.</p>
 <p><figure id="_figure-1"><img alt="Coupling scheme for the mechanical simulator." class="wide-figure" id="fig-simulator-TM" src="../../../images/simulator_TM.svg" style="width: min(700px, 95vw);"><figcaption>Figure 1: Coupling scheme for the mechanical simulator.</figcaption></figure></p>
 
 

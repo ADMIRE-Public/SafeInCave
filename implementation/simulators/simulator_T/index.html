@@ -453,7 +453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting_started/" class="md-nav__link">
+      <a href="../../../home/" class="md-nav__link">
         
   
   
@@ -489,6 +489,34 @@
     
   
     Contribution Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../home/cite/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cite SafeInCave
   
 
     
@@ -2681,8 +2709,11 @@
 
 <h1 id="thermal-simulator-t">Thermal simulator (T)</h1>
 <p>The thermal simulator only solves the heat diffusion model. Naturally, it receives an object of class <em>HeatDiffusion</em> along with the usual <em>TimeController</em>, <em>Outputs</em>, and <em>CavernHandler</em> objects. </p>
+<details class="example" open="open">
+<summary>Example</summary>
 <div class="highlight"><pre><span></span><code><span class="n">sim</span> <span class="o">=</span> <span class="n">Simulator_T</span><span class="p">(</span><span class="n">eq_heat</span><span class="p">,</span> <span class="n">time_control</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">caverns</span><span class="p">)</span>
 </code></pre></div>
+</details>
 <p>The <em>CavernHandler</em> object is optional. If a <em>None</em> object is provided, then either <em>Neumann</em> or <em>Dirichlet</em> boundary condition needs to be specified on the cavern walls, just as any other boundary. In this case, the problem is linear, and the heat diffusion equation is solved only once at each time step.</p>
 <p>Otherwise, if a <em>CavernHandler</em> object is provided, then the boundary condition on the cavern wall is automatically set to <em>Robin</em> type. </p>
 <p>If the cavern operates under prescribed <span class="arithmatex">\(T\)</span>, then the problem is linear. This is equivalent to prescribe <em>Robin</em> boundary condition directly to the cavern wall. </p>
