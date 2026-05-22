@@ -1,7 +1,7 @@
 <!-- # SafeInCave Documentation -->
 # 
 
-![](images/logo_2.png){#fig-constitutive-model-0 width="80%"}
+![](images/logo_2.png){width="70%"}
 
 [![](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/ADMIRE-Public/SafeInCave)
 [![](https://img.shields.io/badge/DOI-10.1234%2Fabcde.12345678-blue)](https://doi.org/10.5281/zenodo.17169591)
@@ -16,9 +16,11 @@
 <!-- --- -->
 
 ## Overview
-SafeInCave is an open-source 3D finite element simulator specifically designed for salt caverns. It combines the most relevant physical phenomena with a robust numerical scheme, making SafeInCave as a powerful tool for performance assessments of salt caverns under different operational conditions. 
+SafeInCave is an open-source 3D finite element simulator specifically designed for salt caverns. It combines the most relevant physical phenomena with a robust numerical scheme, placing SafeInCave as a powerful tool for performance assessments of salt caverns under different operational conditions. 
 
-<!-- The thermodynamic model for the cavern fluid is fully integrated with the mechanical and thermal behavior of the cavern. In this manner, it can seemlessly simulate both storage and abandonment phases considering different types of fluids (water, hydrogen, methane, etc). SafeInCave also features advanced constitutive models for salt rocks, such as the Munson-Dawson model. Finally, it is the only simulator able to provide numerically stable simulations with tetrahedral meshes, which ensure great geometrical flexibility. -->
+<!-- ![Multicavern simulation with different operational conditions.](images/multicavern_q.gif){.wide-figure style="width: min(400px, 95vw);"} -->
+![Multicavern simulation with different operational conditions.](images/multicavern_q.gif){width="60%"}
+
 
 ## Open-source
 Being **open-source** is perhaps the most important aspect of SafeInCave. This has many implications for both academic and industrial applications. Being fully transparent, auditable and reproducible is essencial to build trust in the results. Moreover, having access to the source code and being able to modify it as necessary allows for anyone to make contributions that can benefit the whole salt community!
@@ -68,55 +70,6 @@ Being **open-source** is perhaps the most important aspect of SafeInCave. This h
 - [Hadi Hajibeygi](https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/sections/reservoir-engineering/staff/academic-staff/profdr-h-hajibeygi)
 - [Mathias Erdtmann](https://www.linkedin.com/in/mathias-kreutz-erdtmann/)
 
----
-
-## How to cite SafeInCave
-If you use SafeInCave in your publications, you can cite it according to your preferred style:
-
-<details>
-<summary>APA</summary>
-ADMIRE-Public. (2025). ADMIRE-Public/SafeInCave: SafeInCave v2.0.0 (v2.0.0). Zenodo. https://doi.org/10.5281/zenodo.17169591
-</details>
-
-<details>
-<summary>Harvard</summary>
-ADMIRE-Public (2025) “ADMIRE-Public/SafeInCave: SafeInCave v2.0.0”. Zenodo. doi:10.5281/zenodo.17169591.
-</details>
-
-<details>
-<summary>MLA</summary>
-ADMIRE-Public. ADMIRE-Public/SafeInCave: SafeInCave V2.0.0. v2.0.0, Zenodo, 21 Sept. 2025, https://doi.org/10.5281/zenodo.17169591.
-</details>
-
-<details>
-<summary>Vancouver</summary>
-1. ADMIRE-Public. ADMIRE-Public/SafeInCave: SafeInCave v2.0.0. Zenodo; 2025.
-</details>
-
-<details>
-<summary>Chicago</summary>
-ADMIRE-Public. “ADMIRE-Public/SafeInCave: SafeInCave V2.0.0”. Zenodo, September 21, 2025. https://doi.org/10.5281/zenodo.17169591.
-</details>
-
-<details>
-<summary>IEEE</summary>
-[1] ADMIRE-Public, “ADMIRE-Public/SafeInCave: SafeInCave v2.0.0”. Zenodo, Sep. 21, 2025. doi: 10.5281/zenodo.17169591.
-</details>
-
-<details>
-<summary>.bib</summary>
-```latex
-@software{admirepublic_safeincave_2025,
-  author    = {{ADMIRE-Public}},
-  title     = {{ADMIRE-Public/SafeInCave: SafeInCave V2.0.0}},
-  publisher = {Zenodo},
-  date      = {2025-09-21},
-  doi       = {10.5281/zenodo.17169591},
-  url       = {https://doi.org/10.5281/zenodo.17169591},
-  version   = {V2.0.0}
-}
-```
-</details>
 
 
 ---
