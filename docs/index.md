@@ -16,14 +16,13 @@
 <!-- --- -->
 
 ## Overview
-SafeInCave is an open-source 3D finite element simulator specifically designed for salt caverns. It combines the most relevant physical phenomena with a robust numerical scheme, placing SafeInCave as a powerful tool for performance assessments of salt caverns under different operational conditions. 
+SafeInCave is an open-source 3D finite element simulator specifically designed for salt cavern mechanics. It combines the most relevant physical phenomena with a robust numerical scheme, placing SafeInCave as a powerful tool for performance assessments of salt caverns under different operational conditions. 
 
-<!-- ![Multicavern simulation with different operational conditions.](images/multicavern_q.gif){.wide-figure style="width: min(400px, 95vw);"} -->
 ![Multicavern simulation with different operational conditions.](images/multicavern_q.gif){width="60%"}
 
 
 ## Open-source
-Being **open-source** is perhaps the most important aspect of SafeInCave. This has many implications for both academic and industrial applications. Being fully transparent, auditable and reproducible is essencial to build trust in the results. Moreover, having access to the source code and being able to modify it as necessary allows for anyone to make contributions that can benefit the whole salt community!
+Being **open-source** is one of the most important aspect of SafeInCave. This has important implications for both academic and industrial applications. Full transparency, auditability, and reproducibility are essential for building trust in simulation results. Moreover, access to the source code allows users to inspect, adapt, and extend the simulator when needed, enabling contributions that can benefit the entire salt community.
 
 <!-- --- -->
 
@@ -61,18 +60,45 @@ Being **open-source** is perhaps the most important aspect of SafeInCave. This h
 - **Time discretization**: Choose between Explicit, Crank-Nicolson, and Fully-Implicit schemes.
 - **XDMF output**: Efficient output format in terms of size and postprocessing.
 
-<!-- --- -->
 
-<!-- --- -->
+## Installation
+SafeInCave installation depends on [FEniCSx](https://fenicsproject.org/) installation. For Windows users, the installaion pipeline consists of:
+
+1) Installing [WSL](https://learn.microsoft.com/en-us/windows/wsl/)
+
+2) Installing Ubuntu
+
+3) Installing [FEniCSx](https://fenicsproject.org/download/)
+
+4) Installing SafeInCave
+
+See SafeInCave [installation guidelines](https://admire-public.github.io/SafeInCave/home/) for further details.
+
+
+## Getting started
+Users can build their own simulators using the *safeincave* package. The [Examples](http://127.0.0.1:8000/SafeInCave/examples/mechanics/1_triaxial/) section shows detailed examples of how to set up purely **mechanical**, **heat diffusion**, and **thermomechanical** simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
+
 
 ## Mantainers
-- [Hermínio Tasinafo Honório](https://www.linkedin.com/in/herminioth/)
+- [Davi R. Damasceno](https://www.linkedin.com/in/drdamasceno/)
+- [Gijs van den Brekel](https://www.linkedin.com/in/gijs-van-den-brekel-041866229/)
 - [Hadi Hajibeygi](https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/sections/reservoir-engineering/staff/academic-staff/profdr-h-hajibeygi)
-- [Mathias Erdtmann](https://www.linkedin.com/in/mathias-kreutz-erdtmann/)
+- [Hermínio Tasinafo Honório](https://www.linkedin.com/in/herminioth/)
+- [Lucas Landeweerd](https://www.linkedin.com/in/lucaslandeweerd/)
 
 
+## License
+This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).  
+See the [LICENSE](LICENSE) file for full terms, or review the [official GPLv3 text](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
----
+
+## Key publications
+- Honório, H.T, Hajibeygi, H. [Three-dimensional multi-physics simulation and sensitivity analysis of cyclic hydrogen storage in salt caverns](https://doi.org/10.1016/j.ijhydene.2024.11.081). International Journal of Hydrogen Energy, 2024.
+
+- Honório, H.T., Franceschini, A., Ferronato, M., & Hajibeygi, H. [Salt cavern simulations with a stabilized mixed finite element formulation for low-order tetrahedral elements](https://doi.org/10.1016/j.cma.2026.119073). CMAME, 2026.
+
+- Honório, H.T., Amini, M.S., Landeweerd, L., & Hajibeygi, H. [SafeInCave: An Open-Source Simulator for Energy Storage in Heterogeneous Salt Caverns](https://smri.memberclicks.net/assets/docs/Fall2025/TechSessions/20_MP2025F_Honorio.pdf). In Proceedings of the SMRI Fall Technical Conference, Whichita, Kansas, US, 2025.
+
 
 ## Acknowledgements
 We would like to thank:
