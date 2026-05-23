@@ -21,58 +21,60 @@ import shutil
 import os
 
 if TYPE_CHECKING:
-    from .MomentumEquation import LinearMomentum
+    from .MomentumEquation import LinearMomentum, LinearMomentumBase
     from .HeatEquation import HeatDiffusion
+
     EqType = LinearMomentum | HeatDiffusion
 else:
     from typing import Any as EqType  # avoid runtime imports/cycles
 
 
-class SaveFields():
-	"""
-	Manage writing FEniCSx fields to XDMF over time.
+class SaveFields:
+    """
+    Manage writing FEniCSx fields to XDMF over time.
 
-	This helper collects references to fields stored on an equation object
-	(either :class:`LinearMomentum` or :class:`HeatDiffusion`), opens one
-	XDMF writer per field, and writes time-stamped data during a simulation.
-	It can also copy the original Gmsh mesh file into the output directory
-	for provenance.
+    This helper collects references to fields stored on an equation object
+    (either :class:`LinearMomentum` or :class:`HeatDiffusion`), opens one
+    XDMF writer per field, and writes time-stamped data during a simulation.
+    It can also copy the original Gmsh mesh file into the output directory
+    for provenance.
 
-	Parameters
-	----------
-	eq : EqType
-	    Equation/model object. Must expose:
-	    - ``eq.grid.mesh`` (a DOLFINx mesh with communicator),
-	    - ``eq.grid.grid_folder`` (path where the original ``.msh`` lives),
-	    - ``eq.grid.geometry_name`` (base filename of the ``.msh``),
-	    - attributes for each field you register via :meth:`add_output_field`.
+    Parameters
+    ----------
+    eq : EqType
+        Equation/model object. Must expose:
+        - ``eq.grid.mesh`` (a DOLFINx mesh with communicator),
+        - ``eq.grid.grid_folder`` (path where the original ``.msh`` lives),
+        - ``eq.grid.geometry_name`` (base filename of the ``.msh``),
+        - attributes for each field you register via :meth:`add_output_field`.
 
-	Attributes
-	----------
-	eq : EqType
-	    Stored equation/model handle.
-	fields_data : list of dict
-	    Registered field descriptors, each with keys
-	    ``{"field_name": str, "label_name": str}``.
-	output_fields : list of dolfinx.io.XDMFFile
-	    Open writers, in the same order as ``fields_data``.
-	output_folder : str
-	    Base directory for outputs (set via :meth:`set_output_folder`).
+    Attributes
+    ----------
+    eq : EqType
+        Stored equation/model handle.
+    fields_data : list of dict
+        Registered field descriptors, each with keys
+        ``{"field_name": str, "label_name": str}``.
+    output_fields : list of dolfinx.io.XDMFFile
+        Open writers, in the same order as ``fields_data``.
+    output_folder : str
+        Base directory for outputs (set via :meth:`set_output_folder`).
 
-	Notes
-	-----
-	- Voigt/tensor conventions, function ranks, and meshtags are not managed
-	  here; this class only writes whatever :mod:`dolfinx` ``Function`` you
-	  provide in ``eq``.
-	  created by :meth:`initialize`. Ensure they exist beforehand.
-	"""
-	def __init__(self, eq: EqType):
-		self.eq = eq
-		self.fields_data = []
-		self.output_fields = []
+    Notes
+    -----
+    - Voigt/tensor conventions, function ranks, and meshtags are not managed
+      here; this class only writes whatever :mod:`dolfinx` ``Function`` you
+      provide in ``eq``.
+      created by :meth:`initialize`. Ensure they exist beforehand.
+    """
 
-	def set_output_folder(self, output_folder: str) -> None:
-		"""
+    def __init__(self, eq: LinearMomentumBase | HeatDiffusion):
+        self.eq = eq
+        self.fields_data = []
+        self.output_fields = []
+
+    def set_output_folder(self, output_folder: str) -> None:
+        """
         Set the base directory for all outputs.
 
         Parameters
@@ -84,10 +86,10 @@ class SaveFields():
         -------
         None
         """
-		self.output_folder = output_folder
+        self.output_folder = output_folder
 
-	def add_output_field(self, field_name : str, label_name : str) -> None:
-		"""
+    def add_output_field(self, field_name: str, label_name: str) -> None:
+        """
         Register a field to be written, with a display label.
 
         Parameters
@@ -107,14 +109,14 @@ class SaveFields():
         -----
         You may call this multiple times before :meth:`initialize`.
         """
-		data = {
-			"field_name": field_name,
-			"label_name": label_name,
-		}
-		self.fields_data.append(data)
+        data = {
+            "field_name": field_name,
+            "label_name": label_name,
+        }
+        self.fields_data.append(data)
 
-	def initialize(self) -> None:
-		"""
+    def initialize(self) -> None:
+        """
         Open one XDMF writer per registered field and write the mesh.
 
         For each entry in :attr:`fields_data`, opens an XDMF at
@@ -138,69 +140,71 @@ class SaveFields():
         -----
         - Files are opened in ``"w"`` mode (overwrite).
         """
-		for field_data in self.fields_data:
-			field_name = field_data["field_name"]
-			output_field = do.io.XDMFFile(self.eq.grid.mesh.comm, os.path.join(self.output_folder, field_name, f"{field_name}.xdmf"), "w")
-			output_field.write_mesh(self.eq.grid.mesh)
-			self.output_fields.append(output_field)
+        for field_data in self.fields_data:
+            field_name = field_data["field_name"]
+            output_field = do.io.XDMFFile(
+                self.eq.grid.mesh.comm,
+                os.path.join(self.output_folder, field_name, f"{field_name}.xdmf"),
+                "w",
+            )
+            output_field.write_mesh(self.eq.grid.mesh)
+            self.output_fields.append(output_field)
 
-	def save_fields(self, t : float) -> None:
-		"""
-		Write all registered fields at simulation time ``t``.
+    def save_fields(self, t: float) -> None:
+        """
+        Write all registered fields at simulation time ``t``.
 
-		Parameters
-		----------
-		t : float
-		    Time value to associate with this write.
+        Parameters
+        ----------
+        t : float
+            Time value to associate with this write.
 
-		Returns
-		-------
-		None
+        Returns
+        -------
+        None
 
-		Notes
-		-----
-		For each descriptor in :attr:`fields_data`:
-		1. Fetches the field via ``getattr(self.eq, field_name)``.
-		2. Sets ``field.name = label_name``.
-		3. Calls ``XDMFFile.write_function(field, t)`` on the corresponding writer.
-		"""
-		for i, field_data in enumerate(self.fields_data):
-			field = getattr(self.eq, field_data["field_name"])
-			field.name = field_data["label_name"]
-			self.output_fields[i].write_function(field, t)
+        Notes
+        -----
+        For each descriptor in :attr:`fields_data`:
+        1. Fetches the field via ``getattr(self.eq, field_name)``.
+        2. Sets ``field.name = label_name``.
+        3. Calls ``XDMFFile.write_function(field, t)`` on the corresponding writer.
+        """
+        for i, field_data in enumerate(self.fields_data):
+            field = getattr(self.eq, field_data["field_name"])
+            field.name = field_data["label_name"]
+            self.output_fields[i].write_function(field, t)
 
-	def save_mesh(self) -> None:
-		"""
-		Copy the original Gmsh mesh file into ``{output_folder}/mesh/``.
+    def save_mesh(self) -> None:
+        """
+        Copy the original Gmsh mesh file into ``{output_folder}/mesh/``.
 
-		Parameters
-		----------
-		None
+        Parameters
+        ----------
+        None
 
-		Returns
-		-------
-		None
+        Returns
+        -------
+        None
 
-		Side Effects
-		------------
-		- Creates ``{output_folder}/mesh`` if it does not exist.
-		- Copies
-		  ``{eq.grid.grid_folder}/{eq.grid.geometry_name}.msh``
-		  to that directory.
+        Side Effects
+        ------------
+        - Creates ``{output_folder}/mesh`` if it does not exist.
+        - Copies
+          ``{eq.grid.grid_folder}/{eq.grid.geometry_name}.msh``
+          to that directory.
 
-		Raises
-		------
-		FileNotFoundError
-		    If the source ``.msh`` file does not exist.
-		OSError
-		    If the copy fails for other I/O reasons.
-		"""
-		mesh_origin_file = os.path.join(self.eq.grid.grid_folder, f"{self.eq.grid.geometry_name}.msh")
-		mesh_destination_folder = os.path.join(self.output_folder, "mesh")
-		if not os.path.exists(mesh_destination_folder):
-			os.makedirs(mesh_destination_folder, exist_ok=True)
-		shutil.copy(mesh_origin_file, mesh_destination_folder)
-
-
-
-
+        Raises
+        ------
+        FileNotFoundError
+            If the source ``.msh`` file does not exist.
+        OSError
+            If the copy fails for other I/O reasons.
+        """
+        mesh_origin_file = os.path.join(
+            self.eq.grid.grid_folder, f"{self.eq.grid.geometry_name}.msh"
+        )
+        mesh_destination_folder = os.path.join(self.output_folder, "mesh")
+        if not os.path.exists(mesh_destination_folder):
+            os.makedirs(mesh_destination_folder, exist_ok=True)
+        shutil.copy(mesh_origin_file, mesh_destination_folder)

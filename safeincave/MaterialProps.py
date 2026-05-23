@@ -19,8 +19,9 @@ import torch as to
 import numpy as np
 from .Utils import dotdot_torch, MPa
 
-class Material():
-	"""
+
+class Material:
+    """
     Composite material model that aggregates elastic, thermoelastic,
     and non-elastic (e.g., viscoelastic/viscoplastic) elements.
 
@@ -65,20 +66,21 @@ class Material():
     - Voigt ordering is assumed to be `[xx, yy, zz, xy, xz, yz]` with
       **tensorial shear** convention (no engineering factors).
     """
-	def __init__(self, n_elems: int):
-		self.n_elems = n_elems
-		self.elems_ne = []
-		self.elems_th = []
-		self.elems_e = []
 
-		self.C_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
-		self.C = to.zeros((n_elems, 6, 6), dtype=to.float64)
+    def __init__(self, n_elems: int):
+        self.n_elems = n_elems
+        self.elems_ne = []
+        self.elems_th = []
+        self.elems_e = []
 
-		self.C_tilde_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
-		self.C_tilde = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        self.C_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        self.C = to.zeros((n_elems, 6, 6), dtype=to.float64)
 
-	def set_density(self, density: to.Tensor) -> None:
-		"""
+        self.C_tilde_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        self.C_tilde = to.zeros((n_elems, 6, 6), dtype=to.float64)
+
+    def set_density(self, density: to.Tensor) -> None:
+        """
         Set mass density per element.
 
         Parameters
@@ -86,10 +88,10 @@ class Material():
         density : torch.Tensor
             1D tensor of shape (N,) with densities.
         """
-		self.density = density
+        self.density = density
 
-	def set_specific_heat_capacity(self, cp: to.Tensor) -> None:
-		"""
+    def set_specific_heat_capacity(self, cp: to.Tensor) -> None:
+        """
         Set specific heat capacity per element.
 
         Parameters
@@ -97,10 +99,10 @@ class Material():
         cp : torch.Tensor
             1D tensor of shape (N,) with specific heat capacities.
         """
-		self.cp = cp
+        self.cp = cp
 
-	def set_thermal_conductivity(self, k: to.Tensor) -> None:
-		"""
+    def set_thermal_conductivity(self, k: to.Tensor) -> None:
+        """
         Set thermal conductivity per element.
 
         Parameters
@@ -108,10 +110,10 @@ class Material():
         k : torch.Tensor
             1D tensor of shape (N,) with conductivities.
         """
-		self.k = k
+        self.k = k
 
-	def set_thermal_expansion(self, alpha_th: to.Tensor) -> None:
-		"""
+    def set_thermal_expansion(self, alpha_th: to.Tensor) -> None:
+        """
         Set coefficient of thermal expansion per element.
 
         Parameters
@@ -119,11 +121,10 @@ class Material():
         alpha_th : torch.Tensor
             1D tensor of shape (N,) with linear thermal expansion coefficients.
         """
-		self.alpha_th = alpha_th
+        self.alpha_th = alpha_th
 
-
-	def add_to_elastic(self, elem: Spring):
-		"""
+    def add_to_elastic(self, elem: Spring):
+        """
         Add an elastic (linear isotropic) contributor and accumulate stiffness.
 
         Parameters
@@ -137,18 +138,18 @@ class Material():
         - Stores `K`, `E`, and shear modulus estimate `ShearMod`.
         - Appends `elem` to `elems_e`.
         """
-		elem.initialize()
-		self.C_inv += elem.C_inv
-		self.C += elem.C
-		self.C_tilde_inv += elem.C_tilde_inv
-		self.C_tilde += elem.C_tilde
-		self.elems_e.append(elem)
-		self.K = elem.K
-		self.E = elem.E
-		self.ShearMod = 3*self.K*self.E/(9*self.K - self.E)
+        elem.initialize()
+        self.C_inv += elem.C_inv
+        self.C += elem.C
+        self.C_tilde_inv += elem.C_tilde_inv
+        self.C_tilde += elem.C_tilde
+        self.elems_e.append(elem)
+        self.K = elem.K
+        self.E = elem.E
+        self.ShearMod = 3 * self.K * self.E / (9 * self.K - self.E)
 
-	def add_to_non_elastic(self, elem: NonElasticElement) -> None:
-		"""
+    def add_to_non_elastic(self, elem: NonElasticElement) -> None:
+        """
         Add a non-elastic element contributor.
 
         Parameters
@@ -156,10 +157,10 @@ class Material():
         elem : NonElasticElement
             Inelastic mechanism (e.g., creep, viscoplasticity).
         """
-		self.elems_ne.append(elem)
+        self.elems_ne.append(elem)
 
-	def add_to_thermoelastic(self, elem: Thermoelastic) -> None:
-		"""
+    def add_to_thermoelastic(self, elem: Thermoelastic) -> None:
+        """
         Add a thermoelastic contributor.
 
         Parameters
@@ -167,10 +168,12 @@ class Material():
         elem : Thermoelastic
             Provides thermal strain contributions.
         """
-		self.elems_th.append(elem)
+        self.elems_th.append(elem)
 
-	def compute_G_B(self, stress: to.Tensor, dt: float, theta: float, T: to.Tensor) -> None:
-		"""
+    def compute_G_B(
+        self, stress: to.Tensor, dt: float, theta: float, T: to.Tensor
+    ) -> None:
+        """
         Assemble non-elastic operators G and B over all inelastic elements.
 
         Parameters
@@ -192,15 +195,15 @@ class Material():
         ------------
         Sets `self.G` (N,6,6) and `self.B` (N,3,3) as sums of element contributions.
         """
-		self.G = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-		self.B = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
-		for elem_ne in self.elems_ne:
-			elem_ne.compute_G_B(stress, dt, theta, T)
-			self.G += elem_ne.G
-			self.B += elem_ne.B
+        self.G = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+        self.B = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+        for elem_ne in self.elems_ne:
+            elem_ne.compute_G_B(stress, dt, theta, T)
+            self.G += elem_ne.G
+            self.B += elem_ne.B
 
-	def compute_T_IT(self) -> None:
-		"""
+    def compute_T_IT(self) -> None:
+        """
         Assemble volumetric coupling tensors T and IT from inelastic elements.
 
         Returns
@@ -211,15 +214,15 @@ class Material():
         ------------
         Sets `self.T` (N,3,3) and `self.IT` (N,6,6) as sums of element contributions.
         """
-		self.IT = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-		self.T = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
-		for elem_ne in self.elems_ne:
-			elem_ne.compute_T_IT()
-			self.IT += elem_ne.IT
-			self.T += elem_ne.T
+        self.IT = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+        self.T = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+        for elem_ne in self.elems_ne:
+            elem_ne.compute_T_IT()
+            self.IT += elem_ne.IT
+            self.T += elem_ne.T
 
-	def compute_Bvol_Tvol(self, stress: to.Tensor, dt: float) -> None:
-		"""
+    def compute_Bvol_Tvol(self, stress: to.Tensor, dt: float) -> None:
+        """
         Compute volumetric parts of B and T.
 
         Parameters
@@ -237,15 +240,15 @@ class Material():
         ------------
         Sets `self.B_vol` and `self.T_vol` (shape (N,)) from element contributions.
         """
-		self.B_vol = to.zeros(self.n_elems, dtype=to.float64)
-		self.T_vol = to.zeros(self.n_elems, dtype=to.float64)
-		for elem_ne in self.elems_ne:
-			elem_ne.compute_Bvol_Tvol()
-			self.B_vol += elem_ne.B_vol
-			self.T_vol += elem_ne.T_vol
+        self.B_vol = to.zeros(self.n_elems, dtype=to.float64)
+        self.T_vol = to.zeros(self.n_elems, dtype=to.float64)
+        for elem_ne in self.elems_ne:
+            elem_ne.compute_Bvol_Tvol()
+            self.B_vol += elem_ne.B_vol
+            self.T_vol += elem_ne.T_vol
 
-	def compute_Gtilde_Btilde(self, stress: to.Tensor, dt: float) -> None:
-		"""
+    def compute_Gtilde_Btilde(self, stress: to.Tensor, dt: float) -> None:
+        """
         Compute deviatoric parts of G and B.
 
         Parameters
@@ -263,15 +266,15 @@ class Material():
         ------------
         Sets `self.G_tilde` and `self.B_tilde` (N,6,6) and (N,3,3).
         """
-		self.G_tilde = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-		self.B_tilde = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
-		for elem_ne in self.elems_ne:
-			elem_ne.compute_Gtilde_Btilde()
-			self.G_tilde += elem_ne.G_tilde
-			self.B_tilde += elem_ne.B_tilde
+        self.G_tilde = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
+        self.B_tilde = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
+        for elem_ne in self.elems_ne:
+            elem_ne.compute_Gtilde_Btilde()
+            self.G_tilde += elem_ne.G_tilde
+            self.B_tilde += elem_ne.B_tilde
 
-	def compute_CT(self, dt: float, theta: float) -> None:
-		"""
+    def compute_CT(self, dt: float, theta: float) -> None:
+        """
         Compute consistent tangent `CT = (C_inv + dt*(1-theta)*G)^{-1}`.
 
         Parameters
@@ -289,10 +292,10 @@ class Material():
         ------------
         Sets `self.CT` (N, 6, 6).
         """
-		self.CT = to.linalg.inv(self.C_inv + dt*(1-theta)*self.G)
+        self.CT = to.linalg.inv(self.C_inv + dt * (1 - theta) * self.G)
 
-	def compute_CT_tilde(self, dt: float, theta: float) -> None:
-		"""
+    def compute_CT_tilde(self, dt: float, theta: float) -> None:
+        """
         Compute deviatoric consistent tangent `CT_tilde`.
 
         Parameters
@@ -310,11 +313,13 @@ class Material():
         ------------
         Sets `self.CT_tilde` (N, 6, 6).
         """
-		self.CT_tilde = to.linalg.inv(self.C_tilde_inv + dt*(1-theta)*self.G_tilde)
+        self.CT_tilde = to.linalg.inv(
+            self.C_tilde_inv + dt * (1 - theta) * self.G_tilde
+        )
 
 
-class Thermoelastic():
-	"""
+class Thermoelastic:
+    """
     Thermoelastic contribution producing thermal strain :math:`\\varepsilon_{th}
     = \\alpha\\,\\Delta T\\,I`.
 
@@ -338,15 +343,16 @@ class Thermoelastic():
     name : str
         Element name.
     """
-	def __init__(self, alpha, name="thermoelastic"):
-		self.alpha = alpha
-		self.name = name
-		self.n_elems = self.alpha.shape[0]
-		self.eps_th = to.zeros((self.n_elems, 3, 3))
-		self.I = to.eye(3, dtype=to.float64).unsqueeze(0).repeat(self.n_elems, 1, 1)
 
-	def compute_eps_th(self, dT_DG_vec):
-		"""
+    def __init__(self, alpha, name="thermoelastic"):
+        self.alpha = alpha
+        self.name = name
+        self.n_elems = self.alpha.shape[0]
+        self.eps_th = to.zeros((self.n_elems, 3, 3))
+        self.I = to.eye(3, dtype=to.float64).unsqueeze(0).repeat(self.n_elems, 1, 1)
+
+    def compute_eps_th(self, dT_DG_vec):
+        """
         Compute thermal strain from a temperature increment.
 
         Parameters
@@ -362,11 +368,11 @@ class Thermoelastic():
         ------------
         Sets `self.eps_th = alpha * dT * I`.
         """
-		self.eps_th = self.alpha[:,None,None]*dT_DG_vec[:,None,None]*self.I
+        self.eps_th = self.alpha[:, None, None] * dT_DG_vec[:, None, None] * self.I
 
 
-class Spring():
-	"""
+class Spring:
+    """
     Linear isotropic elastic element in Voigt notation.
 
     Parameters
@@ -395,15 +401,16 @@ class Spring():
     name : str
         Element name.
     """
-	def __init__(self, E, nu, name="spring"):
-		self.E = E
-		self.nu = nu
-		self.name = name
-		self.n_elems = self.E.shape[0]
-		self.eps_e = to.tensor((self.n_elems, 3, 3), dtype=to.float64)
 
-	def initialize(self):
-		"""
+    def __init__(self, E, nu, name="spring"):
+        self.E = E
+        self.nu = nu
+        self.name = name
+        self.n_elems = self.E.shape[0]
+        self.eps_e = to.tensor((self.n_elems, 3, 3), dtype=to.float64)
+
+    def initialize(self):
+        """
         Build stiffness operators and bulk modulus.
 
         Returns
@@ -414,14 +421,14 @@ class Spring():
         ------------
         Sets `C`, `C_inv`, `C_tilde`, `C_tilde_inv`, and `K`.
         """
-		self.C = self.__compute_C(self.n_elems, self.nu, self.E)
-		self.C_inv = self.__compute_C_inv(self.C)
-		self.C_tilde = self.__compute_C_tilde(self.n_elems, self.nu, self.E)
-		self.C_tilde_inv = self.__compute_C_tilde_inv(self.n_elems, self.nu, self.E)
-		self.K = self.E/(3*(1 - 2*self.nu))
+        self.C = self.__compute_C(self.n_elems, self.nu, self.E)
+        self.C_inv = self.__compute_C_inv(self.C)
+        self.C_tilde = self.__compute_C_tilde(self.n_elems, self.nu, self.E)
+        self.C_tilde_inv = self.__compute_C_tilde_inv(self.n_elems, self.nu, self.E)
+        self.K = self.E / (3 * (1 - 2 * self.nu))
 
-	def compute_eps_e(self, stress):
-		"""
+    def compute_eps_e(self, stress):
+        """
         Compute elastic strain from stress using `C_inv`.
 
         Parameters
@@ -437,10 +444,10 @@ class Spring():
         ------------
         Sets `self.eps_e` (N, 3, 3).
         """
-		self.eps_e = dotdot_torch(self.C_inv, stress)
+        self.eps_e = dotdot_torch(self.C_inv, stress)
 
-	def __compute_C(self, n_elems, nu, E):
-		"""
+    def __compute_C(self, n_elems, nu, E):
+        """
         Construct isotropic stiffness in tensorial Voigt form.
 
         Parameters
@@ -458,19 +465,21 @@ class Spring():
             Stiffness matrix `(N, 6, 6)` with shear terms `2G` on the diagonal
             of the shear block (tensorial, not engineering).
         """
-		C = to.zeros((n_elems, 6, 6), dtype=to.float64)
-		a0 = E/((1 + nu)*(1 - 2*nu))
-		C[:,0,0] = a0*(1 - nu)
-		C[:,1,1] = a0*(1 - nu)
-		C[:,2,2] = a0*(1 - nu)
-		C[:,3,3] = a0*(1 - 2*nu)
-		C[:,4,4] = a0*(1 - 2*nu)
-		C[:,5,5] = a0*(1 - 2*nu)
-		C[:,0,1] = C[:,1,0] = C[:,0,2] = C[:,2,0] = C[:,2,1] = C[:,1,2] = a0*nu
-		return C
+        C = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        a0 = E / ((1 + nu) * (1 - 2 * nu))
+        C[:, 0, 0] = a0 * (1 - nu)
+        C[:, 1, 1] = a0 * (1 - nu)
+        C[:, 2, 2] = a0 * (1 - nu)
+        C[:, 3, 3] = a0 * (1 - 2 * nu)
+        C[:, 4, 4] = a0 * (1 - 2 * nu)
+        C[:, 5, 5] = a0 * (1 - 2 * nu)
+        C[:, 0, 1] = C[:, 1, 0] = C[:, 0, 2] = C[:, 2, 0] = C[:, 2, 1] = C[:, 1, 2] = (
+            a0 * nu
+        )
+        return C
 
-	def __compute_C_inv(self, C):
-		"""
+    def __compute_C_inv(self, C):
+        """
         Invert the stiffness matrix per element.
 
         Parameters
@@ -483,10 +492,10 @@ class Spring():
         torch.Tensor
             Element-wise inverse, shape (N, 6, 6).
         """
-		return to.linalg.inv(self.C)
+        return to.linalg.inv(self.C)
 
-	def __compute_C_tilde(self, n_elems, nu, E):
-		"""
+    def __compute_C_tilde(self, n_elems, nu, E):
+        """
         Construct deviatoric stiffness (2G on all six Voigt diagonals).
 
         Parameters
@@ -500,27 +509,26 @@ class Spring():
         torch.Tensor
             `(N, 6, 6)` with diagonal entries `2G`, zeros elsewhere.
         """
-		G = E/(2*(1 + nu))
-		C_tilde = to.zeros((n_elems, 6, 6), dtype=to.float64)
-		C_tilde[:,0,0] = 2*G
-		C_tilde[:,1,1] = 2*G
-		C_tilde[:,2,2] = 2*G
-		C_tilde[:,3,3] = 2*G
-		C_tilde[:,4,4] = 2*G
-		C_tilde[:,5,5] = 2*G
-		return C_tilde
+        G = E / (2 * (1 + nu))
+        C_tilde = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        C_tilde[:, 0, 0] = 2 * G
+        C_tilde[:, 1, 1] = 2 * G
+        C_tilde[:, 2, 2] = 2 * G
+        C_tilde[:, 3, 3] = 2 * G
+        C_tilde[:, 4, 4] = 2 * G
+        C_tilde[:, 5, 5] = 2 * G
+        return C_tilde
 
-	def __compute_C_tilde_inv(self, n_elems, nu, E):
-		G = E/(2*(1 + nu))
-		C_tilde_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
-		C_tilde_inv[:,0,0] = 1/(2*G)
-		C_tilde_inv[:,1,1] = 1/(2*G)
-		C_tilde_inv[:,2,2] = 1/(2*G)
-		C_tilde_inv[:,3,3] = 1/(2*G)
-		C_tilde_inv[:,4,4] = 1/(2*G)
-		C_tilde_inv[:,5,5] = 1/(2*G)
-		return C_tilde_inv
-
+    def __compute_C_tilde_inv(self, n_elems, nu, E):
+        G = E / (2 * (1 + nu))
+        C_tilde_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
+        C_tilde_inv[:, 0, 0] = 1 / (2 * G)
+        C_tilde_inv[:, 1, 1] = 1 / (2 * G)
+        C_tilde_inv[:, 2, 2] = 1 / (2 * G)
+        C_tilde_inv[:, 3, 3] = 1 / (2 * G)
+        C_tilde_inv[:, 4, 4] = 1 / (2 * G)
+        C_tilde_inv[:, 5, 5] = 1 / (2 * G)
+        return C_tilde_inv
 
 
 class NonElasticElement(ABC):
@@ -547,6 +555,7 @@ class NonElasticElement(ABC):
     G : torch.Tensor
         Tangent-like operator (N, 6, 6) assembled in `compute_G_B`.
     """
+
     def __init__(self, n_elems):
         self.n_elems = n_elems
         self.eps_ne_rate = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
@@ -557,7 +566,13 @@ class NonElasticElement(ABC):
         self.G = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
 
     @abstractmethod
-    def compute_eps_ne_rate(self, stress_vec: to.Tensor, phi1: float, Temp: to.Tensor, return_eps_ne: bool=False) -> None:
+    def compute_eps_ne_rate(
+        self,
+        stress_vec: to.Tensor,
+        phi1: float,
+        Temp: to.Tensor,
+        return_eps_ne: bool = False,
+    ) -> None:
         pass
 
     def increment_internal_variables(self, *args) -> None:
@@ -585,9 +600,13 @@ class NonElasticElement(ABC):
         ------------
         Sets `self.eps_ne_k`.
         """
-        self.eps_ne_k = self.eps_ne_old + phi1*self.eps_ne_rate_old + phi2*self.eps_ne_rate
+        self.eps_ne_k = (
+            self.eps_ne_old + phi1 * self.eps_ne_rate_old + phi2 * self.eps_ne_rate
+        )
 
-    def update_eps_ne_old(self, stress: to.Tensor, stress_k: to.Tensor, phi2: float) -> None:
+    def update_eps_ne_old(
+        self, stress: to.Tensor, stress_k: to.Tensor, phi2: float
+    ) -> None:
         """
         Update non-elastic strain from previous time step.
 
@@ -608,7 +627,11 @@ class NonElasticElement(ABC):
         ------------
         Updates `self.eps_ne_old`.
         """
-        self.eps_ne_old = self.eps_ne_k + phi2*dotdot_torch(self.G, stress - stress_k) - phi2*self.B
+        self.eps_ne_old = (
+            self.eps_ne_k
+            + phi2 * dotdot_torch(self.G, stress - stress_k)
+            - phi2 * self.B
+        )
 
     def update_eps_ne_rate_old(self) -> None:
         """
@@ -620,7 +643,9 @@ class NonElasticElement(ABC):
         """
         self.eps_ne_rate_old = self.eps_ne_rate.clone()
 
-    def compute_E(self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor) -> None:
+    def compute_E(
+        self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor
+    ) -> None:
         """
         Finite-difference approximation of the 6×6 operator E = d(eps_ne)/d(stress).
 
@@ -640,24 +665,40 @@ class NonElasticElement(ABC):
         torch.Tensor
             Operator `E` with shape (N, 6, 6).
         """
-        phi1 = dt*theta
+        phi1 = dt * theta
         EPSILON = 1e-2
         E = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
         stress_eps = stress.clone()
         c1 = 1.0
         c2 = 2.0
-        magic_indexes = [(0,0,0,c1), (1,1,1,c1), (2,2,2,c1), (0,1,3,c2), (0,2,4,c2), (1,2,5,c2)]
+        magic_indexes = [
+            (0, 0, 0, c1),
+            (1, 1, 1, c1),
+            (2, 2, 2, c1),
+            (0, 1, 3, c2),
+            (0, 2, 4, c2),
+            (1, 2, 5, c2),
+        ]
         for i, j, k, phi in magic_indexes:
-            stress_eps[:,i,j] += EPSILON
+            stress_eps[:, i, j] += EPSILON
             eps_A = self.compute_eps_ne_rate(stress_eps, phi1, Temp, return_eps_ne=True)
-            stress_eps[:,i,j] -= EPSILON
-            stress_eps[:,i,j] -= EPSILON
+            stress_eps[:, i, j] -= EPSILON
+            stress_eps[:, i, j] -= EPSILON
             eps_B = self.compute_eps_ne_rate(stress_eps, phi1, Temp, return_eps_ne=True)
-            stress_eps[:,i,j] += EPSILON
-            E[:,:,k] = phi*(eps_A[:,[0,1,2,0,0,1],[0,1,2,1,2,2]] - eps_B[:,[0,1,2,0,0,1],[0,1,2,1,2,2]]) / (2*EPSILON)
+            stress_eps[:, i, j] += EPSILON
+            E[:, :, k] = (
+                phi
+                * (
+                    eps_A[:, [0, 1, 2, 0, 0, 1], [0, 1, 2, 1, 2, 2]]
+                    - eps_B[:, [0, 1, 2, 0, 0, 1], [0, 1, 2, 1, 2, 2]]
+                )
+                / (2 * EPSILON)
+            )
         return E
 
-    def compute_B_and_H_over_h(self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor) -> None:
+    def compute_B_and_H_over_h(
+        self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor
+    ) -> None:
         """
         Compute state variable term `B` and linearization term `H/h`.
 
@@ -687,7 +728,9 @@ class NonElasticElement(ABC):
         H_over_h = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
         return B, H_over_h
 
-    def compute_G_B(self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor) -> None:
+    def compute_G_B(
+        self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor
+    ) -> None:
         """
         Assemble `G` and `B` for the element based on `E` and `H/h`.
 
@@ -723,22 +766,28 @@ class NonElasticElement(ABC):
         Sets `self.T` and `self.IT`.
         """
         self.T = to.zeros((self.n_elems, 3, 3))
-        self.T[:,0,0] = self.G[:,0,0] + self.G[:,1,0] + self.G[:,2,0]
-        self.T[:,1,1] = self.G[:,0,1] + self.G[:,1,1] + self.G[:,2,1]
-        self.T[:,2,2] = self.G[:,0,2] + self.G[:,1,2] + self.G[:,2,2]
-        self.T[:,1,0] = self.T[:,0,1] = (self.G[:,0,3] + self.G[:,1,3] + self.G[:,2,3])/2
-        self.T[:,2,0] = self.T[:,0,2] = (self.G[:,0,4] + self.G[:,1,4] + self.G[:,2,4])/2
-        self.T[:,2,1] = self.T[:,1,2] = (self.G[:,0,5] + self.G[:,1,5] + self.G[:,2,5])/2
+        self.T[:, 0, 0] = self.G[:, 0, 0] + self.G[:, 1, 0] + self.G[:, 2, 0]
+        self.T[:, 1, 1] = self.G[:, 0, 1] + self.G[:, 1, 1] + self.G[:, 2, 1]
+        self.T[:, 2, 2] = self.G[:, 0, 2] + self.G[:, 1, 2] + self.G[:, 2, 2]
+        self.T[:, 1, 0] = self.T[:, 0, 1] = (
+            self.G[:, 0, 3] + self.G[:, 1, 3] + self.G[:, 2, 3]
+        ) / 2
+        self.T[:, 2, 0] = self.T[:, 0, 2] = (
+            self.G[:, 0, 4] + self.G[:, 1, 4] + self.G[:, 2, 4]
+        ) / 2
+        self.T[:, 2, 1] = self.T[:, 1, 2] = (
+            self.G[:, 0, 5] + self.G[:, 1, 5] + self.G[:, 2, 5]
+        ) / 2
 
         self.IT = to.zeros((self.n_elems, 6, 6))
-        self.IT[:,0,0] = self.T[:,0,0]
-        self.IT[:,0,1] = self.T[:,1,1]
-        self.IT[:,0,2] = self.T[:,2,2]
-        self.IT[:,0,3] = self.T[:,0,1] + self.T[:,1,0]
-        self.IT[:,0,4] = self.T[:,0,2] + self.T[:,2,0]
-        self.IT[:,0,5] = self.T[:,1,2] + self.T[:,2,1]
-        self.IT[:,1,:] = self.IT[:,0,:]
-        self.IT[:,2,:] = self.IT[:,0,:]
+        self.IT[:, 0, 0] = self.T[:, 0, 0]
+        self.IT[:, 0, 1] = self.T[:, 1, 1]
+        self.IT[:, 0, 2] = self.T[:, 2, 2]
+        self.IT[:, 0, 3] = self.T[:, 0, 1] + self.T[:, 1, 0]
+        self.IT[:, 0, 4] = self.T[:, 0, 2] + self.T[:, 2, 0]
+        self.IT[:, 0, 5] = self.T[:, 1, 2] + self.T[:, 2, 1]
+        self.IT[:, 1, :] = self.IT[:, 0, :]
+        self.IT[:, 2, :] = self.IT[:, 0, :]
 
     def compute_Bvol_Tvol(self) -> None:
         """
@@ -767,12 +816,9 @@ class NonElasticElement(ABC):
         ------------
         Sets `self.G_tilde` and `self.B_tilde`.
         """
-        I = to.eye(3).expand(self.n_elems, -1, -1)
-        self.G_tilde = self.G - self.IT/3
-        self.B_tilde = self.B - self.B_vol[:,None,None]*I/3
-
-		
-
+        I_3x3 = to.eye(3).expand(self.n_elems, -1, -1)
+        self.G_tilde = self.G - self.IT / 3
+        self.B_tilde = self.B - self.B_vol[:, None, None] * I_3x3 / 3
 
 
 class Viscoelastic(NonElasticElement):
@@ -797,7 +843,10 @@ class Viscoelastic(NonElasticElement):
     eta, E, nu : torch.Tensor
         Material parameters, shape (N,).
     """
-    def __init__(self, eta: to.Tensor, E: to.Tensor, nu: to.Tensor, name: str="kelvin_voigt"):
+
+    def __init__(
+        self, eta: to.Tensor, E: to.Tensor, nu: to.Tensor, name: str = "kelvin_voigt"
+    ):
         super().__init__(E.shape[0])
         self.eta = eta
         self.E = E
@@ -806,16 +855,24 @@ class Viscoelastic(NonElasticElement):
 
         # Assemble C1 tensor (n_elems, 6, 6)
         self.C1 = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-        a0 = self.E/((1 + self.nu)*(1 - 2*self.nu))
-        self.C1[:,0,0] = a0*(1 - self.nu)
-        self.C1[:,1,1] = a0*(1 - self.nu)
-        self.C1[:,2,2] = a0*(1 - self.nu)
-        self.C1[:,3,3] = a0*(1 - 2*self.nu)
-        self.C1[:,4,4] = a0*(1 - 2*self.nu)
-        self.C1[:,5,5] = a0*(1 - 2*self.nu)
-        self.C1[:,0,1] = self.C1[:,1,0] = self.C1[:,0,2] = self.C1[:,2,0] = self.C1[:,2,1] = self.C1[:,1,2] = a0*self.nu
+        a0 = self.E / ((1 + self.nu) * (1 - 2 * self.nu))
+        self.C1[:, 0, 0] = a0 * (1 - self.nu)
+        self.C1[:, 1, 1] = a0 * (1 - self.nu)
+        self.C1[:, 2, 2] = a0 * (1 - self.nu)
+        self.C1[:, 3, 3] = a0 * (1 - 2 * self.nu)
+        self.C1[:, 4, 4] = a0 * (1 - 2 * self.nu)
+        self.C1[:, 5, 5] = a0 * (1 - 2 * self.nu)
+        self.C1[:, 0, 1] = self.C1[:, 1, 0] = self.C1[:, 0, 2] = self.C1[
+            :, 2, 0
+        ] = self.C1[:, 2, 1] = self.C1[:, 1, 2] = a0 * self.nu
 
-    def compute_eps_ne_rate(self, stress_vec: to.Tensor, phi1: float, Temp: to.Tensor, return_eps_ne: bool=False):
+    def compute_eps_ne_rate(
+        self,
+        stress_vec: to.Tensor,
+        phi1: float,
+        Temp: to.Tensor,
+        return_eps_ne: bool = False,
+    ):
         """
         Compute viscoelastic strain rate (Kelvin–Voigt form).
 
@@ -835,13 +892,19 @@ class Viscoelastic(NonElasticElement):
         None or torch.Tensor
             (N, 3, 3) if `return_eps_ne=True`, else `None`.
         """
-        eps_ne_rate = dotdot_torch(self.G, stress_vec - dotdot_torch(self.C1, self.eps_ne_old + phi1*self.eps_ne_rate_old))
+        eps_ne_rate = dotdot_torch(
+            self.G,
+            stress_vec
+            - dotdot_torch(self.C1, self.eps_ne_old + phi1 * self.eps_ne_rate_old),
+        )
         if return_eps_ne:
             return eps_ne_rate.clone()
         else:
             self.eps_ne_rate = eps_ne_rate.clone()
 
-    def compute_E(self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor) -> to.Tensor:
+    def compute_E(
+        self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor
+    ) -> to.Tensor:
         """
         Closed-form 6×6 operator for viscoelasticity:
         `E = (eta*I + phi2*C1)^{-1}`.
@@ -862,25 +925,30 @@ class Viscoelastic(NonElasticElement):
         torch.Tensor
             `E` with shape (N, 6, 6).
         """
-        phi2 = dt*(1 - theta)
-        I = to.eye(6, dtype=to.float64).unsqueeze(0).repeat(self.n_elems, 1, 1)
-        E = to.linalg.inv(self.eta[:,None,None]*I + phi2*self.C1)
+        phi2 = dt * (1 - theta)
+        I_3x3 = to.eye(6, dtype=to.float64).unsqueeze(0).repeat(self.n_elems, 1, 1)
+        E = to.linalg.inv(self.eta[:, None, None] * I_3x3 + phi2 * self.C1)
         return E
 
 
 class LinearDashpot(NonElasticElement):
-    def __init__(self, A: to.Tensor, name: str="dashpot"):
+    def __init__(self, A: to.Tensor, name: str = "dashpot"):
         super().__init__(A.shape[0])
         self.A = A
         self.name = name
 
-    def compute_eps_ne_rate(self, stress_vec: to.Tensor, phi1: float, Temp: to.Tensor, return_eps_ne: bool=False):
-        eps_rate = self.A[:,None,None]*stress_vec
+    def compute_eps_ne_rate(
+        self,
+        stress_vec: to.Tensor,
+        phi1: float,
+        Temp: to.Tensor,
+        return_eps_ne: bool = False,
+    ):
+        eps_rate = self.A[:, None, None] * stress_vec
         if return_eps_ne:
             return eps_rate
         else:
             self.eps_ne_rate = eps_rate
-
 
 
 class DislocationCreep(NonElasticElement):
@@ -906,7 +974,8 @@ class DislocationCreep(NonElasticElement):
     A, Q, n : torch.Tensor
         Material parameters, shape (N,).
     """
-    def __init__(self, A: to.Tensor, Q: to.Tensor, n: to.Tensor, name: str="creep"):
+
+    def __init__(self, A: to.Tensor, Q: to.Tensor, n: to.Tensor, name: str = "creep"):
         super().__init__(A.shape[0])
         self.R = 8.32
         self.Q = Q
@@ -914,7 +983,13 @@ class DislocationCreep(NonElasticElement):
         self.n = n
         self.name = name
 
-    def compute_eps_ne_rate(self, stress_vec: to.Tensor, phi1: float, Temp: to.Tensor, return_eps_ne: bool=False):
+    def compute_eps_ne_rate(
+        self,
+        stress_vec: to.Tensor,
+        phi1: float,
+        Temp: to.Tensor,
+        return_eps_ne: bool = False,
+    ):
         """
         Compute creep strain rate from current stress.
 
@@ -934,23 +1009,31 @@ class DislocationCreep(NonElasticElement):
         None or torch.Tensor
             (N, 3, 3) if `return_eps_ne=True`, else `None`.
         """
-        s_xx = stress_vec[:,0,0]
-        s_yy = stress_vec[:,1,1]
-        s_zz = stress_vec[:,2,2]
-        s_xy = stress_vec[:,0,1]
-        s_xz = stress_vec[:,0,2]
-        s_yz = stress_vec[:,1,2]
+        s_xx = stress_vec[:, 0, 0]
+        s_yy = stress_vec[:, 1, 1]
+        s_zz = stress_vec[:, 2, 2]
+        s_xy = stress_vec[:, 0, 1]
+        s_xz = stress_vec[:, 0, 2]
+        s_yz = stress_vec[:, 1, 2]
 
         sigma_mean = (s_xx + s_yy + s_zz) / 3
         dev = stress_vec.clone()
-        dev[:,0,0] = s_xx - sigma_mean
-        dev[:,1,1] = s_yy - sigma_mean
-        dev[:,2,2] = s_zz - sigma_mean
+        dev[:, 0, 0] = s_xx - sigma_mean
+        dev[:, 1, 1] = s_yy - sigma_mean
+        dev[:, 2, 2] = s_zz - sigma_mean
 
-        q_vm = to.sqrt( 0.5*( (s_xx - s_yy)**2 + (s_xx - s_zz)**2 + (s_yy - s_zz)**2 + 6*(s_xy**2 + s_xz**2 + s_yz**2) ) )
+        q_vm = to.sqrt(
+            0.5
+            * (
+                (s_xx - s_yy) ** 2
+                + (s_xx - s_zz) ** 2
+                + (s_yy - s_zz) ** 2
+                + 6 * (s_xy**2 + s_xz**2 + s_yz**2)
+            )
+        )
 
-        A_bar = self.A*to.exp(-self.Q/self.R/Temp)*q_vm**(self.n - 1)
-        eps_rate = A_bar[:,None,None]*dev
+        A_bar = self.A * to.exp(-self.Q / self.R / Temp) * q_vm ** (self.n - 1)
+        eps_rate = A_bar[:, None, None] * dev
         if return_eps_ne:
             return eps_rate
         else:
@@ -980,7 +1063,8 @@ class PressureSolutionCreep(NonElasticElement):
     A, Q, d : torch.Tensor
         Material parameters, shape (N,).
     """
-    def __init__(self, A: to.Tensor, d: to.Tensor, Q: to.Tensor, name: str="creep"):
+
+    def __init__(self, A: to.Tensor, d: to.Tensor, Q: to.Tensor, name: str = "creep"):
         super().__init__(A.shape[0])
         self.R = 8.32
         self.Q = Q
@@ -988,7 +1072,13 @@ class PressureSolutionCreep(NonElasticElement):
         self.d = d
         self.name = name
 
-    def compute_eps_ne_rate(self, stress_vec: to.Tensor, phi1: float, Temp: to.Tensor, return_eps_ne: bool=False):
+    def compute_eps_ne_rate(
+        self,
+        stress_vec: to.Tensor,
+        phi1: float,
+        Temp: to.Tensor,
+        return_eps_ne: bool = False,
+    ):
         """
         Compute creep strain rate from current stress.
 
@@ -1008,22 +1098,18 @@ class PressureSolutionCreep(NonElasticElement):
         None or torch.Tensor
             (N, 3, 3) if `return_eps_ne=True`, else `None`.
         """
-        s_xx = stress_vec[:,0,0]
-        s_yy = stress_vec[:,1,1]
-        s_zz = stress_vec[:,2,2]
-        s_xy = stress_vec[:,0,1]
-        s_xz = stress_vec[:,0,2]
-        s_yz = stress_vec[:,1,2]
+        s_xx = stress_vec[:, 0, 0]
+        s_yy = stress_vec[:, 1, 1]
+        s_zz = stress_vec[:, 2, 2]
 
         sigma_mean = (s_xx + s_yy + s_zz) / 3
         dev = stress_vec.clone()
-        dev[:,0,0] = s_xx - sigma_mean
-        dev[:,1,1] = s_yy - sigma_mean
-        dev[:,2,2] = s_zz - sigma_mean
+        dev[:, 0, 0] = s_xx - sigma_mean
+        dev[:, 1, 1] = s_yy - sigma_mean
+        dev[:, 2, 2] = s_zz - sigma_mean
 
-
-        A_bar = (self.A/self.d**3/Temp)*to.exp(-self.Q/self.R/Temp)
-        eps_rate = A_bar[:,None,None]*dev
+        A_bar = (self.A / self.d**3 / Temp) * to.exp(-self.Q / self.R / Temp)
+        eps_rate = A_bar[:, None, None] * dev
         if return_eps_ne:
             return eps_rate
         else:
@@ -1054,19 +1140,22 @@ class ViscoplasticDesai(NonElasticElement):
     r, h : torch.Tensor
         Residue and its derivative w.r.t. `alpha`, shapes (N,) and (N,).
     """
-    def __init__(self,
-						mu_1: to.Tensor,
-						N_1: to.Tensor,
-						a_1: to.Tensor,
-						eta: to.Tensor,
-						n: to.Tensor,
-						beta_1: to.Tensor,
-						beta: to.Tensor,
-						m: to.Tensor,
-						gamma: to.Tensor,
-						sigma_t: to.Tensor,
-						alpha_0: to.Tensor,
-						name: str="desai"):
+
+    def __init__(
+        self,
+        mu_1: to.Tensor,
+        N_1: to.Tensor,
+        a_1: to.Tensor,
+        eta: to.Tensor,
+        n: to.Tensor,
+        beta_1: to.Tensor,
+        beta: to.Tensor,
+        m: to.Tensor,
+        gamma: to.Tensor,
+        sigma_t: to.Tensor,
+        alpha_0: to.Tensor,
+        name: str = "desai",
+    ):
         super().__init__(mu_1.shape[0])
         self.name = name
         self.mu_1 = mu_1
@@ -1087,7 +1176,9 @@ class ViscoplasticDesai(NonElasticElement):
         self.qsi = to.zeros(self.n_elems, dtype=to.float64)
         self.qsi_old = to.zeros(self.n_elems, dtype=to.float64)
 
-    def compute_residue(self, eps_rate: to.Tensor, alpha: to.Tensor, dt: float) -> to.Tensor:
+    def compute_residue(
+        self, eps_rate: to.Tensor, alpha: to.Tensor, dt: float
+    ) -> to.Tensor:
         """
         Residue of the implicit hardening equation.
 
@@ -1109,8 +1200,10 @@ class ViscoplasticDesai(NonElasticElement):
         -----
         Updates `self.qsi` internally based on `eps_rate`.
         """
-        self.qsi = self.qsi_old + to.sum(eps_rate**2, axis=(-2, -1))**0.5*dt
-        return alpha - self.a_1 / (((self.a_1/self.alpha_0)**(1/self.eta) + self.qsi)**self.eta)
+        self.qsi = self.qsi_old + to.sum(eps_rate**2, axis=(-2, -1)) ** 0.5 * dt
+        return alpha - self.a_1 / (
+            ((self.a_1 / self.alpha_0) ** (1 / self.eta) + self.qsi) ** self.eta
+        )
 
     def update_internal_variables(self) -> None:
         """
@@ -1122,7 +1215,9 @@ class ViscoplasticDesai(NonElasticElement):
         """
         self.qsi_old = self.qsi.clone()
 
-    def increment_internal_variables(self, stress: to.Tensor, stress_k: to.Tensor, dt:float) -> None:
+    def increment_internal_variables(
+        self, stress: to.Tensor, stress_k: to.Tensor, dt: float
+    ) -> None:
         """
         Increment hardening variable `alpha` using linearization.
 
@@ -1143,15 +1238,29 @@ class ViscoplasticDesai(NonElasticElement):
         ------------
         Updates `self.alpha`.
         """
-        delta_alpha = -(self.r + to.einsum('bij,bij->b', self.P, stress - stress_k))/self.h
+        delta_alpha = (
+            -(self.r + to.einsum("bij,bij->b", self.P, stress - stress_k)) / self.h
+        )
         self.alpha += delta_alpha
 
-    def compute_stress_invariants(self, s_xx: to.Tensor,
-										s_yy: to.Tensor,
-										s_zz: to.Tensor,
-										s_xy: to.Tensor,
-										s_xz: to.Tensor,
-										s_yz: to.Tensor) -> tuple[to.Tensor, to.Tensor, to.Tensor, to.Tensor, to.Tensor, to.Tensor, to.Tensor, to.Tensor]:
+    def compute_stress_invariants(
+        self,
+        s_xx: to.Tensor,
+        s_yy: to.Tensor,
+        s_zz: to.Tensor,
+        s_xy: to.Tensor,
+        s_xz: to.Tensor,
+        s_yz: to.Tensor,
+    ) -> tuple[
+        to.Tensor,
+        to.Tensor,
+        to.Tensor,
+        to.Tensor,
+        to.Tensor,
+        to.Tensor,
+        to.Tensor,
+        to.Tensor,
+    ]:
         """
         Compute invariants (I1, I2, I3, J2, J3) and auxiliary quantities.
 
@@ -1166,11 +1275,17 @@ class ViscoplasticDesai(NonElasticElement):
             Invariants and helper arrays; `ind_J2_leq_0` are indices where `J2 <= 0`.
         """
         I1 = s_xx + s_yy + s_zz
-        I2 = s_xx*s_yy + s_yy*s_zz + s_xx*s_zz - s_xy**2 - s_yz**2 - s_xz**2
-        I3 = s_xx*s_yy*s_zz + 2*s_xy*s_yz*s_xz - s_zz*s_xy**2 - s_xx*s_yz**2 - s_yy*s_xz**2
-        J2 = (1/3)*I1**2 - I2
-        J3 = (2/27)*I1**3 - (1/3)*I1*I2 + I3
-        Sr = -(J3*np.sqrt(27))/(2*J2**1.5)
+        I2 = s_xx * s_yy + s_yy * s_zz + s_xx * s_zz - s_xy**2 - s_yz**2 - s_xz**2
+        I3 = (
+            s_xx * s_yy * s_zz
+            + 2 * s_xy * s_yz * s_xz
+            - s_zz * s_xy**2
+            - s_xx * s_yz**2
+            - s_yy * s_xz**2
+        )
+        J2 = (1 / 3) * I1**2 - I2
+        J3 = (2 / 27) * I1**3 - (1 / 3) * I1 * I2 + I3
+        Sr = -(J3 * np.sqrt(27)) / (2 * J2**1.5)
 
         # Check where J2 <= 0.0
         ind_J2_leq_0 = to.where(J2 <= 0.0)[0]
@@ -1196,12 +1311,12 @@ class ViscoplasticDesai(NonElasticElement):
             `(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)`, each shape (N,).
         """
         stress_vec = -stress
-        s_xx = stress_vec[:,0,0]/MPa
-        s_yy = stress_vec[:,1,1]/MPa
-        s_zz = stress_vec[:,2,2]/MPa
-        s_xy = stress_vec[:,0,1]/MPa
-        s_xz = stress_vec[:,0,2]/MPa
-        s_yz = stress_vec[:,1,2]/MPa
+        s_xx = stress_vec[:, 0, 0] / MPa
+        s_yy = stress_vec[:, 1, 1] / MPa
+        s_zz = stress_vec[:, 2, 2] / MPa
+        s_xy = stress_vec[:, 0, 1] / MPa
+        s_xz = stress_vec[:, 0, 2] / MPa
+        s_yz = stress_vec[:, 1, 2] / MPa
         return s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
 
     def compute_Fvp(self, alpha, I1, J2, Sr):
@@ -1224,9 +1339,9 @@ class ViscoplasticDesai(NonElasticElement):
         torch.Tensor
             `Fvp` per element, shape (N,).
         """
-        F1 = (alpha*I1**self.n - self.gamma*I1**2)
-        F2 = (to.exp(self.beta_1*I1) - self.beta*Sr)
-        Fvp = J2 + F1*F2**self.m
+        F1 = alpha * I1**self.n - self.gamma * I1**2
+        F2 = to.exp(self.beta_1 * I1) - self.beta * Sr
+        Fvp = J2 + F1 * F2**self.m
         return Fvp
 
     def compute_initial_hardening(self, stress: to.Tensor, Fvp_0=0.0) -> None:
@@ -1249,16 +1364,30 @@ class ViscoplasticDesai(NonElasticElement):
         Sets `self.alpha_0`, `self.alpha`, and `self.Fvp`.
         """
         s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = self.extract_stress_components(stress)
-        I1, I2, I3, J2, J3, Sr, I1_star, _ = self.compute_stress_invariants(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
-        self.alpha_0 =  self.gamma*I1_star**(2-self.n) + (Fvp_0 - J2)*I1_star**(-self.n)*(to.exp(self.beta_1*I1_star) - self.beta*Sr)**(-self.m)
+        I1, I2, I3, J2, J3, Sr, I1_star, _ = self.compute_stress_invariants(
+            s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
+        )
+        self.alpha_0 = self.gamma * I1_star ** (2 - self.n) + (
+            Fvp_0 - J2
+        ) * I1_star ** (-self.n) * (to.exp(self.beta_1 * I1_star) - self.beta * Sr) ** (
+            -self.m
+        )
         self.alpha = self.alpha_0.clone()
 
         s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = self.extract_stress_components(stress)
-        I1, I2, I3, J2, J3, Sr, I1_star, ind_J2_leq_0 = self.compute_stress_invariants(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
+        I1, I2, I3, J2, J3, Sr, I1_star, ind_J2_leq_0 = self.compute_stress_invariants(
+            s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
+        )
         self.Fvp = self.compute_Fvp(self.alpha, I1_star, J2, Sr)
 
-
-    def compute_eps_ne_rate(self, stress: to.Tensor, phi1: float, Temp: to.Tensor, alpha=None, return_eps_ne=False):
+    def compute_eps_ne_rate(
+        self,
+        stress: to.Tensor,
+        phi1: float,
+        Temp: to.Tensor,
+        alpha=None,
+        return_eps_ne=False,
+    ):
         """
         Compute viscoplastic strain rate and optionally return it.
 
@@ -1284,29 +1413,33 @@ class ViscoplasticDesai(NonElasticElement):
         -----
         Also updates `self.Fvp` when `return_eps_ne=False`.
         """
-        if alpha == None:
+        if alpha is None:
             alpha = self.alpha
 
         s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = self.extract_stress_components(stress)
-        I1, I2, I3, J2, J3, Sr, I1_star, ind_J2_leq_0 = self.compute_stress_invariants(s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
+        I1, I2, I3, J2, J3, Sr, I1_star, ind_J2_leq_0 = self.compute_stress_invariants(
+            s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
+        )
 
         # Compute yield function
         Fvp = self.compute_Fvp(alpha, I1_star, J2, Sr)
         if not return_eps_ne:
             self.Fvp = Fvp.clone()
 
-
         # Compute flow direction, i.e. d(Fvp)/d(stress)
-        F1 = (-alpha*I1_star**self.n + self.gamma*I1_star**2)
-        F2 = (to.exp(self.beta_1*I1_star) - self.beta*Sr)
-        dF1_dI1 = 2*self.gamma*I1_star - self.n*alpha*I1_star**(self.n-1)
-        dF2m_dI1 = self.beta_1*self.m*to.exp(self.beta_1*I1_star)*F2**(self.m-1)
-        dF_dI1 = -(dF1_dI1*F2**self.m + F1*dF2m_dI1)
+        F1 = -alpha * I1_star**self.n + self.gamma * I1_star**2
+        F2 = to.exp(self.beta_1 * I1_star) - self.beta * Sr
+        dF1_dI1 = 2 * self.gamma * I1_star - self.n * alpha * I1_star ** (self.n - 1)
+        dF2m_dI1 = (
+            self.beta_1 * self.m * to.exp(self.beta_1 * I1_star) * F2 ** (self.m - 1)
+        )
+        dF_dI1 = -(dF1_dI1 * F2**self.m + F1 * dF2m_dI1)
 
-        dF2_dJ2 = -(3*self.beta*J3*27**0.5)/(4*J2**(5/2))
-        dF_dJ2 = 1 - F1*self.m*F2**(self.m-1)*dF2_dJ2
-        dF_dJ3 = -self.m*F1*self.beta*np.sqrt(27)*F2**(self.m-1)/(2*J2**1.5)
-
+        dF2_dJ2 = -(3 * self.beta * J3 * 27**0.5) / (4 * J2 ** (5 / 2))
+        dF_dJ2 = 1 - F1 * self.m * F2 ** (self.m - 1) * dF2_dJ2
+        dF_dJ3 = (
+            -self.m * F1 * self.beta * np.sqrt(27) * F2 ** (self.m - 1) / (2 * J2**1.5)
+        )
 
         dI1_dSxx = 1.0
         dI1_dSyy = 1.0
@@ -1318,71 +1451,74 @@ class ViscoplasticDesai(NonElasticElement):
         dI2_dSxx = s_yy + s_zz
         dI2_dSyy = s_xx + s_zz
         dI2_dSzz = s_xx + s_yy
-        dI2_dSxy = -2*s_xy
-        dI2_dSxz = -2*s_xz
-        dI2_dSyz = -2*s_yz
+        dI2_dSxy = -2 * s_xy
+        dI2_dSxz = -2 * s_xz
+        dI2_dSyz = -2 * s_yz
 
-        dI3_dSxx = s_yy*s_zz - s_yz**2
-        dI3_dSyy = s_xx*s_zz - s_xz**2
-        dI3_dSzz = s_xx*s_yy - s_xy**2
-        dI3_dSxy = 2*(s_xz*s_yz - s_zz*s_xy)
-        dI3_dSxz = 2*(s_xy*s_yz - s_yy*s_xz)
-        dI3_dSyz = 2*(s_xz*s_xy - s_xx*s_yz)
+        dI3_dSxx = s_yy * s_zz - s_yz**2
+        dI3_dSyy = s_xx * s_zz - s_xz**2
+        dI3_dSzz = s_xx * s_yy - s_xy**2
+        dI3_dSxy = 2 * (s_xz * s_yz - s_zz * s_xy)
+        dI3_dSxz = 2 * (s_xy * s_yz - s_yy * s_xz)
+        dI3_dSyz = 2 * (s_xz * s_xy - s_xx * s_yz)
 
-        dJ2_dI1 = (2/3)*I1
+        dJ2_dI1 = (2 / 3) * I1
         dJ2_dI2 = -1.0
 
-        dJ2_dSxx = dJ2_dI1*dI1_dSxx + dJ2_dI2*dI2_dSxx
-        dJ2_dSyy = dJ2_dI1*dI1_dSyy + dJ2_dI2*dI2_dSyy
-        dJ2_dSzz = dJ2_dI1*dI1_dSzz + dJ2_dI2*dI2_dSzz
-        dJ2_dSxy = dJ2_dI1*dI1_dSxy + dJ2_dI2*dI2_dSxy
-        dJ2_dSxz = dJ2_dI1*dI1_dSxz + dJ2_dI2*dI2_dSxz
-        dJ2_dSyz = dJ2_dI1*dI1_dSyz + dJ2_dI2*dI2_dSyz
+        dJ2_dSxx = dJ2_dI1 * dI1_dSxx + dJ2_dI2 * dI2_dSxx
+        dJ2_dSyy = dJ2_dI1 * dI1_dSyy + dJ2_dI2 * dI2_dSyy
+        dJ2_dSzz = dJ2_dI1 * dI1_dSzz + dJ2_dI2 * dI2_dSzz
+        dJ2_dSxy = dJ2_dI1 * dI1_dSxy + dJ2_dI2 * dI2_dSxy
+        dJ2_dSxz = dJ2_dI1 * dI1_dSxz + dJ2_dI2 * dI2_dSxz
+        dJ2_dSyz = dJ2_dI1 * dI1_dSyz + dJ2_dI2 * dI2_dSyz
 
-        dJ3_dI1 = (2/9)*I1**2 - (1/3)*I2
-        dJ3_dI2 = -(1/3)*I1
+        dJ3_dI1 = (2 / 9) * I1**2 - (1 / 3) * I2
+        dJ3_dI2 = -(1 / 3) * I1
         dJ3_dI3 = 1.0
 
-        dJ3_dSxx = dJ3_dI1*dI1_dSxx + dJ3_dI2*dI2_dSxx + dJ3_dI3*dI3_dSxx
-        dJ3_dSyy = dJ3_dI1*dI1_dSyy + dJ3_dI2*dI2_dSyy + dJ3_dI3*dI3_dSyy
-        dJ3_dSzz = dJ3_dI1*dI1_dSzz + dJ3_dI2*dI2_dSzz + dJ3_dI3*dI3_dSzz
-        dJ3_dSxy = dJ3_dI1*dI1_dSxy + dJ3_dI2*dI2_dSxy + dJ3_dI3*dI3_dSxy
-        dJ3_dSxz = dJ3_dI1*dI1_dSxz + dJ3_dI2*dI2_dSxz + dJ3_dI3*dI3_dSxz
-        dJ3_dSyz = dJ3_dI1*dI1_dSyz + dJ3_dI2*dI2_dSyz + dJ3_dI3*dI3_dSyz
+        dJ3_dSxx = dJ3_dI1 * dI1_dSxx + dJ3_dI2 * dI2_dSxx + dJ3_dI3 * dI3_dSxx
+        dJ3_dSyy = dJ3_dI1 * dI1_dSyy + dJ3_dI2 * dI2_dSyy + dJ3_dI3 * dI3_dSyy
+        dJ3_dSzz = dJ3_dI1 * dI1_dSzz + dJ3_dI2 * dI2_dSzz + dJ3_dI3 * dI3_dSzz
+        dJ3_dSxy = dJ3_dI1 * dI1_dSxy + dJ3_dI2 * dI2_dSxy + dJ3_dI3 * dI3_dSxy
+        dJ3_dSxz = dJ3_dI1 * dI1_dSxz + dJ3_dI2 * dI2_dSxz + dJ3_dI3 * dI3_dSxz
+        dJ3_dSyz = dJ3_dI1 * dI1_dSyz + dJ3_dI2 * dI2_dSyz + dJ3_dI3 * dI3_dSyz
 
-        dQdS_00 = dF_dI1*dI1_dSxx + dF_dJ2*dJ2_dSxx + dF_dJ3*dJ3_dSxx
-        dQdS_11 = dF_dI1*dI1_dSyy + dF_dJ2*dJ2_dSyy + dF_dJ3*dJ3_dSyy
-        dQdS_22 = dF_dI1*dI1_dSzz + dF_dJ2*dJ2_dSzz + dF_dJ3*dJ3_dSzz
-        dQdS_01 = dQdS_10 = dF_dI1*dI1_dSxy + dF_dJ2*dJ2_dSxy + dF_dJ3*dJ3_dSxy
-        dQdS_02 = dQdS_20 = dF_dI1*dI1_dSxz + dF_dJ2*dJ2_dSxz + dF_dJ3*dJ3_dSxz
-        dQdS_12 = dQdS_21 = dF_dI1*dI1_dSyz + dF_dJ2*dJ2_dSyz + dF_dJ3*dJ3_dSyz
+        dQdS_00 = dF_dI1 * dI1_dSxx + dF_dJ2 * dJ2_dSxx + dF_dJ3 * dJ3_dSxx
+        dQdS_11 = dF_dI1 * dI1_dSyy + dF_dJ2 * dJ2_dSyy + dF_dJ3 * dJ3_dSyy
+        dQdS_22 = dF_dI1 * dI1_dSzz + dF_dJ2 * dJ2_dSzz + dF_dJ3 * dJ3_dSzz
+        dQdS_01 = dF_dI1 * dI1_dSxy + dF_dJ2 * dJ2_dSxy + dF_dJ3 * dJ3_dSxy
+        dQdS_02 = dF_dI1 * dI1_dSxz + dF_dJ2 * dJ2_dSxz + dF_dJ3 * dJ3_dSxz
+        dQdS_12 = dF_dI1 * dI1_dSyz + dF_dJ2 * dJ2_dSyz + dF_dJ3 * dJ3_dSyz
 
         # Initialize viscoplastic direction
         dQdS = to.zeros_like(stress, dtype=to.float64)
-        dQdS[:,0,0] = dQdS_00
-        dQdS[:,1,1] = dQdS_11
-        dQdS[:,2,2] = dQdS_22
-        dQdS[:,1,0] = dQdS[:,0,1] = dQdS_01
-        dQdS[:,2,0] = dQdS[:,0,2] = dQdS_02
-        dQdS[:,2,1] = dQdS[:,1,2] = dQdS_12
+        dQdS[:, 0, 0] = dQdS_00
+        dQdS[:, 1, 1] = dQdS_11
+        dQdS[:, 2, 2] = dQdS_22
+        dQdS[:, 1, 0] = dQdS[:, 0, 1] = dQdS_01
+        dQdS[:, 2, 0] = dQdS[:, 0, 2] = dQdS_02
+        dQdS[:, 2, 1] = dQdS[:, 1, 2] = dQdS_12
 
         # Wherever J2=0, make viscoplasticity to be zero
-        dQdS[ind_J2_leq_0,:,:] = 0.0
+        dQdS[ind_J2_leq_0, :, :] = 0.0
 
         # Calculate strain rate
         ramp_idx = to.where(Fvp > 0)[0]
         lmbda = to.zeros(self.n_elems, dtype=to.float64)
         if len(ramp_idx) != 0:
-            lmbda[ramp_idx] = self.mu_1[ramp_idx]*(Fvp[ramp_idx]/self.F_0)**self.N_1[ramp_idx]
-        eps_vp_rate = -dQdS*lmbda[:, None, None]
+            lmbda[ramp_idx] = (
+                self.mu_1[ramp_idx] * (Fvp[ramp_idx] / self.F_0) ** self.N_1[ramp_idx]
+            )
+        eps_vp_rate = -dQdS * lmbda[:, None, None]
 
         if return_eps_ne:
             return eps_vp_rate
         else:
             self.eps_ne_rate = eps_vp_rate
 
-
-    def compute_B_and_H_over_h(self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor) -> tuple[to.Tensor, to.Tensor]:
+    def compute_B_and_H_over_h(
+        self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor
+    ) -> tuple[to.Tensor, to.Tensor]:
         """
         Compute `B` and `H/h` via perturbations of `alpha` and stress.
 
@@ -1409,33 +1545,36 @@ class ViscoplasticDesai(NonElasticElement):
         Uses finite differences to approximate sensitivities.
         """
         # EPSILON_ALPHA = 1e-7
-        EPSILON_ALPHA = 0.0001*self.alpha
+        EPSILON_ALPHA = 0.0001 * self.alpha
         EPSILON_STRESS = 1e-1
 
         alpha_eps = self.alpha + EPSILON_ALPHA
-        eps_ne_rate_eps = self.compute_eps_ne_rate(stress, dt*theta, Temp, alpha=alpha_eps, return_eps_ne=True)
+        eps_ne_rate_eps = self.compute_eps_ne_rate(
+            stress, dt * theta, Temp, alpha=alpha_eps, return_eps_ne=True
+        )
 
         self.r = self.compute_residue(self.eps_ne_rate, self.alpha, dt)
         r_eps = self.compute_residue(eps_ne_rate_eps, alpha_eps, dt)
         self.h = (r_eps - self.r) / EPSILON_ALPHA
-        Q = (eps_ne_rate_eps - self.eps_ne_rate) / EPSILON_ALPHA[:,None,None]
-        B = (self.r / self.h)[:,None,None] * Q
+        Q = (eps_ne_rate_eps - self.eps_ne_rate) / EPSILON_ALPHA[:, None, None]
+        B = (self.r / self.h)[:, None, None] * Q
 
         self.P = to.zeros_like(stress)
         stress_eps = stress.clone()
-        for i, j in [(0,0), (1,1), (2,2), (0,1), (0,2), (1,2)]:
-            stress_eps[:,i,j] += EPSILON_STRESS
-            eps_ne_rate_eps = self.compute_eps_ne_rate(stress_eps, dt*theta, Temp, return_eps_ne=True)
+        for i, j in [(0, 0), (1, 1), (2, 2), (0, 1), (0, 2), (1, 2)]:
+            stress_eps[:, i, j] += EPSILON_STRESS
+            eps_ne_rate_eps = self.compute_eps_ne_rate(
+                stress_eps, dt * theta, Temp, return_eps_ne=True
+            )
             r_eps = self.compute_residue(eps_ne_rate_eps, self.alpha, dt)
-            self.P[:,i,j] = (r_eps - self.r) / EPSILON_STRESS
-            self.P[:,j,i] = self.P[:,i,j]
-            stress_eps[:,i,j] -= EPSILON_STRESS
+            self.P[:, i, j] = (r_eps - self.r) / EPSILON_STRESS
+            self.P[:, j, i] = self.P[:, i, j]
+            stress_eps[:, i, j] -= EPSILON_STRESS
 
         H = self.compute_H(Q, self.P)
-        H_over_h = H/self.h[:,None,None]
+        H_over_h = H / self.h[:, None, None]
 
         return B, H_over_h
-
 
     def compute_H(self, Q: to.Tensor, P: to.Tensor) -> to.Tensor:
         """
@@ -1455,63 +1594,48 @@ class ViscoplasticDesai(NonElasticElement):
         """
         n_elems, _, _ = P.shape
         H = to.zeros((n_elems, 6, 6), dtype=to.float64)
-        H[:,0,0] = Q[:,0,0]*P[:,0,0]
-        H[:,0,1] = Q[:,0,0]*P[:,1,1]
-        H[:,0,2] = Q[:,0,0]*P[:,2,2]
-        H[:,0,3] = 2*Q[:,0,0]*P[:,0,1]
-        H[:,0,4] = 2*Q[:,0,0]*P[:,0,2]
-        H[:,0,5] = 2*Q[:,0,0]*P[:,1,2]
+        H[:, 0, 0] = Q[:, 0, 0] * P[:, 0, 0]
+        H[:, 0, 1] = Q[:, 0, 0] * P[:, 1, 1]
+        H[:, 0, 2] = Q[:, 0, 0] * P[:, 2, 2]
+        H[:, 0, 3] = 2 * Q[:, 0, 0] * P[:, 0, 1]
+        H[:, 0, 4] = 2 * Q[:, 0, 0] * P[:, 0, 2]
+        H[:, 0, 5] = 2 * Q[:, 0, 0] * P[:, 1, 2]
 
-        H[:,1,0] = Q[:,1,1]*P[:,0,0]
-        H[:,1,1] = Q[:,1,1]*P[:,1,1]
-        H[:,1,2] = Q[:,1,1]*P[:,2,2]
-        H[:,1,3] = 2*Q[:,1,1]*P[:,0,1]
-        H[:,1,4] = 2*Q[:,1,1]*P[:,0,2]
-        H[:,1,5] = 2*Q[:,1,1]*P[:,1,2]
+        H[:, 1, 0] = Q[:, 1, 1] * P[:, 0, 0]
+        H[:, 1, 1] = Q[:, 1, 1] * P[:, 1, 1]
+        H[:, 1, 2] = Q[:, 1, 1] * P[:, 2, 2]
+        H[:, 1, 3] = 2 * Q[:, 1, 1] * P[:, 0, 1]
+        H[:, 1, 4] = 2 * Q[:, 1, 1] * P[:, 0, 2]
+        H[:, 1, 5] = 2 * Q[:, 1, 1] * P[:, 1, 2]
 
-        H[:,2,0] = Q[:,2,2]*P[:,0,0]
-        H[:,2,1] = Q[:,2,2]*P[:,1,1]
-        H[:,2,2] = Q[:,2,2]*P[:,2,2]
-        H[:,2,3] = 2*Q[:,2,2]*P[:,0,1]
-        H[:,2,4] = 2*Q[:,2,2]*P[:,0,2]
-        H[:,2,5] = 2*Q[:,2,2]*P[:,1,2]
+        H[:, 2, 0] = Q[:, 2, 2] * P[:, 0, 0]
+        H[:, 2, 1] = Q[:, 2, 2] * P[:, 1, 1]
+        H[:, 2, 2] = Q[:, 2, 2] * P[:, 2, 2]
+        H[:, 2, 3] = 2 * Q[:, 2, 2] * P[:, 0, 1]
+        H[:, 2, 4] = 2 * Q[:, 2, 2] * P[:, 0, 2]
+        H[:, 2, 5] = 2 * Q[:, 2, 2] * P[:, 1, 2]
 
-        H[:,3,0] = Q[:,0,1]*P[:,0,0]
-        H[:,3,1] = Q[:,0,1]*P[:,1,1]
-        H[:,3,2] = Q[:,0,1]*P[:,2,2]
-        H[:,3,3] = 2*Q[:,0,1]*P[:,0,1]
-        H[:,3,4] = 2*Q[:,0,1]*P[:,0,2]
-        H[:,3,5] = 2*Q[:,0,1]*P[:,1,2]
+        H[:, 3, 0] = Q[:, 0, 1] * P[:, 0, 0]
+        H[:, 3, 1] = Q[:, 0, 1] * P[:, 1, 1]
+        H[:, 3, 2] = Q[:, 0, 1] * P[:, 2, 2]
+        H[:, 3, 3] = 2 * Q[:, 0, 1] * P[:, 0, 1]
+        H[:, 3, 4] = 2 * Q[:, 0, 1] * P[:, 0, 2]
+        H[:, 3, 5] = 2 * Q[:, 0, 1] * P[:, 1, 2]
 
-        H[:,4,0] = Q[:,0,2]*P[:,0,0]
-        H[:,4,1] = Q[:,0,2]*P[:,1,1]
-        H[:,4,2] = Q[:,0,2]*P[:,2,2]
-        H[:,4,3] = 2*Q[:,0,2]*P[:,0,1]
-        H[:,4,4] = 2*Q[:,0,2]*P[:,0,2]
-        H[:,4,5] = 2*Q[:,0,2]*P[:,1,2]
+        H[:, 4, 0] = Q[:, 0, 2] * P[:, 0, 0]
+        H[:, 4, 1] = Q[:, 0, 2] * P[:, 1, 1]
+        H[:, 4, 2] = Q[:, 0, 2] * P[:, 2, 2]
+        H[:, 4, 3] = 2 * Q[:, 0, 2] * P[:, 0, 1]
+        H[:, 4, 4] = 2 * Q[:, 0, 2] * P[:, 0, 2]
+        H[:, 4, 5] = 2 * Q[:, 0, 2] * P[:, 1, 2]
 
-        H[:,5,0] = Q[:,1,2]*P[:,0,0]
-        H[:,5,1] = Q[:,1,2]*P[:,1,1]
-        H[:,5,2] = Q[:,1,2]*P[:,2,2]
-        H[:,5,3] = 2*Q[:,1,2]*P[:,0,1]
-        H[:,5,4] = 2*Q[:,1,2]*P[:,0,2]
-        H[:,5,5] = 2*Q[:,1,2]*P[:,1,2]
+        H[:, 5, 0] = Q[:, 1, 2] * P[:, 0, 0]
+        H[:, 5, 1] = Q[:, 1, 2] * P[:, 1, 1]
+        H[:, 5, 2] = Q[:, 1, 2] * P[:, 2, 2]
+        H[:, 5, 3] = 2 * Q[:, 1, 2] * P[:, 0, 1]
+        H[:, 5, 4] = 2 * Q[:, 1, 2] * P[:, 0, 2]
+        H[:, 5, 5] = 2 * Q[:, 1, 2] * P[:, 1, 2]
         return H
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class MunsonDawsonCreep(NonElasticElement):
@@ -1535,7 +1659,7 @@ class MunsonDawsonCreep(NonElasticElement):
     linearised into the global Newton iteration via the residue equation
 
         r(zeta, sigma) = zeta - zeta_old - (F(zeta, sigma) - 1) * epsdot_ss(sigma) * dt
-        
+
     Parameters
     ----------
     A, Q, n, K0, c, m, alpha_w, beta_w, delta, mu : torch.Tensor
@@ -1558,22 +1682,24 @@ class MunsonDawsonCreep(NonElasticElement):
     # Optimal forward-difference step factor for double precision.
     _SQRT_FLOAT64_EPS = 1.4901161193847656e-8  # math.sqrt(2.220446e-16)
 
-    def __init__(self,
-                 A: to.Tensor,
-                 Q: to.Tensor,
-                 n: to.Tensor,
-                 K0: to.Tensor,
-                 c: to.Tensor,
-                 m: to.Tensor,
-                 alpha_w: to.Tensor,
-                 beta_w: to.Tensor,
-                 delta: to.Tensor,
-                 mu: to.Tensor,
-                 name: str = "creep_munson_dawson"):
+    def __init__(
+        self,
+        A: to.Tensor,
+        Q: to.Tensor,
+        n: to.Tensor,
+        K0: to.Tensor,
+        c: to.Tensor,
+        m: to.Tensor,
+        alpha_w: to.Tensor,
+        beta_w: to.Tensor,
+        delta: to.Tensor,
+        mu: to.Tensor,
+        name: str = "creep_munson_dawson",
+    ):
         super().__init__(A.shape[0])
         self.name = name
 
-        self.R = 8.32  
+        self.R = 8.32
 
         # Steady-state params
         self.A = A.to(dtype=to.float64)
@@ -1614,8 +1740,9 @@ class MunsonDawsonCreep(NonElasticElement):
         """Commit zeta at end of a converged time step."""
         self.zeta_old = self.zeta.clone()
 
-    def increment_internal_variables(self, stress: to.Tensor,
-                                     stress_k: to.Tensor, dt: float) -> None:
+    def increment_internal_variables(
+        self, stress: to.Tensor, stress_k: to.Tensor, dt: float
+    ) -> None:
         """
         Apply the linearised Newton correction for zeta using the stored
         residue and sensitivities from the most recent
@@ -1624,7 +1751,7 @@ class MunsonDawsonCreep(NonElasticElement):
             delta_zeta = -(r + P : (stress - stress_k)) / h
         """
         delta_sigma = stress - stress_k
-        delta_zeta = -(self.r + to.einsum('bij,bij->b', self.P, delta_sigma)) / self.h
+        delta_zeta = -(self.r + to.einsum("bij,bij->b", self.P, delta_sigma)) / self.h
         # Ill-conditioned elements: skip the update (P was zeroed, so the
         # contribution from delta_sigma vanishes, but guard the division too).
         if len(self.ind_h_small) > 0:
@@ -1638,7 +1765,9 @@ class MunsonDawsonCreep(NonElasticElement):
     # Physics evaluator (shared by rate, residue, and FD probes)
     # ------------------------------------------------------------------ #
 
-    def _compute_md_fields(self, stress_vec: to.Tensor, Temp: to.Tensor, zeta: to.Tensor):
+    def _compute_md_fields(
+        self, stress_vec: to.Tensor, Temp: to.Tensor, zeta: to.Tensor
+    ):
         """
         Compute all Munson-Dawson intermediate quantities for a given
         (stress, zeta) state.
@@ -1666,9 +1795,12 @@ class MunsonDawsonCreep(NonElasticElement):
 
         # sigma = sqrt(3 J2) = von Mises equivalent stress (Pa)
         sigma = to.sqrt(
-            0.5 * (
-                (s_xx - s_yy) ** 2 + (s_xx - s_zz) ** 2 + (s_yy - s_zz) ** 2
-                + 6.0 * (s_xy ** 2 + s_xz ** 2 + s_yz ** 2)
+            0.5
+            * (
+                (s_xx - s_yy) ** 2
+                + (s_xx - s_zz) ** 2
+                + (s_yy - s_zz) ** 2
+                + 6.0 * (s_xy**2 + s_xz**2 + s_yz**2)
             )
         )
 
@@ -1677,10 +1809,10 @@ class MunsonDawsonCreep(NonElasticElement):
         sigma_safe = to.clamp(sigma, min=1.0)
         mu_safe = to.clamp(self.mu, min=1.0)
 
-        epsdot_ss = self.A * to.exp(-self.Q / (self.R * Temp)) * (sigma_safe ** self.n)
+        epsdot_ss = self.A * to.exp(-self.Q / (self.R * Temp)) * (sigma_safe**self.n)
 
         ratio = to.clamp(sigma_safe / mu_safe, min=1e-30)
-        eps_t_star = self.K0 * to.exp(self.c * Temp) * (ratio ** self.m)
+        eps_t_star = self.K0 * to.exp(self.c * Temp) * (ratio**self.m)
         eps_t_star = to.clamp(eps_t_star, min=1e-50)
 
         Delta_cap = self.alpha_w + self.beta_w * to.log10(ratio)
@@ -1694,14 +1826,17 @@ class MunsonDawsonCreep(NonElasticElement):
         F = to.ones_like(epsdot_ss)
         mask = zeta <= eps_t_star
         exp_arg_hard = to.clamp(Delta_cap[mask] * r_arg2[mask], min=-50.0, max=50.0)
-        exp_arg_recov = to.clamp(-self.delta[~mask] * r_arg2[~mask], min=-50.0, max=50.0)
+        exp_arg_recov = to.clamp(
+            -self.delta[~mask] * r_arg2[~mask], min=-50.0, max=50.0
+        )
         F[mask] = to.exp(exp_arg_hard)
         F[~mask] = to.exp(exp_arg_recov)
 
         return s_dev, sigma_safe, epsdot_ss, eps_t_star, F
 
-    def compute_residue(self, stress: to.Tensor, zeta: to.Tensor,
-                        Temp: to.Tensor, dt: float) -> to.Tensor:
+    def compute_residue(
+        self, stress: to.Tensor, zeta: to.Tensor, Temp: to.Tensor, dt: float
+    ) -> to.Tensor:
         """
         Backward-Euler residue for the zeta ODE:
 
@@ -1718,8 +1853,14 @@ class MunsonDawsonCreep(NonElasticElement):
     # Strain-rate evaluator
     # ------------------------------------------------------------------ #
 
-    def compute_eps_ne_rate(self, stress_vec: to.Tensor, phi1: float, Temp: to.Tensor,
-                            zeta: to.Tensor = None, return_eps_ne: bool = False):
+    def compute_eps_ne_rate(
+        self,
+        stress_vec: to.Tensor,
+        phi1: float,
+        Temp: to.Tensor,
+        zeta: to.Tensor = None,
+        return_eps_ne: bool = False,
+    ):
         """
         Munson-Dawson creep strain rate at (sigma, zeta).
 
@@ -1740,8 +1881,9 @@ class MunsonDawsonCreep(NonElasticElement):
         if zeta is None:
             zeta = self.zeta
 
-        s_dev, sigma_safe, epsdot_ss, eps_t_star, F = \
-            self._compute_md_fields(stress_vec, Temp, zeta)
+        s_dev, sigma_safe, epsdot_ss, eps_t_star, F = self._compute_md_fields(
+            stress_vec, Temp, zeta
+        )
 
         scalar_rate = F * epsdot_ss
         flow_dir = (1.5 / sigma_safe)[:, None, None] * s_dev
@@ -1760,8 +1902,9 @@ class MunsonDawsonCreep(NonElasticElement):
     # ISV-coupled consistent tangent
     # ------------------------------------------------------------------ #
 
-    def compute_B_and_H_over_h(self, stress: to.Tensor, dt: float,
-                               theta: float, Temp: to.Tensor):
+    def compute_B_and_H_over_h(
+        self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor
+    ):
         """
         Build the ISV-coupled consistent-tangent terms by finite differences
         (following ViscoplasticDesai.compute_B_and_H_over_h).
@@ -1781,7 +1924,7 @@ class MunsonDawsonCreep(NonElasticElement):
         # so it stays meaningful whether ζ is 0 (start of run) or near ε_t*.
         _, _, _, eps_t_star_now, _ = self._compute_md_fields(stress, Temp, self.zeta)
         zeta_scale = to.clamp(to.abs(self.zeta) + eps_t_star_now, min=1e-30)
-        eps_zeta = self._SQRT_FLOAT64_EPS * zeta_scale              # shape (N,)
+        eps_zeta = self._SQRT_FLOAT64_EPS * zeta_scale  # shape (N,)
 
         # Forward-difference scale for stress (Pa).  On ~1e7 Pa cavern
         # stresses this is a relative step of ~1e-8, which is the optimal
@@ -1795,10 +1938,12 @@ class MunsonDawsonCreep(NonElasticElement):
         r_zeta = self.compute_residue(stress, zeta_eps, Temp, dt)
         self.h = (r_zeta - self.r) / eps_zeta
 
-        eps_rate_ref = self.compute_eps_ne_rate(stress, dt * theta, Temp,
-                                                zeta=self.zeta, return_eps_ne=True)
-        eps_rate_zeta = self.compute_eps_ne_rate(stress, dt * theta, Temp,
-                                                 zeta=zeta_eps, return_eps_ne=True)
+        eps_rate_ref = self.compute_eps_ne_rate(
+            stress, dt * theta, Temp, zeta=self.zeta, return_eps_ne=True
+        )
+        eps_rate_zeta = self.compute_eps_ne_rate(
+            stress, dt * theta, Temp, zeta=zeta_eps, return_eps_ne=True
+        )
         Q = (eps_rate_zeta - eps_rate_ref) / eps_zeta[:, None, None]
 
         # Ill-conditioning guard (e.g., at zero-stress far-field cells where
@@ -1943,16 +2088,18 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
 
     _SQRT_FLOAT64_EPS = 1.4901161193847656e-8  # math.sqrt(2.220446e-16)
 
-    def __init__(self,
-                 M: to.Tensor,
-                 lam: to.Tensor,
-                 kap: to.Tensor,
-                 theta: to.Tensor,
-                 pc0: to.Tensor,
-                 e0: to.Tensor,
-                 eta_v: to.Tensor,
-                 n_rate: to.Tensor,
-                 name: str = "cam_clay"):
+    def __init__(
+        self,
+        M: to.Tensor,
+        lam: to.Tensor,
+        kap: to.Tensor,
+        theta: to.Tensor,
+        pc0: to.Tensor,
+        e0: to.Tensor,
+        eta_v: to.Tensor,
+        n_rate: to.Tensor,
+        name: str = "cam_clay",
+    ):
         super().__init__(M.shape[0])
         self.name = name
 
@@ -1985,8 +2132,9 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         """Commit p_c at end of a converged time step."""
         self.pc_old = self.pc.clone()
 
-    def increment_internal_variables(self, stress: to.Tensor,
-                                     stress_k: to.Tensor, dt: float) -> None:
+    def increment_internal_variables(
+        self, stress: to.Tensor, stress_k: to.Tensor, dt: float
+    ) -> None:
         """
         Apply the linearised Newton correction for p_c using the stored
         residue and sensitivities from the most recent
@@ -1995,7 +2143,7 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
             delta_pc = -(r + P : (stress - stress_k)) / h
         """
         delta_sigma = stress - stress_k
-        delta_pc = -(self.r + to.einsum('bij,bij->b', self.P, delta_sigma)) / self.h
+        delta_pc = -(self.r + to.einsum("bij,bij->b", self.P, delta_sigma)) / self.h
         if len(self.ind_h_small) > 0:
             delta_pc[self.ind_h_small] = 0.0
         self.pc = self.pc + delta_pc
@@ -2042,8 +2190,10 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
 
         # q^2 = 3 J2 = 1.5 s:s
         q2 = 1.5 * (
-            s_dev[:, 0, 0] ** 2 + s_dev[:, 1, 1] ** 2 + s_dev[:, 2, 2] ** 2
-            + 2.0 * (s_xy ** 2 + s_xz ** 2 + s_yz ** 2)
+            s_dev[:, 0, 0] ** 2
+            + s_dev[:, 1, 1] ** 2
+            + s_dev[:, 2, 2] ** 2
+            + 2.0 * (s_xy**2 + s_xz**2 + s_yz**2)
         )
 
         # Numerical floors: 1 Pa on p and pc to guard divisions / power laws
@@ -2056,8 +2206,8 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         # Perzyna multiplier: <F/pc^2>^n / eta_v
         eta_safe = to.clamp(self.eta_v, min=1e-30)
         ratio = to.clamp(F / (pc_safe * pc_safe), min=0.0)
-        ratio = to.clamp(ratio, max=1e6)   # cap to avoid FD overflow
-        lambda_P = (ratio ** self.n_rate) / eta_safe
+        ratio = to.clamp(ratio, max=1e6)  # cap to avoid FD overflow
+        lambda_P = (ratio**self.n_rate) / eta_safe
 
         # Dimensionless flow direction m = (1/pc) * dF/dsigma_pos.
         # dF/dsigma_pos = (2p - pc)/3 delta + (3/M^2) s_dev  [Pa]
@@ -2074,8 +2224,7 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
 
         return s_dev, p_safe, F, lambda_P, m_pos, p_n
 
-    def compute_residue(self, stress: to.Tensor, pc: to.Tensor,
-                        dt: float) -> to.Tensor:
+    def compute_residue(self, stress: to.Tensor, pc: to.Tensor, dt: float) -> to.Tensor:
         """
         Per-step residue for p_c using Saeed's cyclic-hardening update
         (Calibration_Clay_Rich.ipynb, ``simulate()``):
@@ -2094,7 +2243,7 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         _, _, _, _, _, p_n = self._compute_mcc_fields(stress, pc)
 
         pc_old_safe = to.clamp(self.pc_old, min=1.0)
-        p_n_safe    = to.clamp(p_n, min=1.0)
+        p_n_safe = to.clamp(p_n, min=1.0)
 
         pc_target = pc_old_safe * (p_n_safe / pc_old_safe) ** self.theta
         return pc - pc_target
@@ -2103,8 +2252,14 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
     # Strain-rate evaluator
     # ------------------------------------------------------------------ #
 
-    def compute_eps_ne_rate(self, stress: to.Tensor, phi1: float, Temp: to.Tensor,
-                            pc: to.Tensor = None, return_eps_ne: bool = False):
+    def compute_eps_ne_rate(
+        self,
+        stress: to.Tensor,
+        phi1: float,
+        Temp: to.Tensor,
+        pc: to.Tensor = None,
+        return_eps_ne: bool = False,
+    ):
         """
         Viscoplastic strain rate at (sigma, p_c).
 
@@ -2135,8 +2290,9 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
     # ISV-coupled consistent tangent
     # ------------------------------------------------------------------ #
 
-    def compute_B_and_H_over_h(self, stress: to.Tensor, dt: float,
-                               theta_t: float, Temp: to.Tensor):
+    def compute_B_and_H_over_h(
+        self, stress: to.Tensor, dt: float, theta_t: float, Temp: to.Tensor
+    ):
         """
         FD-based ISV-coupled consistent-tangent terms (mirrors
         :meth:`MunsonDawsonCreep.compute_B_and_H_over_h`):
@@ -2150,7 +2306,7 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         """
         # Forward-difference scale for pc: tied to pc itself + pc0 floor
         pc_scale = to.clamp(to.abs(self.pc), min=1.0)
-        eps_pc = self._SQRT_FLOAT64_EPS * pc_scale     # (N,)
+        eps_pc = self._SQRT_FLOAT64_EPS * pc_scale  # (N,)
 
         # Forward-difference scale for stress (Pa) — same as MD
         EPSILON_STRESS = 1e-1
@@ -2162,10 +2318,12 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         r_pc = self.compute_residue(stress, pc_eps, dt)
         self.h = (r_pc - self.r) / eps_pc
 
-        eps_rate_ref = self.compute_eps_ne_rate(stress, dt * theta_t, Temp,
-                                                pc=self.pc, return_eps_ne=True)
-        eps_rate_pc = self.compute_eps_ne_rate(stress, dt * theta_t, Temp,
-                                               pc=pc_eps, return_eps_ne=True)
+        eps_rate_ref = self.compute_eps_ne_rate(
+            stress, dt * theta_t, Temp, pc=self.pc, return_eps_ne=True
+        )
+        eps_rate_pc = self.compute_eps_ne_rate(
+            stress, dt * theta_t, Temp, pc=pc_eps, return_eps_ne=True
+        )
         Q = (eps_rate_pc - eps_rate_ref) / eps_pc[:, None, None]
 
         H_MIN = 1e-12
@@ -2247,18 +2405,3 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         H[:, 5, 5] = 2 * Q[:, 1, 2] * P[:, 1, 2]
 
         return H
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
