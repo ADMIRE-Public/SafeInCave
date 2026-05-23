@@ -519,10 +519,54 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting started
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#mantainers" class="md-nav__link">
     <span class="md-ellipsis">
       
         Mantainers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-publications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key publications
       
     </span>
   </a>
@@ -2761,10 +2805,54 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting started
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#mantainers" class="md-nav__link">
     <span class="md-ellipsis">
       
         Mantainers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-publications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key publications
       
     </span>
   </a>
@@ -2820,11 +2908,10 @@
 <!-- --- -->
 
 <h2 id="overview">Overview</h2>
-<p>SafeInCave is an open-source 3D finite element simulator specifically designed for salt caverns. It combines the most relevant physical phenomena with a robust numerical scheme, placing SafeInCave as a powerful tool for performance assessments of salt caverns under different operational conditions. </p>
-<!-- ![Multicavern simulation with different operational conditions.](images/multicavern_q.gif){.wide-figure style="width: min(400px, 95vw);"} -->
+<p>SafeInCave is an open-source 3D finite element simulator specifically designed for salt cavern mechanics. It combines the most relevant physical phenomena with a robust numerical scheme, placing SafeInCave as a powerful tool for performance assessments of salt caverns under different operational conditions. </p>
 <p><figure id="_figure-1"><img alt="Multicavern simulation with different operational conditions." src="images/multicavern_q.gif" width="60%"><figcaption>Figure 1: Multicavern simulation with different operational conditions.</figcaption></figure></p>
 <h2 id="open-source">Open-source</h2>
-<p>Being <strong>open-source</strong> is perhaps the most important aspect of SafeInCave. This has many implications for both academic and industrial applications. Being fully transparent, auditable and reproducible is essencial to build trust in the results. Moreover, having access to the source code and being able to modify it as necessary allows for anyone to make contributions that can benefit the whole salt community!</p>
+<p>Being <strong>open-source</strong> is one of the most important aspect of SafeInCave. This has important implications for both academic and industrial applications. Full transparency, auditability, and reproducibility are essential for building trust in simulation results. Moreover, access to the source code allows users to inspect, adapt, and extend the simulator when needed, enabling contributions that can benefit the entire salt community.</p>
 <!-- --- -->
 
 <!-- ???+ tip "Open by default"
@@ -2860,17 +2947,38 @@
 <li><strong>Time discretization</strong>: Choose between Explicit, Crank-Nicolson, and Fully-Implicit schemes.</li>
 <li><strong>XDMF output</strong>: Efficient output format in terms of size and postprocessing.</li>
 </ul>
-<!-- --- -->
-
-<!-- --- -->
-
+<h2 id="installation">Installation</h2>
+<p>SafeInCave installation depends on <a href="https://fenicsproject.org/">FEniCSx</a> installation. For Windows users, the installaion pipeline consists of:</p>
+<p>1) Installing <a href="https://learn.microsoft.com/en-us/windows/wsl/">WSL</a></p>
+<p>2) Installing Ubuntu</p>
+<p>3) Installing <a href="https://fenicsproject.org/download/">FEniCSx</a></p>
+<p>4) Installing SafeInCave</p>
+<p>See SafeInCave <a href="https://admire-public.github.io/SafeInCave/home/">installation guidelines</a> for further details.</p>
+<h2 id="getting-started">Getting started</h2>
+<p>Users can build their own simulators using the <em>safeincave</em> package. The <a href="http://127.0.0.1:8000/SafeInCave/examples/mechanics/1_triaxial/">Examples</a> section shows detailed examples of how to set up purely <strong>mechanical</strong>, <strong>heat diffusion</strong>, and <strong>thermomechanical</strong> simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.</p>
 <h2 id="mantainers">Mantainers</h2>
 <ul>
-<li><a href="https://www.linkedin.com/in/herminioth/">Hermínio Tasinafo Honório</a></li>
+<li><a href="https://www.linkedin.com/in/drdamasceno/">Davi R. Damasceno</a></li>
+<li><a href="https://www.linkedin.com/in/gijs-van-den-brekel-041866229/">Gijs van den Brekel</a></li>
 <li><a href="https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/sections/reservoir-engineering/staff/academic-staff/profdr-h-hajibeygi">Hadi Hajibeygi</a></li>
-<li><a href="https://www.linkedin.com/in/mathias-kreutz-erdtmann/">Mathias Erdtmann</a></li>
+<li><a href="https://www.linkedin.com/in/herminioth/">Hermínio Tasinafo Honório</a></li>
+<li><a href="https://www.linkedin.com/in/lucaslandeweerd/">Lucas Landeweerd</a></li>
 </ul>
-<hr>
+<h2 id="license">License</h2>
+<p>This project is licensed under the <strong>GNU General Public License v3.0</strong> (GPL-3.0).<br>
+See the <a href="LICENSE">LICENSE</a> file for full terms, or review the <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">official GPLv3 text</a>.</p>
+<h2 id="key-publications">Key publications</h2>
+<ul>
+<li>
+<p>Honório, H.T, Hajibeygi, H. <a href="https://doi.org/10.1016/j.ijhydene.2024.11.081">Three-dimensional multi-physics simulation and sensitivity analysis of cyclic hydrogen storage in salt caverns</a>. International Journal of Hydrogen Energy, 2024.</p>
+</li>
+<li>
+<p>Honório, H.T., Franceschini, A., Ferronato, M., &amp; Hajibeygi, H. <a href="https://doi.org/10.1016/j.cma.2026.119073">Salt cavern simulations with a stabilized mixed finite element formulation for low-order tetrahedral elements</a>. CMAME, 2026.</p>
+</li>
+<li>
+<p>Honório, H.T., Amini, M.S., Landeweerd, L., &amp; Hajibeygi, H. <a href="https://smri.memberclicks.net/assets/docs/Fall2025/TechSessions/20_MP2025F_Honorio.pdf">SafeInCave: An Open-Source Simulator for Energy Storage in Heterogeneous Salt Caverns</a>. In Proceedings of the SMRI Fall Technical Conference, Whichita, Kansas, US, 2025.</p>
+</li>
+</ul>
 <h2 id="acknowledgements">Acknowledgements</h2>
 <p>We would like to thank:
 - <a href="https://www.shell.com/">Shell Global Solutions International B.V</a> for sponsoring the <a href="https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/research/research-themes/energy-transition/safeincave">project SafeInCave</a>, within which this simulator was developed.
