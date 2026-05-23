@@ -59,12 +59,17 @@ jobs:
         shell: bash -el {0}
         run: |
           python -m pip install --upgrade pip setuptools wheel
+          python -m pip install ruff
           python -m pip install meshio==3.3.1
           python -m pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cpu
           python -m pip install \
             "gmsh>=4.14.0" \
             CoolProp
           python -m pip install --editable . --no-deps
+
+      - name: Run linting
+        shell: bash -el {0}
+        run: ruff check .
 
       - name: Run tests
         shell: bash -el {0}
