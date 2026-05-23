@@ -13,9 +13,25 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Show runner release
         run: lsb_release -a
+
+      - name: Check changelog update
+        if: github.event_name == 'pull_request' && github.base_ref == 'develop'
+        run: |
+          changed_files="$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}")"
+
+          if ! grep -qx "docs/CHANGELOG.md" <<< "$changed_files"; then
+            echo "docs/CHANGELOG.md must be updated for pull requests targeting develop."
+            echo "Changed files:"
+            echo "$changed_files"
+            exit 1
+          fi
 
       - name: Install system dependencies
         run: |
