@@ -17,16 +17,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .MomentumEquation import LinearMomentum
     from .CavernBC import CavernHandler
-    
+
 from abc import ABC
 import numpy as np
 import dolfinx as do
 import ufl
 
+
 class GeneralBC(ABC):
-	"""
+    """
     Base container for time-dependent boundary-condition data.
 
     Subclasses (e.g., :class:`DirichletBC`, :class:`NeumannBC`) set the
@@ -43,15 +43,16 @@ class GeneralBC(ABC):
     time_values : list[float] or None
         Monotonically increasing times associated with ``values``.
     """
-	def __init__(self):
-		self.boundary_name = None
-		self.type = None
-		self.values = None
-		self.time_values = None
+
+    def __init__(self):
+        self.boundary_name = None
+        self.type = None
+        self.values = None
+        self.time_values = None
 
 
 class DirichletBC(GeneralBC):
-	"""
+    """
     Time-dependent Dirichlet (essential) boundary condition for one component.
 
     Parameters
@@ -76,15 +77,19 @@ class DirichletBC(GeneralBC):
     boundary_name : str
         Stored boundary label.
     """
-	def __init__(self, boundary_name: str, component: int, values: list, time_values: list):
-		self.boundary_name = boundary_name
-		self.type = "dirichlet"
-		self.values = values
-		self.time_values = time_values
-		self.component = component
+
+    def __init__(
+        self, boundary_name: str, component: int, values: list, time_values: list
+    ):
+        self.boundary_name = boundary_name
+        self.type = "dirichlet"
+        self.values = values
+        self.time_values = time_values
+        self.component = component
+
 
 class NeumannBC(GeneralBC):
-	"""
+    """
     Time-dependent Neumann (traction/pressure) boundary condition with hydrostatics.
 
     The applied boundary value is modeled as
@@ -125,18 +130,28 @@ class NeumannBC(GeneralBC):
     boundary_name, values, time_values : as given
         Stored metadata and time history.
     """
-	def __init__(self, boundary_name: str, direction: int, density: float, ref_pos: float, values: list, time_values: list, g=-9.81):
-		self.boundary_name = boundary_name
-		self.type = "neumann"
-		self.values = values
-		self.time_values = time_values
-		self.direction = direction
-		self.density = density
-		self.ref_pos = ref_pos
-		self.gravity = g
+
+    def __init__(
+        self,
+        boundary_name: str,
+        direction: int,
+        density: float,
+        ref_pos: float,
+        values: list,
+        time_values: list,
+        g=-9.81,
+    ):
+        self.boundary_name = boundary_name
+        self.type = "neumann"
+        self.values = values
+        self.time_values = time_values
+        self.direction = direction
+        self.density = density
+        self.ref_pos = ref_pos
+        self.gravity = g
 
 
-class BcHandler():
+class BcHandler:
     """
     Boundary-condition handler for a linear momentum problem.
 
@@ -165,10 +180,11 @@ class BcHandler():
     x : ufl.core.expr.Expr
         Spatial coordinate vector ``x = SpatialCoordinate(mesh)`` used for hydrostatics.
     """
+
     def __init__(self):
         self.dirichlet_boundaries = []
         self.neumann_boundaries = []
-        
+
     def set_uV(self, uV):
         self.uV = uV
 
@@ -201,7 +217,7 @@ class BcHandler():
         self.dirichlet_boundaries = []
         self.neumann_boundaries = []
 
-    def add_boundary_condition(self, bc : GeneralBC) -> None:
+    def add_boundary_condition(self, bc: GeneralBC) -> None:
         """
         Register a boundary condition instance.
 
@@ -252,13 +268,11 @@ class BcHandler():
             dofs = do.fem.locate_dofs_topological(
                 self.uV.sub(bc.component),
                 self.boundary_dim,
-                self.boundary_tags[bc.boundary_name]
+                self.boundary_tags[bc.boundary_name],
             )
             self.dirichlet_bcs.append(
                 do.fem.dirichletbc(
-                    do.default_scalar_type(value),
-                    dofs,
-                    self.uV.sub(bc.component)
+                    do.default_scalar_type(value), dofs, self.uV.sub(bc.component)
                 )
             )
 
@@ -291,11 +305,11 @@ class BcHandler():
             rho = bc.density
             H = bc.ref_pos
             p = -np.interp(t, bc.time_values, bc.values)
-            value_neumann = p + rho*bc.gravity*(H - self.x[i])
+            value_neumann = p + rho * bc.gravity * (H - self.x[i])
             self.neumann_bcs.append(
-                value_neumann*self.normal*self.ds(
-                    self.dolfin_tags[self.boundary_dim][bc.boundary_name]
-                )
+                value_neumann
+                * self.normal
+                * self.ds(self.dolfin_tags[self.boundary_dim][bc.boundary_name])
             )
 
     def update_cavern_bcs(self, cavern_handler: CavernHandler):
@@ -305,12 +319,9 @@ class BcHandler():
             rho = cavern.density
             H = cavern.ref_pos
             p = -cavern.P
-            load = p + rho*cavern.gravity*(H - self.x[i])
+            load = p + rho * cavern.gravity * (H - self.x[i])
             self.cavern_bcs.append(
-                load*self.normal*self.ds(
-                    self.dolfin_tags[self.boundary_dim][cavern.cavern_name]
-                )
+                load
+                * self.normal
+                * self.ds(self.dolfin_tags[self.boundary_dim][cavern.cavern_name])
             )
-			
-	
-

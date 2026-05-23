@@ -23,7 +23,7 @@ class LinearMomentumMod(sf.LinearMomentum):
 			self.eps_vp.x.array[:] = to.flatten(self.mat.elems_ne[-1].eps_ne_k)
 			self.Fvp.x.array[:] = self.mat.elems_ne[-1].Fvp
 			self.alpha.x.array[:] = self.mat.elems_ne[-1].alpha
-		except:
+		except AttributeError:
 			pass
 
 
@@ -39,7 +39,7 @@ class LinearMomentumMixedMod(sf.LinearMomentumMixed):
 			self.eps_vp.x.array[:] = to.flatten(self.mat.elems_ne[-1].eps_ne_k)
 			self.Fvp.x.array[:] = self.mat.elems_ne[-1].Fvp
 			self.alpha.x.array[:] = self.mat.elems_ne[-1].alpha
-		except:
+		except AttributeError:
 			pass
 
 
@@ -111,9 +111,6 @@ def main():
 	tc_equilibrium = sf.TimeController(dt=0.5, initial_time=0.0, final_time=10, time_unit="hour")
 
 	# Boundary conditions
-	time_values = [0*ut.hour,  1*ut.hour]
-	nt = len(time_values)
-
 	bc_west = momBC.DirichletBC(boundary_name = "West", 
 					 		component = 0,
 							values = [0.0, 0.0],

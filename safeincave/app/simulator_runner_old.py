@@ -29,6 +29,7 @@ class SimulatorRunner:
             class PipeWriter:
                 def write(self, text):
                     conn.send(text)
+
                 def flush(self):
                     pass
 
@@ -43,7 +44,9 @@ class SimulatorRunner:
             sys.stderr = sys.__stderr__
             conn.close()
 
-        self.process = Process(target=sim_process, args=(self.child_conn, self.jsonfilename))
+        self.process = Process(
+            target=sim_process, args=(self.child_conn, self.jsonfilename)
+        )
         self.process.start()
 
         self.process.terminate()

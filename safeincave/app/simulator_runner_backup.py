@@ -14,9 +14,11 @@ def _sim_worker(conn, jsonfilename):
     class PipeWriter:
         def __init__(self, send):
             self._send = send
+
         def write(self, text):
             if text:
                 self._send(text)
+
         def flush(self):  # required by file-like API
             pass
 
@@ -24,7 +26,6 @@ def _sim_worker(conn, jsonfilename):
     sys_stdout, sys_stderr = sys.stdout, sys.stderr
     sys.stdout = PipeWriter(conn.send)
     sys.stderr = PipeWriter(conn.send)
-
 
     try:
         sim = Simulator_GUI(read_json(jsonfilename))

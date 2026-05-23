@@ -1,7 +1,4 @@
 from safeincave import CavernThermodynamics
-import CoolProp.CoolProp as CP
-import torch as to
-import numpy as np
 import unittest
 
 
@@ -24,12 +21,8 @@ class Test_T(unittest.TestCase):
         dm = -1.0
         Q = 10000.0
         P1, T1, rho1 = self.thermo.solve_withdrawal(
-                                            P0 = P0,
-                                            T0 = T0,
-                                            V0 = V0,
-                                            m_prod = dm,
-                                            Q = Q,
-                                            V1 = V1)
+            P0=P0, T0=T0, V0=V0, m_prod=dm, Q=Q, V1=V1
+        )
         self.assertAlmostEqual(P1, 102643.79952048359, places=6)
         self.assertAlmostEqual(T1, 301.1196554705438, places=6)
         self.assertAlmostEqual(rho1, 1.1878743317048073, places=6)
@@ -43,13 +36,8 @@ class Test_T(unittest.TestCase):
         dm = 10000.0
         Q = 100000000.0
         P1, T1, rho1 = self.thermo.solve_injection(
-                                            P0 = P0,
-                                            T0 = T0,
-                                            V0 = V0,
-                                            Tin = T_in,
-                                            m_inj = dm,
-                                            Q = Q,
-                                            V1 = V1)
+            P0=P0, T0=T0, V0=V0, Tin=T_in, m_inj=dm, Q=Q, V1=V1
+        )
         self.assertAlmostEqual(P1, 1828353.1178692507, places=6)
         self.assertAlmostEqual(T1, 566.0800589800913, places=6)
         self.assertAlmostEqual(rho1, 11.17699558838776, places=6)

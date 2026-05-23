@@ -47,9 +47,6 @@ def main():
 	heat_eq.set_material(mat)
 
 	# Define boundary conditions for heat diffusion
-	time_values = [t_control.t_initial, t_control.t_final]
-	nt = len(time_values)
-
 	bc_east = heatBC.DirichletBC(boundary_name = "EAST", 
 							values = [273, 273],
 							time_values = [t_control.t_initial, t_control.t_final])

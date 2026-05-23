@@ -6,6 +6,7 @@ import contextlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+
 class PythonScriptRunner(tk.Frame):
     def __init__(self, master=None, **kwargs):
         super().__init__(master, **kwargs)
@@ -15,7 +16,7 @@ class PythonScriptRunner(tk.Frame):
         # 2 frame
         self.top_frame = tk.Frame(self, height=560)  # 70% of 800
         self.top_frame.pack(side="top", fill="both", expand=False)
-        self.top_frame.pack_propagate(False) 
+        self.top_frame.pack_propagate(False)
 
         self.bottom_frame = tk.Frame(self, height=290)  # 30% of 800
         self.bottom_frame.pack(side="top", fill="both", expand=False)
@@ -27,7 +28,9 @@ class PythonScriptRunner(tk.Frame):
         choose_frame = tk.Frame(self.top_frame)
         choose_frame.pack(fill="x", padx=10, pady=5)
 
-        self.choose_button = tk.Button(choose_frame, text="Choose Python Script", command=self.choose_script)
+        self.choose_button = tk.Button(
+            choose_frame, text="Choose Python Script", command=self.choose_script
+        )
         self.choose_button.pack(side="left")
 
         self.script_label = tk.Label(choose_frame, text="No file selected", anchor="w")
@@ -60,7 +63,7 @@ class PythonScriptRunner(tk.Frame):
         if file_path:
             self.script_path = file_path
             self.script_label.config(text=os.path.basename(file_path))
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, "r", encoding="utf-8") as file:
                 code = file.read()
                 self.code_text.delete(1.0, tk.END)
                 self.code_text.insert(tk.END, code)
@@ -74,13 +77,13 @@ class PythonScriptRunner(tk.Frame):
         self.clear_plots()
 
         try:
-            with open(self.script_path, 'r', encoding='utf-8') as file:
+            with open(self.script_path, "r", encoding="utf-8") as file:
                 script_code = file.read()
 
             buffer = io.StringIO()
             with contextlib.redirect_stdout(buffer):
-                plt.close('all')
-                exec(script_code, {'__name__': '__main__'})
+                plt.close("all")
+                exec(script_code, {"__name__": "__main__"})
 
             output = buffer.getvalue()
             self.output_text.insert(tk.END, output)
