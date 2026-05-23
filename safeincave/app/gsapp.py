@@ -11,7 +11,7 @@ import threading
 from importlib.resources import files, as_file
 from .MyConstitutiveModel import JSONConstitutiveApp
 from .MyBoundaryCond import JSONBoundaryApp
-from .simulator_runner import SimulatorRunner 
+from .simulator_runner import SimulatorRunner
 from .script_runner import PythonScriptRunner
 
 # sys.path.append(os.path.join("..", "safeincave"))
@@ -24,9 +24,9 @@ def gui():
     # Default file name
     json_file_name = "input_file.json"
     entries = {}
-    direction_var = ''
-    theta_var = ''
-    time_list_text = ''
+    direction_var = ""
+    theta_var = ""
+    time_list_text = ""
     grid_boundary_names = {}
     subdomain_region_names = {}
     gn_elems = 0
@@ -37,7 +37,7 @@ def gui():
     number_of_region = 1
     number_of_elements = 1
     current_data = {}
-    default_time_list = [10, 20, 30 , 40, 50]
+    default_time_list = [10, 20, 30, 40, 50]
 
     HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -59,13 +59,13 @@ def gui():
                 except ValueError:
                     pass
 
-            #if len(numbers) == 1:
+            # if len(numbers) == 1:
             #    return numbers[0]
             return numbers
         except Exception as e:
-            #print("error in reading input:", e)
+            # print("error in reading input:", e)
             return []
-        
+
     # Populate the form with loaded data
     def populate_form(data):
         # Load Grid settings (path and name)
@@ -77,9 +77,9 @@ def gui():
                 grid_path_entry.delete(0, tk.END)
                 grid_path_entry.insert(0, str(data["grid"]["path"]))
 
-            if "name" in data["grid"] and "path" in data["grid"]:        
+            if "name" in data["grid"] and "path" in data["grid"]:
                 grid_name = "geom"
-                #load_grid(grid_name_entry, grid_path_entry, grid_prop_label)
+                # load_grid(grid_name_entry, grid_path_entry, grid_prop_label)
 
         # Load Output settings (path)
         if "output" in data and "path" in data["output"]:
@@ -96,7 +96,9 @@ def gui():
                 # Set hardening for the stage operation
                 if stage == "operation":
                     active_var_op = active_vars_operation[stage]
-                    active_var_op.set("Active" if params.get("active", False) else "Inactive")
+                    active_var_op.set(
+                        "Active" if params.get("active", False) else "Inactive"
+                    )
 
                 # Set dt_max with unit conversion
                 dt_max = params.get("dt_max", 0)
@@ -105,22 +107,32 @@ def gui():
                     if dt_max < 60:
                         time_unit_var.set("Seconds")
                         entries[f"simulation_settings.{stage}.dt_max"].delete(0, tk.END)
-                        entries[f"simulation_settings.{stage}.dt_max"].insert(0, str(dt_max))
+                        entries[f"simulation_settings.{stage}.dt_max"].insert(
+                            0, str(dt_max)
+                        )
                     elif dt_max < 3600:
                         time_unit_var.set("Minutes")
                         entries[f"simulation_settings.{stage}.dt_max"].delete(0, tk.END)
-                        entries[f"simulation_settings.{stage}.dt_max"].insert(0, str(dt_max / 60))
+                        entries[f"simulation_settings.{stage}.dt_max"].insert(
+                            0, str(dt_max / 60)
+                        )
                     elif dt_max < 86400:
                         time_unit_var.set("Hours")
                         entries[f"simulation_settings.{stage}.dt_max"].delete(0, tk.END)
-                        entries[f"simulation_settings.{stage}.dt_max"].insert(0, str(dt_max / 3600))
+                        entries[f"simulation_settings.{stage}.dt_max"].insert(
+                            0, str(dt_max / 3600)
+                        )
                     else:
                         time_unit_var.set("Days")
                         entries[f"simulation_settings.{stage}.dt_max"].delete(0, tk.END)
-                        entries[f"simulation_settings.{stage}.dt_max"].insert(0, str(dt_max / 86400))
+                        entries[f"simulation_settings.{stage}.dt_max"].insert(
+                            0, str(dt_max / 86400)
+                        )
                 except:
                     entries[f"simulation_settings.{stage}.dt_max"].delete(0, tk.END)
-                    entries[f"simulation_settings.{stage}.dt_max"].insert(0, str("None"))
+                    entries[f"simulation_settings.{stage}.dt_max"].insert(
+                        0, str("None")
+                    )
                 # Set other parameters
                 for key, value in params.items():
                     if key not in {"active", "dt_max", "hardening"}:
@@ -134,7 +146,9 @@ def gui():
             for key, value in data["solver_settings"].items():
                 if key == "type":
                     # Set the solver type radio button
-                    solver_type_var.set(value if value in valid_solver_types else "KrylovSolver")
+                    solver_type_var.set(
+                        value if value in valid_solver_types else "KrylovSolver"
+                    )
                     update_dropdowns()  # Update dependent widgets based on solver type
                 elif key == "method":
                     try:
@@ -153,7 +167,6 @@ def gui():
                     tolerance_entry.delete(0, tk.END)
                     tolerance_entry.insert(0, str(value))
 
-     
         # Load body force settings
         if "body_force" in data:
             for key, value in data["body_force"].items():
@@ -161,14 +174,16 @@ def gui():
                     entry_key = f"body_force.{key}"
                     if entry_key in entries:
                         entries[entry_key].delete(0, tk.END)
-                        #entries[entry_key].insert(0, str(value))
+                        # entries[entry_key].insert(0, str(value))
                         try:
                             entries[entry_key].insert(0, value)
                         except:
                             entries[entry_key].insert(0, str(value))
                 elif key == "direction":
                     reverse_mapping = {0: "x", 1: "y", 2: "z"}
-                    direction_var.set(reverse_mapping.get(value, "x"))  # Default to "x" if unknown
+                    direction_var.set(
+                        reverse_mapping.get(value, "x")
+                    )  # Default to "x" if unknown
 
         # Load time settings
         load_time_settings(data, theta_var, time_list_text)
@@ -187,21 +202,21 @@ def gui():
     def save_to_file(data):
         file_path = filedialog.asksaveasfilename(
             defaultextension=".json",
-            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")]
+            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
         )
         if file_path:
             with open(file_path, "w") as file:
                 json.dump(data, file, indent=4, ensure_ascii=False)
                 updateJsonFileName(file_path)
-            #messagebox.showinfo("Success", "File saved successfully.")
+            # messagebox.showinfo("Success", "File saved successfully.")
             display_output("File saved successfully.")
 
     def scroll_to_line_starting_with(keyword: str):
         lines = left_textbox.get("1.0", tk.END).splitlines()
         for i, line in enumerate(lines, start=1):
             if keyword in line:
-                total_lines = int(left_textbox.index("end-1c").split('.')[0])
-                position = (i-1) / total_lines
+                total_lines = int(left_textbox.index("end-1c").split(".")[0])
+                position = (i - 1) / total_lines
                 left_textbox.yview_moveto(position)
                 break
 
@@ -225,28 +240,41 @@ def gui():
                     populate_form(current_data)
 
                     if "time_settings" in current_data:
-                        if current_data["time_settings"]["time_list"] == "null" or current_data["time_settings"]["time_list"] == None:
-                            current_data["time_settings"]["time_list"] = default_time_list
+                        if (
+                            current_data["time_settings"]["time_list"] == "null"
+                            or current_data["time_settings"]["time_list"] == None
+                        ):
+                            current_data["time_settings"]["time_list"] = (
+                                default_time_list
+                            )
                         # app_bc.time_list = current_data["time_settings"]["time_list"]
-                        app_bc.update_time_list(current_data["time_settings"]["time_list"])
+                        app_bc.update_time_list(
+                            current_data["time_settings"]["time_list"]
+                        )
                         app_bc.load_boundary_data(None)
 
                     if "boundary_conditions" in current_data:
-                        app_bc.json_data["boundary_conditions"] = current_data["boundary_conditions"]
+                        app_bc.json_data["boundary_conditions"] = current_data[
+                            "boundary_conditions"
+                        ]
                         app_bc.update_combobox()
                         app_bc.dragging_index = None
                         app_bc.load_boundary_data(None)
 
                     if "constitutive_model" in current_data:
-                        app_cm.data["constitutive_model"] = current_data["constitutive_model"]
+                        app_cm.data["constitutive_model"] = current_data[
+                            "constitutive_model"
+                        ]
                         app_cm.refresh_tree()
 
                     updateJsonFileName(file_path)
-                
+
                 load_grid(grid_name_entry, grid_path_entry, grid_prop_label)
 
             except json.JSONDecodeError as e:
-                messagebox.showerror("Error", f"Failed to decode the JSON file. Error: {e}")
+                messagebox.showerror(
+                    "Error", f"Failed to decode the JSON file. Error: {e}"
+                )
 
     # Function to populate time settings
     def load_time_settings(data, theta_var, time_list_text):
@@ -254,19 +282,25 @@ def gui():
         if "time_settings" in data:
             # Load theta
             if "theta" in data["time_settings"]:
-                reverse_map = {0:"Fully-implicit", 0.5:"Crank-Nicolson", 1:"Explicit"}
-                theta_var.set(reverse_map.get(data["time_settings"]["theta"], "Fully-implicit"))  # Default to "x" if unknown
-                #theta_menu.delete(0, tk.END)
-                #theta_menu.insert(0, reverse_map.get(data["time_settings"]["theta"], "Fully-implicit"))
+                reverse_map = {
+                    0: "Fully-implicit",
+                    0.5: "Crank-Nicolson",
+                    1: "Explicit",
+                }
+                theta_var.set(
+                    reverse_map.get(data["time_settings"]["theta"], "Fully-implicit")
+                )  # Default to "x" if unknown
+                # theta_menu.delete(0, tk.END)
+                # theta_menu.insert(0, reverse_map.get(data["time_settings"]["theta"], "Fully-implicit"))
 
-                #theta_entry.delete(0, tk.END)
-                #theta_entry.insert(0, str(data["time_settings"]["theta"]))
+                # theta_entry.delete(0, tk.END)
+                # theta_entry.insert(0, str(data["time_settings"]["theta"]))
 
             # Load time list
             if "time_list" in data["time_settings"]:
                 times_in_seconds = data["time_settings"]["time_list"]
                 times_in_unit = []
-                #unit = time_unit_var_TS.get()
+                # unit = time_unit_var_TS.get()
                 unit = "Seconds"
                 try:
                     # Convert times to the selected unit
@@ -303,7 +337,6 @@ def gui():
         app_bc.update_time_list(l_data["time_settings"]["time_list"])
         app_bc.load_boundary_data(None)
 
-
     # Function to open file dialog for path selection
     def select_directory(path_entry):
         path = filedialog.askdirectory()
@@ -334,10 +367,10 @@ def gui():
             # Create grid object
             grid = GridHandlerGMSH(grid_name, grid_path)
             list_of_boundary_names = list(grid.get_boundary_names())
-            
+
             number_of_region = grid.n_regions
             number_of_elements = grid.n_elems
-            
+
             app_bc.SetElemNumbers(number_of_region, number_of_elements)
             app_cm.SetElemNumbers(number_of_region, number_of_elements)
 
@@ -356,7 +389,9 @@ def gui():
             grid_prop_label.config(text=grid_prop_str)
 
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred while loading the grid:\n{str(e)}")
+            messagebox.showerror(
+                "Error", f"An error occurred while loading the grid:\n{str(e)}"
+            )
 
     # Save data from the form
     def save_data():
@@ -365,17 +400,24 @@ def gui():
 
         # Check if grid or list_of_boundary_names are not set or empty
         if grid is None or list_of_boundary_names is None or not list_of_boundary_names:
-            messagebox.showwarning("Warning", "Grid is not loaded. Attempting to load it now.")
+            messagebox.showwarning(
+                "Warning", "Grid is not loaded. Attempting to load it now."
+            )
             load_grid(grid_name_entry, grid_path_entry, grid_prop_label)
             return
 
         data = {}
         try:
             # Save Grid settings
-            data["grid"] = {"path": grid_path_entry.get(), "name": grid_name_entry.get()}
+            data["grid"] = {
+                "path": grid_path_entry.get(),
+                "name": grid_name_entry.get(),
+            }
             data["output"] = {"path": output_path_entry.get()}
 
-            data["grid"]["regions"] = {value: int(key) for key, value in grid.tags_dict.items()}
+            data["grid"]["regions"] = {
+                value: int(key) for key, value in grid.tags_dict.items()
+            }
             data["grid"]["boundaries"] = list_of_boundary_names
 
             # Save Solver settings
@@ -388,7 +430,7 @@ def gui():
                     "type": solver_type_var.get(),
                     "method": method_combobox.get(),
                     "preconditioner": preconditioner_combobox.get(),
-                    "relative_tolerance": tol_f
+                    "relative_tolerance": tol_f,
                 }
             elif solver_type_var.get() == "LU":
                 data["solver_settings"] = {
@@ -400,14 +442,15 @@ def gui():
                     "type": "null",
                     "method": "null",
                     "preconditioner": "null",
-                    "relative_tolerance": "null"
+                    "relative_tolerance": "null",
                 }
-                
 
             # Save Simulation settings
             data["simulation_settings"] = {}
             for stage in {"equilibrium", "operation"}:
-                active_var = active_vars[stage]  # Use the dictionary instead of separate variables
+                active_var = active_vars[
+                    stage
+                ]  # Use the dictionary instead of separate variables
                 time_unit_var = time_unit_vars[stage]
 
                 # Retrieve dt_max and convert to seconds
@@ -416,7 +459,9 @@ def gui():
                 try:
                     dt_max = float(value_str)
                 except:
-                    dt_max = None  # نگهداری مقدار خام ورودی (مثل null، رشته خالی یا abc)
+                    dt_max = (
+                        None  # نگهداری مقدار خام ورودی (مثل null، رشته خالی یا abc)
+                    )
                     # dt_max = float(entries[f"simulation_settings.{stage}.dt_max"].get() if entries[f"simulation_settings.{stage}.dt_max"].get() else 0)
                 unit = time_unit_var.get()
                 if dt_max != None:
@@ -434,7 +479,7 @@ def gui():
                 }
 
                 # Save additional parameters (e.g., time_tol, n_skip)
-                for key in {"time_tol", "n_skip","ite_max"}:
+                for key in {"time_tol", "n_skip", "ite_max"}:
                     entry_key = f"simulation_settings.{stage}.{key}"
                     if entry_key in entries:
                         value = entries[entry_key].get()
@@ -457,9 +502,15 @@ def gui():
                     if param == "density":
                         value = get_values(entries[entry_key])
                         len_density = len(value)
-                        if len_density != 1 and len_density != number_of_region and len_density != number_of_elements:
-                            messagebox.showerror("Error", f"Density values length is incorrect!")                
-                            #return
+                        if (
+                            len_density != 1
+                            and len_density != number_of_region
+                            and len_density != number_of_elements
+                        ):
+                            messagebox.showerror(
+                                "Error", f"Density values length is incorrect!"
+                            )
+                            # return
                         if len_density == 1:
                             value = value[0]
 
@@ -469,12 +520,14 @@ def gui():
                             value = eval(value)  # Convert to numeric if possible
                         except:
                             pass
-                       
+
                     data["body_force"][param] = value
 
             # Save direction based on dropdown value
             direction_mapping = {"x": 0, "y": 1, "z": 2}
-            data["body_force"]["direction"] = int(direction_mapping[direction_var.get()])
+            data["body_force"]["direction"] = int(
+                direction_mapping[direction_var.get()]
+            )
 
             save_time_settings(data)
             save_boundary_conditions(data)
@@ -482,22 +535,25 @@ def gui():
 
             save_to_file(data)
 
-            #current_data = json.load(file)
+            # current_data = json.load(file)
             pretty = json.dumps(data, indent=4, ensure_ascii=False)
             left_textbox.delete("1.0", tk.END)
             left_textbox.insert(tk.END, pretty)
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred while saving json:\n{str(e)}")
-
+            messagebox.showerror(
+                "Error", f"An error occurred while saving json:\n{str(e)}"
+            )
 
     # Function to save time settings
     def save_time_settings(data):
         data["time_settings"] = {}
 
         # Save theta
-        values_map = {"Fully-implicit":0, "Crank-Nicolson": 0.5, "Explicit":1}
-        data["time_settings"]["theta"] = float(values_map[theta_var.get()] if theta_var.get() else 0)
-        
+        values_map = {"Fully-implicit": 0, "Crank-Nicolson": 0.5, "Explicit": 1}
+        data["time_settings"]["theta"] = float(
+            values_map[theta_var.get()] if theta_var.get() else 0
+        )
+
         save_time_list(data)
 
     def save_time_list(data):
@@ -527,7 +583,6 @@ def gui():
     root.title("SafeInCave Parameter Manager")
     root.geometry("1900x900")
 
-
     # ============ Left Side ============
     left_frame = tk.Frame(root, width=360, height=850, relief=tk.GROOVE, borderwidth=1)
     left_frame.place(x=0, y=34)
@@ -541,9 +596,10 @@ def gui():
     left_btn2 = ttk.Button(left_frame, text="Save File", command=save_data)
     left_btn2.place(x=180, y=810, width=150)
 
-
     # ============ center Frame ============
-    center_frame = tk.Frame(root, width=1000, height=850, relief=tk.GROOVE, borderwidth=1)
+    center_frame = tk.Frame(
+        root, width=1000, height=850, relief=tk.GROOVE, borderwidth=1
+    )
     center_frame.place(x=360, y=34)
     center_frame.pack_propagate(False)
 
@@ -603,16 +659,24 @@ def gui():
     grid_path_entry = ttk.Entry(grid_path_frame, width=40)
     grid_path_entry.pack(side=tk.LEFT, padx=5)
 
-    grid_path_button = ttk.Button(grid_path_frame, text="Browse", command=lambda: select_directory(grid_path_entry))
+    grid_path_button = ttk.Button(
+        grid_path_frame,
+        text="Browse",
+        command=lambda: select_directory(grid_path_entry),
+    )
     grid_path_button.pack(side=tk.LEFT, padx=5)
 
     grid_prop_frame = ttk.Frame(grid_output_tab)
     grid_prop_frame.pack(fill=tk.X, padx=20, pady=10)
 
-    grid_prop_label = ttk.Label(grid_prop_frame, text="",wraplength=400, width=56)
+    grid_prop_label = ttk.Label(grid_prop_frame, text="", wraplength=400, width=56)
     grid_prop_label.pack(side=tk.LEFT, padx=5)
 
-    grid_load_button = ttk.Button(grid_prop_frame, text="Load Grid", command=lambda: load_grid(grid_name_entry, grid_path_entry, grid_prop_label))
+    grid_load_button = ttk.Button(
+        grid_prop_frame,
+        text="Load Grid",
+        command=lambda: load_grid(grid_name_entry, grid_path_entry, grid_prop_label),
+    )
     grid_load_button.pack(side=tk.LEFT, padx=5)
 
     # Tab 1 - Output Path section
@@ -625,9 +689,10 @@ def gui():
     output_path_entry = ttk.Entry(output_frame, width=40)
     output_path_entry.pack(side=tk.LEFT, padx=5)
 
-    output_path_button = ttk.Button(output_frame, text="Browse", command=lambda: select_directory(output_path_entry))
+    output_path_button = ttk.Button(
+        output_frame, text="Browse", command=lambda: select_directory(output_path_entry)
+    )
     output_path_button.pack(side=tk.LEFT, padx=5)
-
 
     # Tab 2 - Solver settings section
     solver_frame = ttk.Frame(solver_tab)
@@ -660,7 +725,7 @@ def gui():
         elif selected_tab == 6:
             json_txt = "constitutive_model"
         scroll_to_line_starting_with(json_txt)
-        
+
         if selected_tab_text == "Boundary Conditions" and time_list_changed:
             data = {}
             save_time_settings(data)
@@ -668,32 +733,52 @@ def gui():
             app_bc.load_boundary_data(None)
             time_list_changed = False
 
-
     # Function to update dropdown options based on solver type
     def update_dropdowns():
         # Define options based on the solver type
         if solver_type_var.get() == "KrylovSolver":
-            method_options = ["cg", "bicg", "bcgs", "gmres", "richardson", "chebyshev", "cgs"]
+            method_options = [
+                "cg",
+                "bicg",
+                "bcgs",
+                "gmres",
+                "richardson",
+                "chebyshev",
+                "cgs",
+            ]
             # preconditioner_options = ["icc", "ilu", "petsc_amg", "sor", "hypre", "asm"]
-            preconditioner_combobox['state'] = 'readonly'
-            tolerance_entry.config(state='normal')
+            preconditioner_combobox["state"] = "readonly"
+            tolerance_entry.config(state="normal")
         else:  # DirectSolver
             method_options = ["petsc"]
-            preconditioner_combobox['state'] = 'disabled'
-            tolerance_entry.config(state='disabled')
+            preconditioner_combobox["state"] = "disabled"
+            tolerance_entry.config(state="disabled")
         # preconditioner_options = ["icc", "ilu", "petsc_amg", "sor", "hypre", "asm"]
         preconditioner_options = [
-            "jacobi", "bjacobi", "sor", "eisenstat", "icc", "ilu", 
-            "asm", "gasm","gamg", "bddc", "lu", "cholesky", "none"
+            "jacobi",
+            "bjacobi",
+            "sor",
+            "eisenstat",
+            "icc",
+            "ilu",
+            "asm",
+            "gasm",
+            "gamg",
+            "bddc",
+            "lu",
+            "cholesky",
+            "none",
         ]
-        
+
         # Update method combobox
-        method_combobox['values'] = method_options
+        method_combobox["values"] = method_options
         method_combobox.set(method_options[0] if method_options else "")
-        
+
         # Update preconditioner combobox
-        preconditioner_combobox['values'] = preconditioner_options
-        preconditioner_combobox.set(preconditioner_options[0] if preconditioner_options else "")
+        preconditioner_combobox["values"] = preconditioner_options
+        preconditioner_combobox.set(
+            preconditioner_options[0] if preconditioner_options else ""
+        )
 
     # Create Solver Type Section
     type_frame = ttk.Frame(solver_frame)
@@ -702,11 +787,19 @@ def gui():
     ttk.Label(type_frame, text="Solver Type:", width=20).pack(side=tk.LEFT)
 
     ttk.Radiobutton(
-        type_frame, text="Krylov Solver", variable=solver_type_var, value="KrylovSolver", command=update_dropdowns
+        type_frame,
+        text="Krylov Solver",
+        variable=solver_type_var,
+        value="KrylovSolver",
+        command=update_dropdowns,
     ).pack(side=tk.LEFT, padx=5)
 
     ttk.Radiobutton(
-        type_frame, text="Direct Solver (LU)", variable=solver_type_var, value="LU", command=update_dropdowns
+        type_frame,
+        text="Direct Solver (LU)",
+        variable=solver_type_var,
+        value="LU",
+        command=update_dropdowns,
     ).pack(side=tk.LEFT, padx=5)
 
     # Create Method Dropdown Section
@@ -743,12 +836,13 @@ def gui():
     simulation_frame.pack(fill=tk.BOTH, expand=True)
 
     canvas = tk.Canvas(simulation_frame)
-    scrollbar = ttk.Scrollbar(simulation_frame, orient=tk.VERTICAL, command=canvas.yview)
+    scrollbar = ttk.Scrollbar(
+        simulation_frame, orient=tk.VERTICAL, command=canvas.yview
+    )
     scrollable_frame = ttk.Frame(canvas)
 
     scrollable_frame.bind(
-        "<Configure>",
-        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
     )
 
     canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
@@ -772,14 +866,15 @@ def gui():
     }
 
     # Define simulation settings structure
-    simulation_parameters = {
-        "equilibrium": ["time_tol"],
-        "operation": ["n_skip"]
-    }
+    simulation_parameters = {"equilibrium": ["time_tol"], "operation": ["n_skip"]}
 
     # Generate simulation settings dynamically
     for stage, additional_params in simulation_parameters.items():
-        section_label = ttk.Label(scrollable_frame, text=f"{stage.capitalize()} Stage", font=("Arial", 12, "bold"))
+        section_label = ttk.Label(
+            scrollable_frame,
+            text=f"{stage.capitalize()} Stage",
+            font=("Arial", 12, "bold"),
+        )
         section_label.pack(anchor="w", pady=10)
 
         # Active/Inactive radio buttons
@@ -789,8 +884,12 @@ def gui():
         active_var = active_vars[stage]
         ttk.Label(active_frame, text="State:", width=20).pack(side=tk.LEFT)
 
-        ttk.Radiobutton(active_frame, text="Active", variable=active_var, value="Active").pack(side=tk.LEFT)
-        ttk.Radiobutton(active_frame, text="Inactive", variable=active_var, value="Inactive").pack(side=tk.LEFT)
+        ttk.Radiobutton(
+            active_frame, text="Active", variable=active_var, value="Active"
+        ).pack(side=tk.LEFT)
+        ttk.Radiobutton(
+            active_frame, text="Inactive", variable=active_var, value="Inactive"
+        ).pack(side=tk.LEFT)
 
         # Time Step Size (dt_max) with unit selection
         time_step_frame = ttk.Frame(scrollable_frame)
@@ -803,7 +902,15 @@ def gui():
         entries[f"simulation_settings.{stage}.dt_max"] = dt_max_entry
 
         time_unit_var = time_unit_vars[stage]
-        time_unit_menu = ttk.OptionMenu(time_step_frame, time_unit_var, "Seconds", "Seconds", "Minutes", "Hours", "Days")
+        time_unit_menu = ttk.OptionMenu(
+            time_step_frame,
+            time_unit_var,
+            "Seconds",
+            "Seconds",
+            "Minutes",
+            "Hours",
+            "Days",
+        )
         time_unit_menu.pack(side=tk.LEFT)
 
         if stage == "equilibrium":
@@ -836,11 +943,13 @@ def gui():
             active_var_op = active_vars_operation[stage]
             ttk.Label(active_frame, text="hardening:", width=20).pack(side=tk.LEFT)
 
-            ttk.Radiobutton(active_frame, text="Active", variable=active_var_op, value="Active").pack(side=tk.LEFT)
-            ttk.Radiobutton(active_frame, text="Inactive", variable=active_var_op, value="Inactive").pack(side=tk.LEFT)
-            #entries[f"simulation_settings.{stage}.{param}"] = param_entry
-            
-
+            ttk.Radiobutton(
+                active_frame, text="Active", variable=active_var_op, value="Active"
+            ).pack(side=tk.LEFT)
+            ttk.Radiobutton(
+                active_frame, text="Inactive", variable=active_var_op, value="Inactive"
+            ).pack(side=tk.LEFT)
+            # entries[f"simulation_settings.{stage}.{param}"] = param_entry
 
     # Tab 4 - Body Force section
     body_force_frame = ttk.Frame(body_force_tab)
@@ -881,34 +990,54 @@ def gui():
     theta_frame = ttk.Frame(time_settings_frame)
     theta_frame.pack(fill=tk.X, pady=5)
 
-    ttk.Label(theta_frame, text="Time integration scheme: ", width=30).pack(side=tk.LEFT)
+    ttk.Label(theta_frame, text="Time integration scheme: ", width=30).pack(
+        side=tk.LEFT
+    )
 
     theta_var = tk.StringVar(value="x")  # Default value is "x"
-    theta_menu = ttk.OptionMenu(theta_frame, theta_var, "Fully-implicit", "Fully-implicit", "Crank-Nicolson", "Explicit")
+    theta_menu = ttk.OptionMenu(
+        theta_frame,
+        theta_var,
+        "Fully-implicit",
+        "Fully-implicit",
+        "Crank-Nicolson",
+        "Explicit",
+    )
     theta_menu.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     # Time List parameter
     time_list_frame = ttk.Frame(time_settings_frame)
     time_list_frame.pack(fill=tk.BOTH, pady=5)
 
-    ttk.Label(time_list_frame, text="Time List:", width=20).pack(side=tk.LEFT, anchor="n")
+    ttk.Label(time_list_frame, text="Time List:", width=20).pack(
+        side=tk.LEFT, anchor="n"
+    )
 
     time_list_text = tk.Text(time_list_frame, height=5, width=40)
     time_list_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
     time_list_text.bind("<KeyRelease>", time_list_key)
 
     time_list_text.delete(1.0, tk.END)
-    time_list_text.insert(tk.END, "\n".join(map(str, [10, 20, 30 , 40, 50])))
+    time_list_text.insert(tk.END, "\n".join(map(str, [10, 20, 30, 40, 50])))
     current_data["time_settings"] = {}
-    current_data["time_settings"]["time_list"] = [10, 20, 30 , 40, 50]
+    current_data["time_settings"]["time_list"] = [10, 20, 30, 40, 50]
 
     time_unit_var_TS = tk.StringVar(value="Seconds")  # Default unit is Seconds
-    time_unit_menu = ttk.OptionMenu(time_list_frame, time_unit_var_TS, "Seconds", "Seconds", "Minutes", "Hours", "Days")
+    time_unit_menu = ttk.OptionMenu(
+        time_list_frame,
+        time_unit_var_TS,
+        "Seconds",
+        "Seconds",
+        "Minutes",
+        "Hours",
+        "Days",
+    )
     time_unit_menu.pack(side=tk.LEFT, padx=5, anchor="n")
 
-    timebrowse_button = ttk.Button(time_list_frame, text="Browse", command=lambda: browse_csv_time())
+    timebrowse_button = ttk.Button(
+        time_list_frame, text="Browse", command=lambda: browse_csv_time()
+    )
     timebrowse_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, anchor="s")
-
 
     Boundary_Cond_tab = ttk.Frame(notebook)
     notebook.add(Boundary_Cond_tab, text="Boundary Conditions")
@@ -916,31 +1045,27 @@ def gui():
     Constitutive_model_tab = ttk.Frame(notebook)
     notebook.add(Constitutive_model_tab, text="Constitutive model")
 
-    notebook.bind("<<NotebookTabChanged>>", on_tab_changed)  
-
+    notebook.bind("<<NotebookTabChanged>>", on_tab_changed)
 
     app_cm = JSONConstitutiveApp(Constitutive_model_tab)
     app_bc = JSONBoundaryApp(Boundary_Cond_tab)
 
-
-
-    # logo_image = Image.open(os.path.join(HERE, "logo_2.png")).convert("RGBA") 
+    # logo_image = Image.open(os.path.join(HERE, "logo_2.png")).convert("RGBA")
     with as_file(files("safeincave.app.assets") / "logo_2.png") as logo_2_path:
         logo_image = Image.open(logo_2_path).convert("RGBA")
-        logo_image = logo_image.resize((190, 32)) 
+        logo_image = logo_image.resize((190, 32))
         logo_photo = ImageTk.PhotoImage(logo_image)
 
     logo_label = tk.Label(root, image=logo_photo)
     # logo_label.place(x=960-105, y=0)
     logo_label.place(x=0, y=0)
 
-    #root.iconphoto(False, logo_photo)
+    # root.iconphoto(False, logo_photo)
     with as_file(files("safeincave.app.assets") / "logo_alone_2.png") as logo32_path:
         # logo_image = Image.open(logo32_path).convert("RGBA")
         # icon = tk.PhotoImage(logo_image)
         icon = tk.PhotoImage(file=str(logo32_path))
         root.iconphoto(False, icon)
-
 
     style = ttk.Style()
     style.configure("TNotebook.Tab", padding=[5, 8])
@@ -956,11 +1081,11 @@ def gui():
     # save_button.pack(side=tk.LEFT, padx=5)
 
     text_widget = scrolledtext.ScrolledText(center_frame, wrap=tk.WORD)
-    text_widget.pack(padx=5, pady=5, fill="both", expand=True)  
+    text_widget.pack(padx=5, pady=5, fill="both", expand=True)
 
     def display_output(text):
         text_widget.insert(tk.END, text)
-        text_widget.see(tk.END) 
+        text_widget.see(tk.END)
 
     def run_simulation():
         global sim_in_run
@@ -979,19 +1104,18 @@ def gui():
                 sim_in_run = True
                 sim_runner.run()
 
-
     def browse_csv_time():
         global time_list_changed
         file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
         if file_path:
             try:
                 time_numbers = []
-                with open(file_path, newline='', encoding='utf-8') as csvfile:
+                with open(file_path, newline="", encoding="utf-8") as csvfile:
                     reader = csv.reader(csvfile)
                     next(reader)  # Skip the header row
                     for row in reader:
-                        time_numbers.append(row[0])  
-                    
+                        time_numbers.append(row[0])
+
                     time_list_text.delete(1.0, tk.END)
                     time_list_text.insert(tk.END, "\n".join(map(str, time_numbers)))
                     time_list_changed = True
@@ -1001,28 +1125,26 @@ def gui():
 
     sim_runner = SimulatorRunner(display_output)
 
-
     ttk.Label(button_frame, text="JSON File:", width=10).pack(side=tk.LEFT)
     label_file = ttk.Label(button_frame, text=json_file_name, width=50)
     label_file.pack(side=tk.LEFT)
 
-
-            
     def updateJsonFileName(filename1):
         json_file_name = os.path.basename(filename1)
-        #json_file_name = filename1
+        # json_file_name = filename1
         label_file.config(text=json_file_name)
 
-    #exit_button = ttk.Button(button_frame, text="Exit", command=root.destroy)
-    #exit_button.pack(side=tk.RIGHT, padx=5)
+    # exit_button = ttk.Button(button_frame, text="Exit", command=root.destroy)
+    # exit_button.pack(side=tk.RIGHT, padx=5)
 
     btn_run = tk.Button(button_frame, text="Run Simulation", command=run_simulation)
     btn_run.pack(side=tk.RIGHT, padx=5)
 
     # Start the GUI loop
 
-    root.protocol("WM_DELETE_WINDOW", app_bc.on_closing) 
+    root.protocol("WM_DELETE_WINDOW", app_bc.on_closing)
     root.mainloop()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     gui()

@@ -21,6 +21,7 @@ import numpy as np
 # Type alias
 Fn = Callable[[float], float]
 
+
 class TimeControllerBase(ABC):
     """
     Base class for time-stepping controllers.
@@ -54,12 +55,16 @@ class TimeControllerBase(ABC):
     step_counter : int
         Number of completed steps (starts at 0).
     """
-    def __init__(self, initial_time: float, final_time: float, time_unit: str="second"):
+
+    def __init__(
+        self, initial_time: float, final_time: float, time_unit: str = "second"
+    ):
         self.time_unit = time_unit
         self.__decide_time_unit()
-        self.t_final = final_time*self.time_conversion
-        self.t_initial = initial_time*self.time_conversion
-        self.t = initial_time*self.time_conversion
+        self.t_final = final_time * self.time_conversion
+        self.t_initial = initial_time * self.time_conversion
+        self.t = initial_time * self.time_conversion
+        self.dt = 0.0
         self.step_counter = 0
 
     def __decide_time_unit(self) -> None:
@@ -126,45 +131,50 @@ class TimeControllerBase(ABC):
         pass
 
 
-
 class TimeController(TimeControllerBase):
+    """
+    Fixed-step time controller.
+
+    Advances the current time by a constant step `dt` expressed in the chosen
+    unit.
+
+    Parameters
+    ----------
+    dt : float
+    Time-step size expressed in the units given by `time_unit`.
+    initial_time : float
+    Start time expressed in the units given by `time_unit`.
+    final_time : float
+    Final time expressed in the units given by `time_unit`.
+    time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
+    Unit used to interpret `dt`, `initial_time`, and `final_time`.
+
+    Attributes
+    ----------
+    dt : float
+    Fixed time-step size in **seconds**.
+    """
+
+    def __init__(
+        self,
+        dt: float,
+        initial_time: float,
+        final_time: float,
+        time_unit: str = "second",
+    ):
+        super().__init__(initial_time, final_time, time_unit)
+        self.dt = dt * self.time_conversion
+
+    def advance_time(self) -> None:
         """
-        Fixed-step time controller.
-
-        Advances the current time by a constant step `dt` expressed in the chosen
-        unit.
-
-        Parameters
-        ----------
-        dt : float
-        Time-step size expressed in the units given by `time_unit`.
-        initial_time : float
-        Start time expressed in the units given by `time_unit`.
-        final_time : float
-        Final time expressed in the units given by `time_unit`.
-        time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
-        Unit used to interpret `dt`, `initial_time`, and `final_time`.
-
-        Attributes
-        ----------
-        dt : float
-        Fixed time-step size in **seconds**.
-        """
-        def __init__(self, dt: float, initial_time: float, final_time: float, time_unit: str="second"):
-            super().__init__(initial_time, final_time, time_unit)
-            self.dt = dt*self.time_conversion
-
-        def advance_time(self) -> None:
-            """
         Increment the current time by the fixed step `dt`.
 
         Returns
         -------
         None
-            """
-            self.step_counter += 1
-            self.t += self.dt
-
+        """
+        self.step_counter += 1
+        self.t += self.dt
 
 
 class TimeControllerParabolic(TimeControllerBase):
@@ -199,7 +209,14 @@ class TimeControllerParabolic(TimeControllerBase):
     step_counter : int
         Index of the most recently advanced step (starts at 0).
     """
-    def __init__(self, n_time_steps: int, initial_time: float, final_time: float, time_unit: str="second"):
+
+    def __init__(
+        self,
+        n_time_steps: int,
+        initial_time: float,
+        final_time: float,
+        time_unit: str = "second",
+    ):
         super().__init__(initial_time, final_time, time_unit)
         self.n_time_steps = n_time_steps
         self.time_list = self.calculate_varying_times(self.fun_parabolic)
@@ -247,8 +264,8 @@ class TimeControllerParabolic(TimeControllerBase):
         y = fun(t_eq)
         f_min = np.min(t_eq)
         f_max = np.max(y)
-        k = (t_eq.max() - t_eq.min())/(f_max - f_min)
-        y = k*(y - f_min) + t_eq.min()
+        k = (t_eq.max() - t_eq.min()) / (f_max - f_min)
+        y = k * (y - f_min) + t_eq.min()
         return y
 
     def advance_time(self) -> None:
@@ -270,5 +287,6 @@ class TimeControllerParabolic(TimeControllerBase):
         """
         self.step_counter += 1
         self.t = self.time_list[self.step_counter]
-        self.dt = self.time_list[self.step_counter] - self.time_list[self.step_counter-1]
-
+        self.dt = (
+            self.time_list[self.step_counter] - self.time_list[self.step_counter - 1]
+        )

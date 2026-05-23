@@ -1,5 +1,6 @@
 import sys, subprocess, threading
 
+
 class SimulatorRunner:
     def __init__(self, output_callback):
         self.output_callback = output_callback
@@ -15,12 +16,18 @@ class SimulatorRunner:
 
         # Start a clean Python interpreter running just the CLI
         self.proc = subprocess.Popen(
-            [sys.executable, "-m", "safeincave.app.sim_cli", "--json", self.jsonfilename],
+            [
+                sys.executable,
+                "-m",
+                "safeincave.app.sim_cli",
+                "--json",
+                self.jsonfilename,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            close_fds=True
+            close_fds=True,
         )
 
         def listen():

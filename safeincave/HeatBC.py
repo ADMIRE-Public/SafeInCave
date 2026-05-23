@@ -17,17 +17,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .HeatEquation import HeatDiffusion
     from .CavernBC import CavernHandler
-    
+
 from abc import ABC
 import numpy as np
 import dolfinx as do
-import ufl
 
 
 class GeneralBC(ABC):
-	"""
+    """
     Base container for boundary-condition data (time-dependent).
 
     Parameters
@@ -52,15 +50,16 @@ class GeneralBC(ABC):
     type : str or None
         Boundary condition type identifier (set by subclasses).
     """
-	def __init__(self, boundary_name: str, values: list, time_values: list):
-		self.boundary_name = boundary_name
-		self.values = values
-		self.time_values = time_values
-		self.type = None
+
+    def __init__(self, boundary_name: str, values: list, time_values: list):
+        self.boundary_name = boundary_name
+        self.values = values
+        self.time_values = time_values
+        self.type = None
 
 
 class DirichletBC(GeneralBC):
-	"""
+    """
     Time-dependent Dirichlet boundary condition (essential BC).
 
     Parameters
@@ -77,12 +76,14 @@ class DirichletBC(GeneralBC):
     type : str
         Always ``"dirichlet"``.
     """
-	def __init__(self, boundary_name: str, values: list, time_values: list):
-		super().__init__(boundary_name, values, time_values)
-		self.type = "dirichlet"
+
+    def __init__(self, boundary_name: str, values: list, time_values: list):
+        super().__init__(boundary_name, values, time_values)
+        self.type = "dirichlet"
+
 
 class NeumannBC(GeneralBC):
-	"""
+    """
     Time-dependent Neumann boundary condition (natural BC / flux).
 
     Parameters
@@ -99,12 +100,14 @@ class NeumannBC(GeneralBC):
     type : str
         Always ``"neumann"``.
     """
-	def __init__(self, boundary_name: str, values: list, time_values: list):
-		super().__init__(boundary_name, values, time_values)
-		self.type = "neumann"
+
+    def __init__(self, boundary_name: str, values: list, time_values: list):
+        super().__init__(boundary_name, values, time_values)
+        self.type = "neumann"
+
 
 class RobinBC(GeneralBC):
-	"""
+    """
     Time-dependent Robin (convective) boundary condition.
 
     The Robin condition typically has the form
@@ -129,14 +132,14 @@ class RobinBC(GeneralBC):
     h : float
         Robin coefficient.
     """
-	def __init__(self, boundary_name: str, values: list, h: float, time_values: list):
-		super().__init__(boundary_name, values, time_values)
-		self.type = "robin"
-		self.h = h
+
+    def __init__(self, boundary_name: str, values: list, h: float, time_values: list):
+        super().__init__(boundary_name, values, time_values)
+        self.type = "robin"
+        self.h = h
 
 
-
-class BcHandler():
+class BcHandler:
     """
     Boundary-condition handler for a heat-diffusion equation.
 
@@ -180,6 +183,7 @@ class BcHandler():
     :func:`numpy.interp` between ``values`` and ``time_values`` stored in each
     boundary-condition object.
     """
+
     def __init__(self):
         self.dirichlet_boundaries = []
         self.neumann_boundaries = []
@@ -218,7 +222,7 @@ class BcHandler():
         self.neumann_boundaries = []
         self.robin_boundaries = []
 
-    def add_boundary_condition(self, bc : GeneralBC) -> None:
+    def add_boundary_condition(self, bc: GeneralBC) -> None:
         """
         Register a boundary condition by its type.
 
@@ -289,16 +293,10 @@ class BcHandler():
         for bc in self.dirichlet_boundaries:
             value = np.interp(t, bc.time_values, bc.values)
             dofs = do.fem.locate_dofs_topological(
-                self.V,
-                self.boundary_dim,
-                self.boundary_tags[bc.boundary_name]
+                self.V, self.boundary_dim, self.boundary_tags[bc.boundary_name]
             )
             self.dirichlet_bcs.append(
-                do.fem.dirichletbc(
-                    do.default_scalar_type(value),
-                    dofs,
-                    self.V
-                )
+                do.fem.dirichletbc(do.default_scalar_type(value), dofs, self.V)
             )
 
     def update_neumann(self, t: float) -> None:
@@ -323,9 +321,9 @@ class BcHandler():
         for bc in self.neumann_boundaries:
             value = np.interp(t, bc.time_values, bc.values)
             self.neumann_bcs.append(
-                value*self.T_*self.ds(
-                    self.dolfin_tags[self.boundary_dim][bc.boundary_name]
-                )
+                value
+                * self.T_
+                * self.ds(self.dolfin_tags[self.boundary_dim][bc.boundary_name])
             )
 
     def update_robin(self, t: float) -> None:
@@ -355,29 +353,37 @@ class BcHandler():
         for bc in self.robin_boundaries:
             T_inf = np.interp(t, bc.time_values, bc.values)
             self.robin_bcs_a.append(
-                bc.h*self.dT*self.T_*self.ds(
-                    self.dolfin_tags[self.boundary_dim][bc.boundary_name]
-                )
+                bc.h
+                * self.dT
+                * self.T_
+                * self.ds(self.dolfin_tags[self.boundary_dim][bc.boundary_name])
             )
             self.robin_bcs_b.append(
-                bc.h*T_inf*self.T_*self.ds(
-                    self.dolfin_tags[self.boundary_dim][bc.boundary_name]
-                )
+                bc.h
+                * T_inf
+                * self.T_
+                * self.ds(self.dolfin_tags[self.boundary_dim][bc.boundary_name])
             )
-	
+
     def update_cavern_bcs(self, cavern_handler: CavernHandler):
         self.cavern_bcs_a = []
         self.cavern_bcs_b = []
-        for cavern in cavern_handler.caverns_PT + cavern_handler.caverns_MFlux + cavern_handler.caverns_T:
+        for cavern in (
+            cavern_handler.caverns_PT
+            + cavern_handler.caverns_MFlux
+            + cavern_handler.caverns_T
+        ):
             T_inf = cavern.T
             h = cavern.h_conv
             self.cavern_bcs_a.append(
-                h*self.dT*self.T_*self.ds(
-                    self.dolfin_tags[self.boundary_dim][cavern.cavern_name]
-                )
+                h
+                * self.dT
+                * self.T_
+                * self.ds(self.dolfin_tags[self.boundary_dim][cavern.cavern_name])
             )
             self.cavern_bcs_b.append(
-                h*T_inf*self.T_*self.ds(
-                    self.dolfin_tags[self.boundary_dim][cavern.cavern_name]
-                )
+                h
+                * T_inf
+                * self.T_
+                * self.ds(self.dolfin_tags[self.boundary_dim][cavern.cavern_name])
             )
