@@ -1,0 +1,18 @@
+:root  > * {
+  --md-primary-fg-color:        #52507a;
+}
+
+.md-typeset figure:has(img.wide-figure) {
+  width: fit-content !important;
+  max-width: none !important;
+
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.md-typeset figure:has(img.wide-figure) img {
+  max-width: none !important;
+  height: auto !important;
+  display: block;
+}
