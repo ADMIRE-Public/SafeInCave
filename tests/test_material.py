@@ -272,13 +272,6 @@ class TestViscoplasticDesai(unittest.TestCase):
 		self.dt = 7200.
 		self.phi2 = (1 - self.theta)*self.dt
 		self.phi1 = self.theta*self.dt
-
-		# self.true_G = to.tensor([[	[-1.1784e-02, -1.1784e-02, -1.1784e-02, -2.3568e-02, -2.3568e-02, -2.3568e-02],
-		# 					        [-1.1784e-02, -1.1784e-02, -1.1784e-02, -2.3568e-02, -2.3568e-02, -2.3568e-02],
-		# 					        [ 1.0323e-01,  1.0323e-01,  1.0323e-01,  2.0645e-01,  2.0645e-01,  2.0645e-01],
-		# 					        [ 0.0000e+00,  0.0000e+00,  0.0000e+00,  2.7239e-09,  0.0000e+00,  0.0000e+00],
-		# 					        [ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  2.2995e-09,  0.0000e+00],
-		# 					        [ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  2.2995e-09]]], dtype=to.float64)
 		
 		self.true_G = to.tensor([[	[-2.6340e-03, -2.6340e-03, -2.6340e-03, -5.2681e-03, -5.2681e-03, -5.2681e-03],
 									[-2.6340e-03, -2.6340e-03, -2.6340e-03, -5.2681e-03, -5.2681e-03, -5.2681e-03],
@@ -287,21 +280,21 @@ class TestViscoplasticDesai(unittest.TestCase):
 									[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  2.2995e-09, 0.0000e+00],
 									[ 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00, 2.2995e-09]]], dtype=to.float64)
 
-		self.true_eps_ne_rate = to.tensor([[  [ 0.00117867, -0.,         -0.        ],
-											  [-0.,          0.00117867, -0.        ],
-											  [-0.,         -0.,         -0.01031885]]], dtype=to.float64)
+		self.true_eps_ne_rate = to.tensor([[  [ 0.00026406, -0.,         -0.        ],
+											  [-0.,          0.00026406, -0.        ],
+											  [-0.,         -0.,         -0.01123346]]], dtype=to.float64)
 
-		self.true_eps_ne_k = to.tensor([[   [  4.24319634,   0.,           0.        ],
-								            [  0.,           4.24319634,   0.        ],
-								            [  0.,           0.,         -37.14785876]]], dtype=to.float64)
+		self.true_eps_ne_k = to.tensor([[   [  0.95062435,   0.,           0.        ],
+								            [  0.,           0.95062435,   0.        ],
+								            [  0.,           0.,         -40.44045109]]], dtype=to.float64)
 
-		self.true_eps_ne = to.tensor([[   [ 2.12113385e+09,  0.00000000e+00,  0.00000000e+00],
-										  [ 0.00000000e+00,  2.12113385e+09,  0.00000000e+00],
-										  [ 0.00000000e+00,  0.00000000e+00, -1.85806882e+10]]], dtype=to.float64)
+		self.true_eps_ne = to.tensor([[   [ 4.74127209e+08,  0.00000000e+00,  0.00000000e+00],
+										  [ 0.00000000e+00,  4.74127209e+08,  0.00000000e+00],
+										  [ 0.00000000e+00,  0.00000000e+00, -2.02277044e+10]]], dtype=to.float64)
 
 		self.true_Fvp = to.tensor([185.2260], dtype=to.float64)
 		self.true_alpha = to.tensor([0.0022], dtype=to.float64)
-		self.true_qsi = to.tensor([75.2588], dtype=to.float64)
+		self.true_qsi = to.tensor([80.92558206], dtype=to.float64)
 
 	def test_full(self):
 		self.elem.compute_G_B(self.stress, self.dt, self.theta, self.Temp)
