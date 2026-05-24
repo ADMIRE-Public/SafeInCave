@@ -1,13 +1,11 @@
 import safeincave as sf
-from safeincave.Utils import day, GPa, create_field_elems, create_field_nodes
+from safeincave.Utils import GPa, create_field_elems, create_field_nodes
 import safeincave.MomentumBC as momBC
 import safeincave.HeatBC as heatBC
 import safeincave.CavernBC as caveBC
 from petsc4py import PETSc
-from mpi4py import MPI
 import torch as to
 import os
-import sys
 
 
 def get_geometry_parameters(path_to_grid):
@@ -104,7 +102,8 @@ def main():
     km = 1000
     dTdZ = 27/km
     T_top = 273 + 20
-    T_field_fun = lambda x,y,z: T_top + dTdZ*(660 - z)
+    def T_field_fun(x,y,z):
+        return T_top + dTdZ*(660 - z)
     T0_field = create_field_elems(grid, T_field_fun)
     mom_eq.set_T0(T0_field)
     mom_eq.set_T(T0_field)

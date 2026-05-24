@@ -1,9 +1,7 @@
 import numpy as np
-from safeincave.Utils import save_json, hour, day, MPa
+from safeincave.Utils import day, MPa
 import safeincave as sf
-from safeincave.CavernBC import Cavern_MassFlux
 import matplotlib.pyplot as plt
-import os
 
 
 def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color='0.85'):
@@ -11,7 +9,7 @@ def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color=
 	if transparent:
 		fig.patch.set_alpha(0.0)
 	for ax in axes:
-		if ax != None:
+		if ax is not None:
 			ax.grid(True, color=grid_color)
 			ax.set_axisbelow(True)
 			ax.spines['bottom'].set_color('black')
@@ -46,7 +44,7 @@ def main():
     data["pressure"] = P_hist
     data["temperature"] = T_hist
 
-    sf.Utils.save_json(data, f"input_PT.json")
+    sf.Utils.save_json(data, "input_PT.json")
 
 
     fig, axis = plt.subplots(1, 2, figsize=(10, 4))

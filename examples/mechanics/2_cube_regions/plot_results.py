@@ -1,7 +1,5 @@
 import os
-import numpy as np
 import matplotlib.pyplot as plt
-import safeincave as sf
 import safeincave.PostProcessingTools as post
 
 def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color='0.85'):
@@ -9,7 +7,7 @@ def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color=
 	if transparent:
 		fig.patch.set_alpha(0.0)
 	for ax in axes:
-		if ax != None:
+		if ax is not None:
 			ax.grid(True, color=grid_color)
 			ax.set_axisbelow(True)
 			ax.spines['bottom'].set_color('black')

@@ -12,7 +12,6 @@ Mirrors examples/mechanics/nobian/Old/plot_results.py:
 Reads from ./output/munson_dawson_example/
 """
 
-import safeincave as sf
 import safeincave.PostProcessingTools as post
 import os
 import numpy as np

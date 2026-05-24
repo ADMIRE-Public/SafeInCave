@@ -1,5 +1,5 @@
 import numpy as np
-from safeincave.Utils import save_json, hour
+from safeincave.Utils import hour
 import safeincave as sf
 from safeincave.CavernBC import Cavern_MassFlux
 import matplotlib.pyplot as plt
@@ -11,7 +11,7 @@ def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color=
 	if transparent:
 		fig.patch.set_alpha(0.0)
 	for ax in axes:
-		if ax != None:
+		if ax is not None:
 			ax.grid(True, color=grid_color)
 			ax.set_axisbelow(True)
 			ax.spines['bottom'].set_color('black')
@@ -81,7 +81,6 @@ def main():
         P_init = 0.4*p_mid,
         T_init = 320.0,
         T_in = 300.0,
-        Q_in = 0.0,
         Mflux_values = flow_hist,
         time_values = time_hist,
         direction = 2
@@ -105,8 +104,6 @@ def main():
 
 
     P_hist = np.array(cave.P_hist) / sf.Utils.MPa
-    V_hist = np.array(cave.V_hist)
-    M_hist = np.array(cave.M_hist)
     t_hist = np.array(cave.t_hist) / sf.Utils.day
     T_hist = np.array(cave.T_hist)
     density_hist = np.array(cave.density_hist)
