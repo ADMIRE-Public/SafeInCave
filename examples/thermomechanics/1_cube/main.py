@@ -156,7 +156,7 @@ def main():
         sys.stdout.flush()
 
     # Define simulator
-    sim = sf.Simulator_Full(
+    sim = sf.Simulator_TM(
         eq_mom=mom_eq,
         eq_heat=heat_eq,
         t_control=t_control,

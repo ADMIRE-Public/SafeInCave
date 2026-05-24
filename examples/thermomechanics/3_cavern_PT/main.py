@@ -208,7 +208,7 @@ def main():
     outputs = [output_mom, output_heat]
 
     # Define simulator
-    sim = sf.Simulator_Full(
+    sim = sf.Simulator_TM(
         eq_mom=mom_eq,
         eq_heat=heat_eq,
         t_control=time_ctrl,
@@ -216,7 +216,6 @@ def main():
         caverns=cavern_handler,
         compute_elastic_response=True,
     )
-    # sim = sf.Simulator_M(mom_eq, time_ctrl, outputs, cavern_handler, True)
     sim.run()
 
 
