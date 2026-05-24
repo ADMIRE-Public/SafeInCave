@@ -34,7 +34,6 @@ from .Simulators import (
     Simulator_T,
     Simulator_M,
     Simulator_Full,
-    Simulator_GUI,
 )
 from .ScreenOutput import ScreenPrinter
 from .TimeHandler import TimeControllerBase, TimeController, TimeControllerParabolic
@@ -65,7 +64,6 @@ __all__ = [
     "Simulator_T",
     "Simulator_M",
     "Simulator_Full",
-    "Simulator_GUI",
     "ScreenPrinter",
     "TimeControllerBase",
     "TimeController",

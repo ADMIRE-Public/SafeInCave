@@ -6,7 +6,7 @@ def apply_grey_theme(fig, axes, transparent=True):
 	if transparent:
 		fig.patch.set_alpha(0.0)
 	for ax in axes:
-		if ax != None:
+		if ax is not None:
 			ax.grid(True, color='0.92')
 			ax.set_axisbelow(True)
 			ax.spines['bottom'].set_color('black')
@@ -90,9 +90,11 @@ def main():
 	y1 = z_bottom + R_eq
 	y2 = z_bottom + R_eq + D
 
-	f1 = lambda x,yc: yc - np.sqrt(R_eq**2 - x**2)
+	def f1(x,yc):
+		return yc - np.sqrt(R_eq**2 - x**2)
 	ax.plot(x, f1(x,y1), "-", color="lightcoral", linewidth=2.0, label="Equivalent")
-	f2 = lambda x,yc: yc + np.sqrt(R_eq**2 - x**2)
+	def f2(x,yc):
+		return yc + np.sqrt(R_eq**2 - x**2)
 	ax.plot(x, f2(x,y2), "-", color="lightcoral", linewidth=2.0)
 	ax.plot([R_eq, R_eq], [y1, y2], "-", color="lightcoral", linewidth=2.0)
 	ax.set_xlabel("x (m)", size=12, fontname="serif")

@@ -1,0 +1,93 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: SafeInCave tests
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show runner release
+        run: lsb_release -a
+
+      - name: Check changelog update
+        if: github.event_name == 'pull_request' && github.base_ref == 'develop'
+        run: |
+          changed_files="$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}")"
+
+          if ! grep -qx "docs/CHANGELOG.md" <<< "$changed_files"; then
+            echo "docs/CHANGELOG.md must be updated for pull requests targeting develop."
+            echo "Changed files:"
+            echo "$changed_files"
+            exit 1
+          fi
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libgl1 \
+            libglu1-mesa
+
+      - name: Set up Python with FEniCSx 0.9.0
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: safeincave-ci
+          auto-update-conda: false
+          channel-priority: strict
+          channels: conda-forge
+          miniforge-version: latest
+          python-version: "3.10"
+
+      - name: Install pinned FEniCSx
+        shell: bash -el {0}
+        run: |
+          conda install --yes \
+            fenics-dolfinx=0.9.0 \
+            numpy=1.26.4 \
+            scipy=1.14.1 \
+            lxml \
+            pytz \
+            h5py \
+            pip
+          python - <<'PY'
+          import dolfinx
+
+          expected = "0.9.0"
+          if dolfinx.__version__ != expected:
+              raise SystemExit(
+                  f"Expected DOLFINx/FEniCSx {expected}, got {dolfinx.__version__}"
+              )
+          PY
+
+      - name: Install Python package and test dependencies
+        shell: bash -el {0}
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install ruff
+          python -m pip install meshio==3.3.1
+          python -m pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install \
+            "gmsh>=4.14.0" \
+            CoolProp
+          python -m pip install --editable . --no-deps
+
+      - name: Run linting
+        shell: bash -el {0}
+        run: ruff check .
+
+      - name: Run tests
+        shell: bash -el {0}
+        working-directory: tests
+        run: python -m unittest discover -p "test_*.py"

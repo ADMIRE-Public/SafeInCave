@@ -25,8 +25,6 @@ if TYPE_CHECKING:
     from .HeatEquation import HeatDiffusion
 
     EqType = LinearMomentum | HeatDiffusion
-else:
-    from typing import Any as EqType  # avoid runtime imports/cycles
 
 
 class SaveFields:

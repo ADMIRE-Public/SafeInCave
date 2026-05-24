@@ -111,10 +111,6 @@ def main():
 
     # Calculate lithostatic pressure at cavern's midpoint
     z_roof = 420
-    z_floor = 200
-    z_ground = 660
-    z_mid = (z_roof + z_floor) / 2
-    p_mid = overburden + salt_density*abs(g)*(z_ground - z_mid)
     p_roof = overburden + salt_density*abs(g)*z_roof
     print(0.2*p_roof/sf.Utils.MPa, 0.8*p_roof/sf.Utils.MPa)
 

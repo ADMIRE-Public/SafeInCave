@@ -7,6 +7,11 @@
 - Implemented new classes for handling caverns with different operational conditions
 - Implemented thermodynamic model for fluid (gas/liquid) inside cavern
 - Implemented initial stresses to both P1 and P1-P1 formulations
+- Included firs draft for documentation
+- Implemented CAM-CLAY model
+- Implemented Munson-Dawson model
+- Fixed bug in Desai's model related to sigma_t
+- Removed dependency of BcHandlers from Equation
 
 ## 2.0.0
 - Implemented MPI parallelisation
