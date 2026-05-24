@@ -16,18 +16,14 @@
 from abc import ABC, abstractmethod
 import torch as to
 import numpy as np
-import os
 from mpi4py import MPI
 from .Utils import numpy2torch
 from .HeatEquation import HeatDiffusion
 from .MomentumEquation import LinearMomentum, LinearMomentumBase
-from .TimeHandler import TimeControllerBase, TimeController
+from .TimeHandler import TimeControllerBase
 from .OutputHandler import SaveFields
 from .ScreenOutput import ScreenPrinter
-from .Grid import GridHandlerGMSH
-from . import MomentumBC as momBC
 from .CavernBC import CavernHandler
-from petsc4py import PETSc
 
 
 class Simulator(ABC):
