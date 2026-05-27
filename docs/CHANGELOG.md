@@ -13,7 +13,7 @@
 - Fixed bug in Desai's model related to sigma_t
 - Removed dependency of BcHandlers from Equation
 - Deleted SimulatorFull class
-- 
+- Fixed #19: Standardized compute_CT input arguments across MomentumEquation classes.
 
 ## 2.0.0
 - Implemented MPI parallelisation

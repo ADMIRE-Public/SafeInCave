@@ -824,16 +824,17 @@ class LinearMomentum(LinearMomentumBase):
         """
         self.C.x.array[:] = to.flatten(self.mat.C)
 
-    def compute_CT(self, stress_k: to.Tensor, dt: float) -> None:
+    def compute_CT(self, dt: float, stress_k: to.Tensor) -> None:
         """
         Assemble consistent tangent operator `CT` for the current step.
 
         Parameters
         ----------
-        stress_k : torch.Tensor
-            Stress from previous iteration k, shape ``(n_elems, 3, 3)``.
         dt : float
             Time-step size.
+        stress_k : torch.Tensor
+            Stress from previous iteration k, shape ``(n_elems, 3, 3)``.
+
 
         Returns
         -------
@@ -1051,7 +1052,7 @@ class LinearMomentum(LinearMomentumBase):
         """
 
         # Compute consistent tangent matrix
-        self.compute_CT(stress_k_to, dt)
+        self.compute_CT(dt, stress_k_to)
 
         # Compute right-hand side epsilon
         self.compute_eps_rhs(dt, stress_k_to)
@@ -1147,7 +1148,7 @@ class LinearMomentumMixed(LinearMomentumBase):
         self.E.x.array[:] = self.mat.E
         self.E_star.x.array[:] = self.mat.E
 
-    def compute_CT(self, stress_k, dt):
+    def compute_CT(self, dt, stress_k):
         self.mat.compute_G_B(stress_k, dt, self.theta, self.Temp)
         self.mat.compute_T_IT()
         self.mat.compute_Bvol_Tvol(stress_k, dt)
@@ -1299,7 +1300,7 @@ class LinearMomentumMixed(LinearMomentumBase):
         self.compute_moduli(stress_k_to)
 
         # Compute consistent tangent matrix
-        self.compute_CT(stress_k_to, dt)
+        self.compute_CT(dt, stress_k_to)
 
         # Compute epsilons
         eps_ne_k = self.compute_eps_ne_k(dt)
