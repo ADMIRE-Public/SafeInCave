@@ -90,10 +90,23 @@ class LinearMomentumBase(ABC):
         Boundary-condition handler (set via :meth:`set_boundary_conditions`).
     """
 
-    def __init__(self, grid: GridHandlerGMSH, theta: float):
+    def __init__(
+            self,
+            grid: GridHandlerGMSH,
+            theta: float,
+            solver_name: str="gmres",
+            preconditioner: str="asm",
+            rtol: float=1e-12,
+            max_it: int=100
+    ):
         self.grid = grid
         self.theta = theta
+        self.solver_name = solver_name
+        self.preconditioner = preconditioner
+        self.rtol = rtol
+        self.max_it = max_it
 
+        self.build_solver()
         self.create_function_spaces()
         self.create_ds_dx()
 
@@ -107,6 +120,12 @@ class LinearMomentumBase(ABC):
         self.commom_fields()
         self.create_fenicsx_fields()
         self.create_pytorch_fields()
+
+    def build_solver(self) -> None:
+        self.solver = PETSc.KSP().create(self.grid.mesh.comm)
+        self.solver.setType(self.solver_name)
+        self.solver.getPC().setType(self.preconditioner)
+        self.solver.setTolerances(rtol=self.rtol, max_it=self.max_it)
 
     def commom_fields(self) -> None:
         """
@@ -737,7 +756,15 @@ class LinearMomentum(LinearMomentumBase):
     side strain, and linear solves for both elastic and inelastic steps.
     """
 
-    def __init__(self, grid: GridHandlerGMSH, theta: float):
+    def __init__(
+            self,
+            grid: GridHandlerGMSH,
+            theta: float,
+            solver_name: str="gmres",
+            preconditioner: str="asm",
+            rtol: float=1e-12,
+            max_it: int=100
+            ):
         """
         Initialize spaces, measures, fields, and solution vector.
 
@@ -746,7 +773,7 @@ class LinearMomentum(LinearMomentumBase):
         grid : GridHandlerGMSH
         theta : float
         """
-        super().__init__(grid, theta)
+        super().__init__(grid, theta, solver_name, preconditioner, rtol, max_it)
         self.V = self.CG1_3x1
         self.create_trial_test_functions()
         self.create_normal()
@@ -1087,8 +1114,17 @@ class LinearMomentum(LinearMomentumBase):
 
 
 class LinearMomentumMixed(LinearMomentumBase):
-    def __init__(self, grid, theta, stab_scaling: float = 1.0):
-        super().__init__(grid, theta)
+    def __init__(
+            self,
+            grid,
+            theta,
+            stab_scaling: float=1.0,
+            solver_name: str="gmres",
+            preconditioner: str="asm",
+            rtol: float=1e-12,
+            max_it: int=100
+    ):
+        super().__init__(grid, theta, solver_name, preconditioner, rtol, max_it)
         Vue = basix.ufl.element(
             "CG", self.grid.mesh.basix_cell(), 1, shape=(3,)
         )  # displacement finite element

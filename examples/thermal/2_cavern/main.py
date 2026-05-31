@@ -32,13 +32,6 @@ def main():
     # Define equation
     heat_eq = sf.HeatDiffusion(grid)
 
-    # Define solver
-    solver_heat = PETSc.KSP().create(grid.mesh.comm)
-    solver_heat.setType("cg")
-    solver_heat.getPC().setType("asm")
-    solver_heat.setTolerances(rtol=1e-12, max_it=100)
-    heat_eq.set_solver(solver_heat)
-
     # Set material properties to heat_equation
     heat_eq.set_material(mat)
 

@@ -63,49 +63,49 @@ def run(formulation):
     elif formulation == "P1P1_Stab":
         mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=1.0)
 
-    # Define solver
-    mom_solver = PETSc.KSP().create(grid.mesh.comm)
-    mom_solver.setType("gmres")
-    mom_solver.getPC().setType("asm")
-    mom_solver.setTolerances(rtol=1e-12, max_it=100)
-    mom_eq.set_solver(mom_solver)
+    # # Define solver
+    # mom_solver = PETSc.KSP().create(grid.mesh.comm)
+    # mom_solver.setType("gmres")
+    # mom_solver.getPC().setType("asm")
+    # mom_solver.setTolerances(rtol=1e-12, max_it=100)
+    # mom_eq.set_solver(mom_solver)
 
     # Define material properties
-    mat = sf.Material(mom_eq.n_elems)
+    mat = sf.Material(grid.n_elems)
 
     # Set material density
-    rho = 2000.0 * to.ones(mom_eq.n_elems, dtype=to.float64)
+    rho = 2000.0 * to.ones(grid.n_elems, dtype=to.float64)
     mat.set_density(rho)
 
     # Constitutive model
-    E = 102e9 * to.ones(mom_eq.n_elems)
-    nu = 0.3 * to.ones(mom_eq.n_elems)
+    E = 102e9 * to.ones(grid.n_elems)
+    nu = 0.3 * to.ones(grid.n_elems)
     spring_0 = sf.Spring(E, nu, "spring")
 
     # Create Kelvin-Voigt viscoelastic element
-    eta = 105e11 * to.ones(mom_eq.n_elems)
-    E = 10e9 * to.ones(mom_eq.n_elems)
-    nu = 0.32 * to.ones(mom_eq.n_elems)
+    eta = 105e11 * to.ones(grid.n_elems)
+    E = 10e9 * to.ones(grid.n_elems)
+    nu = 0.32 * to.ones(grid.n_elems)
     kelvin = sf.Viscoelastic(eta, E, nu, "kelvin")
 
     # Create creep
-    A = 1.9e-20 * to.ones(mom_eq.n_elems)
-    Q = 51600 * to.ones(mom_eq.n_elems)
-    n = 3.0 * to.ones(mom_eq.n_elems)
+    A = 1.9e-20 * to.ones(grid.n_elems)
+    Q = 51600 * to.ones(grid.n_elems)
+    n = 3.0 * to.ones(grid.n_elems)
     creep_0 = sf.DislocationCreep(A, Q, n, "creep")
 
     # Create Desai's viscoplastic model
-    mu_1 = 5.3665857009859815e-11 * to.ones(mom_eq.n_elems)
-    N_1 = 3.1 * to.ones(mom_eq.n_elems)
-    n = 3.0 * to.ones(mom_eq.n_elems)
-    a_1 = 1.965018496922832e-05 * to.ones(mom_eq.n_elems)
-    eta = 0.8275682807874163 * to.ones(mom_eq.n_elems)
-    beta_1 = 0.0048 * to.ones(mom_eq.n_elems)
-    beta = 0.995 * to.ones(mom_eq.n_elems)
-    m = -0.5 * to.ones(mom_eq.n_elems)
-    gamma = 0.095 * to.ones(mom_eq.n_elems)
-    alpha_0 = 0.0022 * to.ones(mom_eq.n_elems)
-    sigma_t = 5.0 * to.ones(mom_eq.n_elems)
+    mu_1 = 5.3665857009859815e-11 * to.ones(grid.n_elems)
+    N_1 = 3.1 * to.ones(grid.n_elems)
+    n = 3.0 * to.ones(grid.n_elems)
+    a_1 = 1.965018496922832e-05 * to.ones(grid.n_elems)
+    eta = 0.8275682807874163 * to.ones(grid.n_elems)
+    beta_1 = 0.0048 * to.ones(grid.n_elems)
+    beta = 0.995 * to.ones(grid.n_elems)
+    m = -0.5 * to.ones(grid.n_elems)
+    gamma = 0.095 * to.ones(grid.n_elems)
+    alpha_0 = 0.0022 * to.ones(grid.n_elems)
+    sigma_t = 5.0 * to.ones(grid.n_elems)
     desai = sf.ViscoplasticDesai(
         mu_1, N_1, a_1, eta, n, beta_1, beta, m, gamma, sigma_t, alpha_0, "desai"
     )
@@ -124,7 +124,7 @@ def run(formulation):
     mom_eq.build_body_force(g_vec)
 
     # Set initial temperature field
-    T0_field = 293 * to.ones(mom_eq.n_elems)
+    T0_field = 293 * to.ones(grid.n_elems)
     mom_eq.set_T0(T0_field)
     mom_eq.set_T(T0_field)
 
@@ -216,7 +216,7 @@ def run(formulation):
 def main():
     run("P1")
     # run("P1P1")
-    # run("P1P1_Stab")
+    run("P1P1_Stab")
 
 
 if __name__ == "__main__":

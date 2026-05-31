@@ -25,13 +25,6 @@ def main():
     # Define equation
     heat_eq = sf.HeatDiffusion(grid)
 
-    # Define solver
-    solver_heat = PETSc.KSP().create(grid.mesh.comm)
-    solver_heat.setType("cg")
-    solver_heat.getPC().setType("asm")
-    solver_heat.setTolerances(rtol=1e-12, max_it=100)
-    heat_eq.set_solver(solver_heat)
-
     # Build material properties
     mat = sf.Material(heat_eq.n_elems)
 
@@ -72,13 +65,6 @@ def main():
     # Define momentum equation
     theta = 0.5
     mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
-
-    # Define solver
-    mom_solver = PETSc.KSP().create(grid.mesh.comm)
-    mom_solver.setType("gmres")
-    mom_solver.getPC().setType("asm")
-    mom_solver.setTolerances(rtol=1e-12, max_it=100)
-    mom_eq.set_solver(mom_solver)
 
     # Constitutive model
     E = 102e9 * to.ones(mom_eq.n_elems)

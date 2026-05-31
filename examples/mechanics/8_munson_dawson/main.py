@@ -113,7 +113,7 @@ def initialize_md_steady_state(md, mom_eq, T_kelvin):
     md.zeta_old = md.zeta.clone()
 
 
-def build_bcs(mom_eq, t_final, salt_density, g_vec,
+def build_bcs(t_final, salt_density, g_vec,
               side_burden, over_burden,
               cavern_values, cavern_times, gas_density):
     """Cavern BCs: symmetry (W/S/B), lithostatic Neumann (E/N/Top),
@@ -155,7 +155,7 @@ def build_bcs(mom_eq, t_final, salt_density, g_vec,
         values=cavern_values,
         time_values=cavern_times, g=g_vec[2])
 
-    handler = momBC.BcHandler(mom_eq)
+    handler = momBC.BcHandler()
     handler.add_boundary_condition(bc_west)
     handler.add_boundary_condition(bc_south)
     handler.add_boundary_condition(bc_bottom)
@@ -184,13 +184,6 @@ def main():
 
     # Momentum equation (theta=0.5 -> Crank-Nicolson)
     mom_eq = sf.LinearMomentumMixed(grid, theta=0.5)
-
-    # Linear solver: same as examples/.../Simulation/Run.py
-    mom_solver = PETSc.KSP().create(grid.mesh.comm)
-    mom_solver.setType("gmres")
-    mom_solver.getPC().setType("asm")
-    mom_solver.setTolerances(rtol=1e-10, max_it=100)
-    mom_eq.set_solver(mom_solver)
 
     # Elastic-only material first
     mat, salt_density, E0, nu0 = build_elastic_material(mom_eq)
@@ -230,12 +223,15 @@ def main():
                     30.0 * ut.day]
 
     bc_op = build_bcs(
-        mom_eq, t_final=tc_op.t_final,
-        salt_density=salt_density, g_vec=g_vec,
-        side_burden=side_burden, over_burden=over_burden,
+        t_final=tc_op.t_final,
+        salt_density=salt_density,
+        g_vec=g_vec,
+        side_burden=side_burden,
+        over_burden=over_burden,
         cavern_values=cavern_values,
         cavern_times=cavern_times,
-        gas_density=gas_density)
+        gas_density=gas_density
+    )
     mom_eq.set_boundary_conditions(bc_op)
 
     # One-shot elastic solve -> populate mom_eq.sig with the initial stress.

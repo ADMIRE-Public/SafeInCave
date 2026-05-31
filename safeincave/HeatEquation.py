@@ -83,9 +83,21 @@ class HeatDiffusion:
       before calling :meth:`solve`.
     """
 
-    def __init__(self, grid: GridHandlerGMSH):
+    def __init__(
+            self,
+            grid: GridHandlerGMSH,
+            solver_name: str="cg",
+            preconditioner: str="asm",
+            rtol: float=1e-12,
+            max_it: int=100
+    ):
         self.grid = grid
+        self.solver_name = solver_name
+        self.preconditioner = preconditioner
+        self.rtol = rtol
+        self.max_it = max_it
 
+        self.build_solver()
         self.create_function_spaces()
 
         self.n_elems = self.DG0_1.dofmap.index_map.size_local + len(
@@ -100,6 +112,12 @@ class HeatDiffusion:
         self.create_ds_dx()
         self.create_fenicsx_fields()
         # self.create_pytorch_fields()
+
+    def build_solver(self) -> None:
+        self.solver = PETSc.KSP().create(self.grid.mesh.comm)
+        self.solver.setType(self.solver_name)
+        self.solver.getPC().setType(self.preconditioner)
+        self.solver.setTolerances(rtol=self.rtol, max_it=self.max_it)
 
     def set_material(self, material: Material) -> None:
         """

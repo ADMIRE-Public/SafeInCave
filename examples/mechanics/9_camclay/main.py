@@ -79,36 +79,29 @@ def run(formulation):
     elif formulation == "P1P1_Stab":
         mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=1.0)
 
-    # Solver
-    mom_solver = PETSc.KSP().create(grid.mesh.comm)
-    mom_solver.setType("gmres")
-    mom_solver.getPC().setType("asm")
-    mom_solver.setTolerances(rtol=1e-10, max_it=100)
-    mom_eq.set_solver(mom_solver)
-
     # Material
-    mat = sf.Material(mom_eq.n_elems)
+    mat = sf.Material(grid.n_elems)
 
-    rho = 2000.0 * to.ones(mom_eq.n_elems, dtype=to.float64)
+    rho = 2000.0 * to.ones(grid.n_elems, dtype=to.float64)
     mat.set_density(rho)
 
     # Elastic skeleton (clay-rich -> softer than salt)
-    E = 2.0 * ut.GPa * to.ones(mom_eq.n_elems)
-    nu = 0.30 * to.ones(mom_eq.n_elems)
+    E = 2.0 * ut.GPa * to.ones(grid.n_elems)
+    nu = 0.30 * to.ones(grid.n_elems)
     spring = sf.Spring(E, nu, "spring")
 
     # Modified Cam-Clay (Brine 100 bar — Saeed's table_guess)
     phi0 = 0.32
     e0_val = phi0 / (1.0 - phi0)
     mcc = sf.ModifiedCamClayViscoplastic(
-        M     = 0.702   * to.ones(mom_eq.n_elems),
-        lam   = 0.00285 * to.ones(mom_eq.n_elems),
-        kap   = 0.00055 * to.ones(mom_eq.n_elems),
-        theta = 0.0045  * to.ones(mom_eq.n_elems),
-        pc0   = 13.0 * ut.MPa * to.ones(mom_eq.n_elems),
-        e0    = e0_val  * to.ones(mom_eq.n_elems),
-        eta_v = 1e11    * to.ones(mom_eq.n_elems),
-        n_rate= 2.0     * to.ones(mom_eq.n_elems),
+        M     = 0.702   * to.ones(grid.n_elems),
+        lam   = 0.00285 * to.ones(grid.n_elems),
+        kap   = 0.00055 * to.ones(grid.n_elems),
+        theta = 0.0045  * to.ones(grid.n_elems),
+        pc0   = 13.0 * ut.MPa * to.ones(grid.n_elems),
+        e0    = e0_val  * to.ones(grid.n_elems),
+        eta_v = 1e11    * to.ones(grid.n_elems),
+        n_rate= 2.0     * to.ones(grid.n_elems),
         name  = "cam_clay",
     )
 
@@ -121,7 +114,7 @@ def run(formulation):
     mom_eq.build_body_force(g_vec)
 
     # Isothermal
-    T0_field = 293.0 * to.ones(mom_eq.n_elems)
+    T0_field = 293.0 * to.ones(grid.n_elems)
     mom_eq.set_T0(T0_field)
     mom_eq.set_T(T0_field)
 
@@ -156,7 +149,7 @@ def run(formulation):
                              time_values=times_s,
                              g=g_vec[2])
 
-    bc_handler = momBC.BcHandler(mom_eq)
+    bc_handler = momBC.BcHandler()
     bc_handler.add_boundary_condition(bc_west)
     bc_handler.add_boundary_condition(bc_south)
     bc_handler.add_boundary_condition(bc_bottom)
