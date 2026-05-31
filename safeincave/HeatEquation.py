@@ -84,12 +84,12 @@ class HeatDiffusion:
     """
 
     def __init__(
-            self,
-            grid: GridHandlerGMSH,
-            solver_name: str="cg",
-            preconditioner: str="asm",
-            rtol: float=1e-12,
-            max_it: int=100
+        self,
+        grid: GridHandlerGMSH,
+        solver_name: str = "cg",
+        preconditioner: str = "asm",
+        rtol: float = 1e-12,
+        max_it: int = 100,
     ):
         self.grid = grid
         self.solver_name = solver_name

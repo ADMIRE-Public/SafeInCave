@@ -1,7 +1,6 @@
 import safeincave as sf
 from safeincave.Utils import day, GPa, create_field_elems
 import safeincave.MomentumBC as momBC
-from petsc4py import PETSc
 import torch as to
 import os
 

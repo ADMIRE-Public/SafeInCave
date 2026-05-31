@@ -2,7 +2,6 @@ import safeincave as sf
 from safeincave.Utils import GPa, MPa, day, hour, create_field_elems, create_field_nodes
 import safeincave.HeatBC as heatBC
 import safeincave.MomentumBC as momBC
-from petsc4py import PETSc
 from mpi4py import MPI
 import os
 import sys

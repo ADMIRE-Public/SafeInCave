@@ -1,7 +1,6 @@
 import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.HeatBC as heatBC
-from petsc4py import PETSc
 import torch as to
 import os
 

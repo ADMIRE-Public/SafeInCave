@@ -3,7 +3,6 @@ from safeincave.Utils import GPa, create_field_elems, create_field_nodes
 import safeincave.MomentumBC as momBC
 import safeincave.HeatBC as heatBC
 import safeincave.CavernBC as caveBC
-from petsc4py import PETSc
 import torch as to
 import os
 

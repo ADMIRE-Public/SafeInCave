@@ -869,4 +869,3 @@ class Simulator_Mout(Simulator):
         self.screen.close()
         for output in self.outputs:
             output.save_mesh()
-

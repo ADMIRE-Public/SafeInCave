@@ -91,13 +91,13 @@ class LinearMomentumBase(ABC):
     """
 
     def __init__(
-            self,
-            grid: GridHandlerGMSH,
-            theta: float,
-            solver_name: str="gmres",
-            preconditioner: str="asm",
-            rtol: float=1e-12,
-            max_it: int=100
+        self,
+        grid: GridHandlerGMSH,
+        theta: float,
+        solver_name: str = "gmres",
+        preconditioner: str = "asm",
+        rtol: float = 1e-12,
+        max_it: int = 100,
     ):
         self.grid = grid
         self.theta = theta
@@ -757,14 +757,14 @@ class LinearMomentum(LinearMomentumBase):
     """
 
     def __init__(
-            self,
-            grid: GridHandlerGMSH,
-            theta: float,
-            solver_name: str="gmres",
-            preconditioner: str="asm",
-            rtol: float=1e-12,
-            max_it: int=100
-            ):
+        self,
+        grid: GridHandlerGMSH,
+        theta: float,
+        solver_name: str = "gmres",
+        preconditioner: str = "asm",
+        rtol: float = 1e-12,
+        max_it: int = 100,
+    ):
         """
         Initialize spaces, measures, fields, and solution vector.
 
@@ -1115,14 +1115,14 @@ class LinearMomentum(LinearMomentumBase):
 
 class LinearMomentumMixed(LinearMomentumBase):
     def __init__(
-            self,
-            grid,
-            theta,
-            stab_scaling: float=1.0,
-            solver_name: str="gmres",
-            preconditioner: str="asm",
-            rtol: float=1e-12,
-            max_it: int=100
+        self,
+        grid,
+        theta,
+        stab_scaling: float = 1.0,
+        solver_name: str = "gmres",
+        preconditioner: str = "asm",
+        rtol: float = 1e-12,
+        max_it: int = 100,
     ):
         super().__init__(grid, theta, solver_name, preconditioner, rtol, max_it)
         Vue = basix.ufl.element(

@@ -1,7 +1,6 @@
 import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.MomentumBC as momBC
-from petsc4py import PETSc
 import dolfinx as do
 import os
 import torch as to

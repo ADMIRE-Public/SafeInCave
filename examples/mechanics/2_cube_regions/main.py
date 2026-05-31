@@ -2,7 +2,6 @@ import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.MomentumBC as momBC
 from mpi4py import MPI
-from petsc4py import PETSc
 import torch as to
 import os
 
