@@ -14,6 +14,7 @@
 - Removed dependency of BcHandlers from Equation
 - Deleted SimulatorFull class
 - Fixed #19: Standardized compute_CT input arguments across MomentumEquation classes.
+- Implemented solver definition internally in the Equations
 
 ## 2.0.0
 - Implemented MPI parallelisation

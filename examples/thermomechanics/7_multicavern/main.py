@@ -3,7 +3,6 @@ from safeincave.Utils import GPa, create_field_elems, create_field_nodes
 import safeincave.MomentumBC as momBC
 import safeincave.HeatBC as heatBC
 import safeincave.CavernBC as caveBC
-from petsc4py import PETSc
 import torch as to
 import os
 
@@ -18,19 +17,9 @@ def main():
 
     # Define momentum equation
     mom_eq = sf.LinearMomentumMixed(grid, theta=0.0, stab_scaling=1.0)
-    mom_solver = PETSc.KSP().create(grid.mesh.comm)
-    mom_solver.setType("gmres")
-    mom_solver.getPC().setType("asm")
-    mom_solver.setTolerances(rtol=1e-12, max_it=100)
-    mom_eq.set_solver(mom_solver)
 
     # Define heat diffusion equation
     heat_eq = sf.HeatDiffusion(grid)
-    solver_heat = PETSc.KSP().create(grid.mesh.comm)
-    solver_heat.setType("cg")
-    solver_heat.getPC().setType("asm")
-    solver_heat.setTolerances(rtol=1e-12, max_it=100)
-    heat_eq.set_solver(solver_heat)
 
     # Define material properties
     mat = sf.Material(mom_eq.n_elems)

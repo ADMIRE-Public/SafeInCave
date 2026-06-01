@@ -2,7 +2,6 @@ import safeincave as sf
 import safeincave.Utils as ut
 import safeincave.MomentumBC as momBC
 from mpi4py import MPI
-from petsc4py import PETSc
 import torch as to
 import os
 
@@ -33,18 +32,11 @@ def run(formulation):
     elif formulation == "P1P1_Stab":
         mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
 
-    # Define solver
-    mom_solver = PETSc.KSP().create(grid.mesh.comm)
-    mom_solver.setType("gmres")
-    mom_solver.getPC().setType("asm")
-    mom_solver.setTolerances(rtol=1e-12, max_it=100)
-    mom_eq.set_solver(mom_solver)
-
     # Define material properties
-    mat = sf.Material(mom_eq.n_elems)
+    mat = sf.Material(grid.n_elems)
 
     # Set material density
-    rho = 0.0 * to.ones(mom_eq.n_elems, dtype=to.float64)
+    rho = 0.0 * to.ones(grid.n_elems, dtype=to.float64)
     mat.set_density(rho)
 
     # Extract region indices
@@ -52,8 +44,8 @@ def run(formulation):
     omega_B = grid.region_indices["OMEGA_B"]
 
     # Constitutive model
-    E0 = to.zeros(mom_eq.n_elems)
-    nu0 = to.zeros(mom_eq.n_elems)
+    E0 = to.zeros(grid.n_elems)
+    nu0 = to.zeros(grid.n_elems)
     E0[omega_A] = 8 * ut.GPa
     E0[omega_B] = 10 * ut.GPa
     nu0[omega_A] = 0.2
@@ -61,9 +53,9 @@ def run(formulation):
     spring_0 = sf.Spring(E0, nu0, "spring")
 
     # Create Kelvin-Voigt viscoelastic element
-    eta = to.zeros(mom_eq.n_elems)
-    E1 = to.zeros(mom_eq.n_elems)
-    nu1 = to.zeros(mom_eq.n_elems)
+    eta = to.zeros(grid.n_elems)
+    E1 = to.zeros(grid.n_elems)
+    nu1 = to.zeros(grid.n_elems)
     eta[omega_A] = 105e11
     eta[omega_B] = 38e11
     E1[omega_A] = 8 * ut.GPa
@@ -85,7 +77,7 @@ def run(formulation):
     mom_eq.build_body_force(g_vec)
 
     # Set initial temperature field
-    T0_field = 298 * to.ones(mom_eq.n_elems)
+    T0_field = 298 * to.ones(grid.n_elems)
     mom_eq.set_T0(T0_field)
     mom_eq.set_T(T0_field)
 

@@ -2,7 +2,6 @@ import safeincave as sf
 from safeincave.Utils import GPa, MPa, day, hour, create_field_elems, create_field_nodes
 import safeincave.HeatBC as heatBC
 import safeincave.MomentumBC as momBC
-from petsc4py import PETSc
 from mpi4py import MPI
 import os
 import sys
@@ -33,13 +32,6 @@ def main():
     # Define momentum equation
     theta = 0.0
     mom_eq = sf.LinearMomentumMixed(grid, theta=theta, stab_scaling=1.0)
-
-    # Define solver
-    mom_solver = PETSc.KSP().create(grid.mesh.comm)
-    mom_solver.setType("gmres")
-    mom_solver.getPC().setType("asm")
-    mom_solver.setTolerances(rtol=1e-12, max_it=100)
-    mom_eq.set_solver(mom_solver)
 
     # Define material properties
     mat = sf.Material(mom_eq.n_elems)
@@ -260,13 +252,6 @@ def main():
 
     # Define heat diffusion equation
     heat_eq = sf.HeatDiffusion(grid)
-
-    # Define solver
-    solver_heat = PETSc.KSP().create(grid.mesh.comm)
-    solver_heat.setType("cg")
-    solver_heat.getPC().setType("asm")
-    solver_heat.setTolerances(rtol=1e-12, max_it=100)
-    heat_eq.set_solver(solver_heat)
 
     # Set specific heat capacity
     cp = 850 * to.ones(heat_eq.n_elems, dtype=to.float64)

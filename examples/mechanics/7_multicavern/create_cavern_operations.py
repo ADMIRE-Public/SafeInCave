@@ -4,24 +4,23 @@ import safeincave as sf
 import matplotlib.pyplot as plt
 
 
-def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color='0.85'):
-	fig.patch.set_facecolor("#212121ff")
-	if transparent:
-		fig.patch.set_alpha(0.0)
-	for ax in axes:
-		if ax is not None:
-			ax.grid(True, color=grid_color)
-			ax.set_axisbelow(True)
-			ax.spines['bottom'].set_color('black')
-			ax.spines['top'].set_color('black')
-			ax.spines['right'].set_color('black')
-			ax.spines['left'].set_color('black')
-			ax.tick_params(axis='x', colors='black', which='both')
-			ax.tick_params(axis='y', colors='black', which='both')
-			ax.yaxis.label.set_color('black')
-			ax.xaxis.label.set_color('black')
-			ax.set_facecolor(back_color)
-
+def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color="0.85"):
+    fig.patch.set_facecolor("#212121ff")
+    if transparent:
+        fig.patch.set_alpha(0.0)
+    for ax in axes:
+        if ax is not None:
+            ax.grid(True, color=grid_color)
+            ax.set_axisbelow(True)
+            ax.spines["bottom"].set_color("black")
+            ax.spines["top"].set_color("black")
+            ax.spines["right"].set_color("black")
+            ax.spines["left"].set_color("black")
+            ax.tick_params(axis="x", colors="black", which="both")
+            ax.tick_params(axis="y", colors="black", which="both")
+            ax.yaxis.label.set_color("black")
+            ax.xaxis.label.set_color("black")
+            ax.set_facecolor(back_color)
 
 
 def get_massflux_hydrogen():
@@ -29,35 +28,69 @@ def get_massflux_hydrogen():
     t_hist = np.linspace(0, period, 1000)
     P_hist = 9 + 6 * np.sin(2 * np.pi * 20 * t_hist / period)
     T_hist = 330 + 20 * np.sin(2 * np.pi * 20 * t_hist / period)
-    return list(t_hist*day), list(P_hist*MPa), list(T_hist)
+    return list(t_hist * day), list(P_hist * MPa), list(T_hist)
 
 
 def get_PT_hydrogen():
     data = np.loadtxt("PT_H2.csv", delimiter=",", skiprows=1)
-    t_hist = data[:, 0]*day
-    P_hist = (data[:, 1] - 5)*MPa
+    t_hist = data[:, 0] * day
+    P_hist = (data[:, 1] - 5) * MPa
     T_hist = data[:, 2]
     return list(t_hist), list(P_hist), list(T_hist)
 
 
-
 def get_massflux_methane(scale=1.0):
-    time_hist = np.array([
-        0, 5, 15, 25, 35, 
-        45, 55, 65, 75,
-        85, 95, 105, 115,
-        125, 135, 145, 155,
-    ])*day
+    time_hist = (
+        np.array(
+            [
+                0,
+                5,
+                15,
+                25,
+                35,
+                45,
+                55,
+                65,
+                75,
+                85,
+                95,
+                105,
+                115,
+                125,
+                135,
+                145,
+                155,
+            ]
+        )
+        * day
+    )
     mr1 = 7e1
     mr2 = -7e1
-    flow_hist = np.array(
-        [
-            0.0, mr1, mr1, 0.0, 0.0,
-            1.1*mr2, 1.1*mr2, 0.0, 0.0,
-            mr1, mr1, 0.0, 0.0,
-            mr2, mr2, 0.0, 0.0,
-        ]
-    ) * scale / 25
+    flow_hist = (
+        np.array(
+            [
+                0.0,
+                mr1,
+                mr1,
+                0.0,
+                0.0,
+                1.1 * mr2,
+                1.1 * mr2,
+                0.0,
+                0.0,
+                mr1,
+                mr1,
+                0.0,
+                0.0,
+                mr2,
+                mr2,
+                0.0,
+                0.0,
+            ]
+        )
+        * scale
+        / 25
+    )
     time_ext = np.concatenate((time_hist, time_hist + time_hist[-1]))
     flow_ext = np.concatenate((flow_hist, flow_hist))
 
@@ -74,7 +107,7 @@ def main():
 
     # Create Methane mass flow rate history
     time_hist, flow_hist = get_massflux_methane(15)
-    data["Cavern_full"]["P_init"] = 6.95*MPa
+    data["Cavern_full"]["P_init"] = 6.95 * MPa
     data["Cavern_full"]["T_init"] = 320.0
     data["Cavern_full"]["time"] = [x.item() for x in time_hist]
     data["Cavern_full"]["flow"] = [x.item() for x in flow_hist]
@@ -87,45 +120,66 @@ def main():
     data["Cavern_half"]["T_hist"] = T_hist
 
     # Create Water mass flow rate history
-    data["Cavern_quarter"]["P_init"] = 6.95*MPa
+    data["Cavern_quarter"]["P_init"] = 6.95 * MPa
     data["Cavern_quarter"]["T_init"] = 320.0
-    data["Cavern_quarter"]["time"] = [0.0, 312*day]
+    data["Cavern_quarter"]["time"] = [0.0, 312 * day]
     data["Cavern_quarter"]["flow"] = [0.0, 0.0]
 
     sf.Utils.save_json(data, "input_cavern_data.json")
 
-
     fig, axis = plt.subplots(2, 3, figsize=(14, 8))
-    fig.subplots_adjust(top=0.935, bottom=0.155, left=0.119, right=0.980, hspace=0.35, wspace=0.38)
+    fig.subplots_adjust(
+        top=0.935, bottom=0.155, left=0.119, right=0.980, hspace=0.35, wspace=0.38
+    )
     fig.patch.set_alpha(0.0)
 
-    axis[0,0].plot(np.array(data["Cavern_half"]["time"])/day, np.array(data["Cavern_half"]["P_hist"])/MPa, "-", color="steelblue", linewidth=2.0)
-    axis[0,0].set_xlabel("Time (days)", fontname="serif", size=12)
-    axis[0,0].set_ylabel("Pressure (MPa)", fontname="serif", size=12)
-    axis[0,0].set_title("Cavern_half - Hydrogen", fontname="serif", size=14)
+    axis[0, 0].plot(
+        np.array(data["Cavern_half"]["time"]) / day,
+        np.array(data["Cavern_half"]["P_hist"]) / MPa,
+        "-",
+        color="steelblue",
+        linewidth=2.0,
+    )
+    axis[0, 0].set_xlabel("Time (days)", fontname="serif", size=12)
+    axis[0, 0].set_ylabel("Pressure (MPa)", fontname="serif", size=12)
+    axis[0, 0].set_title("Cavern_half - Hydrogen", fontname="serif", size=14)
 
+    axis[1, 0].plot(
+        np.array(data["Cavern_half"]["time"]) / day,
+        np.array(data["Cavern_half"]["T_hist"]),
+        "-",
+        color="steelblue",
+        linewidth=2.0,
+    )
+    axis[1, 0].set_xlabel("Time (days)", fontname="serif", size=12)
+    axis[1, 0].set_ylabel("Temperature (K)", fontname="serif", size=12)
+    axis[1, 0].set_title("Cavern_half - Hydrogen", fontname="serif", size=14)
 
-    axis[1,0].plot(np.array(data["Cavern_half"]["time"])/day, np.array(data["Cavern_half"]["T_hist"]), "-", color="steelblue", linewidth=2.0)
-    axis[1,0].set_xlabel("Time (days)", fontname="serif", size=12)
-    axis[1,0].set_ylabel("Temperature (K)", fontname="serif", size=12)
-    axis[1,0].set_title("Cavern_half - Hydrogen", fontname="serif", size=14)
+    axis[0, 1].plot(
+        np.array(data["Cavern_full"]["time"]) / day,
+        np.array(data["Cavern_full"]["flow"]),
+        "-",
+        color="forestgreen",
+        linewidth=2.0,
+    )
+    axis[0, 1].set_xlabel("Time (days)", fontname="serif", size=12)
+    axis[0, 1].set_ylabel("Mass flow rate (kg/s)", fontname="serif", size=12)
+    axis[0, 1].set_title("Cavern_full - Methane", fontname="serif", size=14)
 
-    axis[0,1].plot(np.array(data["Cavern_full"]["time"])/day, np.array(data["Cavern_full"]["flow"]), "-", color="forestgreen", linewidth=2.0)
-    axis[0,1].set_xlabel("Time (days)", fontname="serif", size=12)
-    axis[0,1].set_ylabel("Mass flow rate (kg/s)", fontname="serif", size=12)
-    axis[0,1].set_title("Cavern_full - Methane", fontname="serif", size=14)
-
-    axis[0,2].plot(np.array(data["Cavern_quarter"]["time"])/day, np.array(data["Cavern_quarter"]["flow"]), "-", color="lightcoral", linewidth=2.0)
-    axis[0,2].set_xlabel("Time (days)", fontname="serif", size=12)
-    axis[0,2].set_ylabel("Mass flow rate (kg/s)", fontname="serif", size=12)
-    axis[0,2].set_title("Cavern_quarter - Water", fontname="serif", size=14)
-
+    axis[0, 2].plot(
+        np.array(data["Cavern_quarter"]["time"]) / day,
+        np.array(data["Cavern_quarter"]["flow"]),
+        "-",
+        color="lightcoral",
+        linewidth=2.0,
+    )
+    axis[0, 2].set_xlabel("Time (days)", fontname="serif", size=12)
+    axis[0, 2].set_ylabel("Mass flow rate (kg/s)", fontname="serif", size=12)
+    axis[0, 2].set_title("Cavern_quarter - Water", fontname="serif", size=14)
 
     apply_grey_theme(fig, axis.flatten(), transparent=True)
 
     plt.show()
-
-
 
     # fluid_name = "Methane"
 
@@ -134,7 +188,7 @@ def main():
     #       "time": list(time_hist)
     # }
     # sf.Utils.save_json(data, f"{fluid_name}.json")
-    
+
     # overburden = 10*sf.Utils.MPa
     # g = -9.81
     # salt_density = 2200
@@ -176,7 +230,6 @@ def main():
     #     cave.record_data(t)
     #     cave.calculate_initial_condition()
 
-
     # P_hist = np.array(cave.P_hist) / sf.Utils.MPa
     # V_hist = np.array(cave.V_hist)
     # M_hist = np.array(cave.M_hist)
@@ -187,11 +240,10 @@ def main():
     # P_roof = P_hist + density_hist*abs(g)*(z_mid - z_roof) / sf.Utils.MPa
     # P_floor = P_hist + density_hist*abs(g)*(z_mid - z_floor) / sf.Utils.MPa
 
-
     # fig, axis = plt.subplots(2, 3, figsize=(14, 8))
     # fig.subplots_adjust(top=0.935, bottom=0.155, left=0.119, right=0.980, hspace=0.35, wspace=0.38)
     # fig.patch.set_alpha(0.0)
-	
+
     # axis[0,0].plot(time_hist/day, flow_hist, "-", color="steelblue", label="mid")
 
     # axis[0,0].plot(t_hist, P_hist, "-", color="steelblue", label="mid")
@@ -211,8 +263,6 @@ def main():
     # apply_grey_theme(fig, axis.flatten(), transparent=True)
 
     plt.show()
-
-
 
 
 if __name__ == "__main__":
