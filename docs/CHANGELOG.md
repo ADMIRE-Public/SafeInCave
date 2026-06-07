@@ -15,6 +15,7 @@
 - Deleted SimulatorFull class
 - Fixed #19: Standardized compute_CT input arguments across MomentumEquation classes.
 - Implemented solver definition internally in the Equations
+- ML model for h parameter calculation now uses skops to be loaded.
 
 ## 2.0.0
 - Implemented MPI parallelisation
