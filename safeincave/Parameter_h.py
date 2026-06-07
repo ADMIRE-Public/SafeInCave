@@ -1,4 +1,4 @@
-import pickle
+import skops.io as sio
 import numpy as np
 import os
 from .Utils import numpy2torch
@@ -28,8 +28,9 @@ class Element:
 
 class ModelML:
     def __init__(self):
-        with open(os.path.join(HERE, "model_h.pkl"), "rb") as file:
-            self.model = pickle.load(file)
+        with open(os.path.join(HERE, "model_h.skops"), "rb") as file:
+            unknown_types = sio.get_untrusted_types(file=file)
+            self.model = sio.load(file, trusted=unknown_types)
 
     def compute_mesh_h(self, mesh):
         conn_aux = mesh.topology.connectivity(3, 0)
@@ -48,3 +49,6 @@ class ModelML:
         h_std = self.model.predict(X)
         h_real = h_std * scale
         return numpy2torch(h_real)
+
+if __name__ == "__main__":
+    model = ModelML()
