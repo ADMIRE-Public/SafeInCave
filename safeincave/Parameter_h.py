@@ -50,5 +50,6 @@ class ModelML:
         h_real = h_std * scale
         return numpy2torch(h_real)
 
+
 if __name__ == "__main__":
     model = ModelML()
