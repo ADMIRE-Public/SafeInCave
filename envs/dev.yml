@@ -9,6 +9,7 @@ dependencies:
   - fenics-dolfinx=0.9.0
   - mpich
   - pyvista
+  - ruff
   - pip
 
   - pip:
