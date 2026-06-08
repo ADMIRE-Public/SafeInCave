@@ -17,6 +17,7 @@
 - Implemented solver definition internally in the Equations
 - ML model for h parameter calculation now uses skops to be loaded.
 - Changed license to BSD-3-Clause.
+- Added automatic conda environment installations.
 
 ## 2.0.0
 - Implemented MPI parallelisation
