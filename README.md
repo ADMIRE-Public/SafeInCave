@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/ADMIRE-Public/SafeInCave/develop/assets/logo_2.png" width="500"/>
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/ADMIRE-Public/SafeInCave)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue)](https://github.com/ADMIRE-Public/SafeInCave)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
 [![FEniCSx](https://img.shields.io/badge/Dependency-FEniCSx%200.9.0-important)](https://fenicsproject.org)
 
@@ -53,8 +53,9 @@ Users can build their own simulators using the *safeincave* package. The [docume
 
 
 ## License
-This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).  
-See the [LICENSE](LICENSE) file for full terms, or review the [official GPLv3 text](https://www.gnu.org/licenses/gpl-3.0.en.html).
+SafeInCave is released under the **BSD 3-Clause License** (BSD-3-Clause), a permissive open-source license that allows use, modification, and redistribution in both open-source and proprietary software.
+
+See the [LICENSE](https://opensource.org/license/BSD-3-clause) file for the complete license terms.
 
 
 ## Key publications
