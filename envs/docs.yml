@@ -1,0 +1,15 @@
+name: safeincave-docs
+
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - python=3.12
+  - fenics-dolfinx=0.9.0
+  - mpich
+  - pyvista
+  - pip
+
+  - pip:
+      - -e "..[docs]"
