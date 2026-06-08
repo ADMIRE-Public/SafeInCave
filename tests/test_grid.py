@@ -1,13 +1,3 @@
-# import unittest
-# import os
-# import sys
-# sys.path.append(os.path.join("..", "safeincave"))
-# import torch as to
-# import numpy as np
-# from Grid import GridHandlerGMSH, GridHandlerFEniCS
-# import dolfinx as do
-# from mpi4py import MPI
-
 import os
 from safeincave import GridHandlerGMSH
 import numpy as np

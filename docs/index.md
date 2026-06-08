@@ -11,10 +11,6 @@
 
 
 
-<!-- Welcome to the SafeInCave documentation page. SafeInCave is an open-source simulator for the thermo-mechanical behavior of salt caverns.  -->
-
-<!-- --- -->
-
 ## Overview
 SafeInCave is an open-source 3D finite element simulator specifically designed for salt cavern mechanics. It combines the most relevant physical phenomena with a robust numerical scheme, placing SafeInCave as a powerful tool for performance assessments of salt caverns under different operational conditions. 
 
@@ -22,7 +18,7 @@ SafeInCave is an open-source 3D finite element simulator specifically designed f
 
 
 ## Open-source
-Being **open-source** is one of the most important aspect of SafeInCave. This has important implications for both academic and industrial applications. Full transparency, auditability, and reproducibility are essential for building trust in simulation results. Moreover, access to the source code allows users to inspect, adapt, and extend the simulator when needed, enabling contributions that can benefit the entire salt community.
+Being **open-source** is one of the most important aspects of SafeInCave. This has important implications for both academic and industrial applications. Full transparency, auditability, and reproducibility are essential for building trust in simulation results. Moreover, access to the source code allows users to inspect, adapt, and extend the simulator when needed, enabling contributions that can benefit the entire salt community.
 
 <!-- --- -->
 
@@ -87,9 +83,14 @@ Users can build their own simulators using the *safeincave* package. The [Exampl
 - [Lucas Landeweerd](https://www.linkedin.com/in/lucaslandeweerd/)
 
 
-## License
+<!-- ## License
 This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).  
-See the [LICENSE](LICENSE) file for full terms, or review the [official GPLv3 text](https://www.gnu.org/licenses/gpl-3.0.en.html).
+See the [LICENSE](LICENSE) file for full terms, or review the [official GPLv3 text](https://www.gnu.org/licenses/gpl-3.0.en.html). -->
+
+## License
+SafeInCave is released under the **BSD 3-Clause License** (BSD-3-Clause), a permissive open-source license that allows use, modification, and redistribution in both open-source and proprietary software.
+
+See the [LICENSE](https://opensource.org/license/BSD-3-clause) file for the complete license terms.
 
 
 ## Key publications

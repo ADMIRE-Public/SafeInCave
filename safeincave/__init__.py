@@ -2,7 +2,8 @@
 SafeInCave
 =========
 
-A FEniCSx-based 3D simulator designed to simulate the mechanical behavior of salt caverns under different operational conditions.
+A FEniCSx-based 3D simulator designed to simulate the mechanical behavior of salt 
+caverns under different operational conditions.
 
 This module exposes the public API for the package and
 sets version information.

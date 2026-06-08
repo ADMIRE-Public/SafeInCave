@@ -5,11 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "safeincave"
 dynamic = ["version"]
-description = "Simulator and tools for salt cavern stability and storage analyses"
+description = "A multiphysics finite element simulator for salt cavern"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10,<3.13"
 authors = [{name = "Hermínio T. Honório"}]
-license = {text = "GPL-3.0-only"}
+maintainers = [
+    {name = "SafeInCave Developers"},
+]
+license = { text = "BSD-3-Clause" }
 dependencies = [
   "numpy==1.26.4",
   "torch==2.4.0",
@@ -23,6 +26,10 @@ dependencies = [
   "scikit-learn>=1.7.2,<2",
   "CoolProp==7.2.0",
   "scipy==1.14.1",
+]
+
+[project.optional-dependencies]
+docs = [
   "mkdocs",
   "mkdocs-material",
   "pymdown-extensions",
@@ -46,3 +53,31 @@ include = ["safeincave*"]
 [project.urls]
 Repository = "https://github.com/ADMIRE-Public/SafeInCave"
 
+classifiers = [
+    # Project maturity
+    "Development Status :: 4 - Beta",
+
+    # Audience
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+
+    # License
+    "License :: OSI Approved :: BSD License",
+
+    # Python
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+
+    # OS
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+
+    # Scientific domains
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Mathematics",
+
+    # Software development
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]

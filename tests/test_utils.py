@@ -12,7 +12,6 @@ import ufl
 
 class Test1(unittest.TestCase):
     def setUp(self):
-        # self.mesh = do.UnitCubeMesh(1, 1, 1)
         self.mesh = do.mesh.create_box(
             MPI.COMM_WORLD,
             [np.array([0.0, 0.0, 0.0]), np.array([1.0, 1.0, 1.0])],
