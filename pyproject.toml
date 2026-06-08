@@ -54,30 +54,17 @@ include = ["safeincave*"]
 Repository = "https://github.com/ADMIRE-Public/SafeInCave"
 
 classifiers = [
-    # Project maturity
     "Development Status :: 4 - Beta",
-
-    # Audience
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
-
-    # License
     "License :: OSI Approved :: BSD License",
-
-    # Python
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-
-    # OS
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
-
-    # Scientific domains
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Scientific/Engineering :: Mathematics",
-
-    # Software development
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
