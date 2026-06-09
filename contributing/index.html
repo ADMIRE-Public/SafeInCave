@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://ADMIRE-Public.github.io/SafeInCave/contributing/">
       
       
-        <link rel="prev" href="../home/">
+        <link rel="prev" href="../home/installation/">
       
       
         <link rel="next" href="../home/cite/">
@@ -456,14 +456,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../home/" class="md-nav__link">
+      <a href="../home/installation/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Getting Started
+    Installation
   
 
     
@@ -562,6 +562,34 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="2. Fork the repository and clone it locally">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#develop-source-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Develop source code
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#write-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2749,6 +2777,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="2. Fork the repository and clone it locally">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#develop-source-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Develop source code
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#write-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2813,18 +2869,32 @@
 <h1 id="contributing-to-safeincave">Contributing to SafeInCave</h1>
 <p>We appreciate contributions of all kinds, whether you are fixing a bug, adding functionality, improving the documentation, or simply opening a discussion. The steps below describe the recommended workflow.</p>
 <h2 id="1-start-by-creating-an-issue">1. Start by creating an issue</h2>
-<p>Please open an issue before you begin working on a change. Use it to explain the problem you want to solve or the feature you would like to add. This helps avoid duplicated work and allows the maintainers to comment on the proposed approach early.</p>
+<p>Please open an issue before you begin working on a change. Use it to explain the problem you want to solve, or the feature you would like to add, or the documentaion you would like to write. This helps avoid duplicated work and allows the maintainers to comment on the proposed approach early.</p>
 <h2 id="2-fork-the-repository-and-clone-it-locally">2. Fork the repository and clone it locally</h2>
-<p>Create a fork of the repository on GitHub and then clone your fork to your machine:</p>
+<p>Create a fork of the repository on GitHub and then clone your fork to your machine.</p>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/&lt;your-username&gt;/SafeInCave.git
 <span class="nb">cd</span><span class="w"> </span>SafeInCave
 </code></pre></div>
-<p>Then install the package in editable mode:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<p>The user may intend to either (i) develop SafeInCave <em>source code</em> or (ii) write <em>documentation</em>. Both cases are described below.</p>
+<h3 id="develop-source-code">Develop source code</h3>
+<p>If you want to develop SafeInCave source code, install safeincave conda environment in <em>development</em> mode.</p>
+<div class="highlight"><pre><span></span><code>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>envs/dev.yml
 </code></pre></div>
-<blockquote>
-<p>Note: SafeInCave is intended to run on Linux. If you are using Windows, please work through WSL.</p>
-</blockquote>
+<p>Activate envinronment.</p>
+<div class="highlight"><pre><span></span><code>conda<span class="w"> </span>activate<span class="w"> </span>safeincave-dev
+</code></pre></div>
+<p>Now, all the changes you make in SafeInCave source code should automatically take effect in your simulations.</p>
+<h3 id="write-documentation">Write documentation</h3>
+<p>If you want to write documentation, install safeincave conda environment in <em>documentation</em> mode.</p>
+<div class="highlight"><pre><span></span><code>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>envs/docs.yml
+</code></pre></div>
+<p>Activate envinronment.</p>
+<div class="highlight"><pre><span></span><code>conda<span class="w"> </span>activate<span class="w"> </span>safeincave-docs
+</code></pre></div>
+<p>Load documentation.</p>
+<div class="highlight"><pre><span></span><code>mkdocs<span class="w"> </span>serve
+</code></pre></div>
+<p>Ctrl+click on the generated URL (usually, http://127.0.0.1:8000/SafeInCave/).</p>
 <h2 id="3-create-a-working-branch">3. Create a working branch</h2>
 <p>Create a new branch in your fork for the changes you plan to make. Choose a short name that clearly describes the purpose of the branch:</p>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>my-feature
