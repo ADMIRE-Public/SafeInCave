@@ -71,7 +71,7 @@ extra_javascript:
 nav:
   - Home:
       - Welcome: index.md
-      - Getting Started: home/index.md
+      - Getting Started: home/installation.md
       - Contribution Guide: contributing.md
       - Cite SafeInCave: home/cite.md
       - Changelog: CHANGELOG.md
