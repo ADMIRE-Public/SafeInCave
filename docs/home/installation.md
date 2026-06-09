@@ -36,7 +36,12 @@ Then, install it by running the installer:
 bash Miniconda3-latest-Linux-x86_64.sh
 ```
 
-Follow the prompt steps: Press *Enter* to scroll, type *yes* to accept license, accept default install location (~/miniconda3 recommended), and say *yes* to `conda init`. 
+Follow the prompt steps: 
+
+- Press *Enter* to scroll
+- Type *yes* to accept license
+- Accept default install location (~/miniconda3 recommended)
+- Say *yes* to `conda init`. 
 
 Finally, close and reopen your WSL terminal.
 
@@ -76,3 +81,34 @@ cd examples/mechanics/1_triaxial
 python3 main.py
 python3 plot_results.py
 ```
+
+
+
+## Separate installation
+
+Alternatively, the user may choose to manually install SafeInCave. The procedure is still simple, and it consists of installing FEniCSx 0.9.0 before installing SafeInCave with pip. 
+
+First, install Conda (see Conda installation guidelines above).
+
+Create a new environment named **safe**.
+
+```bash
+conda create -n safe python=3.10
+conda activate safe
+```
+
+The tag (safe) should now appear in the command line. SafeInCave currently uses [FEniCSx v0.9.0](https://fenicsproject.org/blog/v0.9.0/), so make sure to install this version. To install FEniCS v0.9.0 using conda, executed:
+
+```bash
+conda install -c conda-forge fenics-dolfinx=0.9.0 mpich pyvista
+```
+
+Install SafeInCave by executing:
+
+```bash
+sudo apt update
+sudo apt install python3-pip
+pip install --upgrade pip
+pip3 install safeincave
+```
+

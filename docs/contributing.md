@@ -4,24 +4,58 @@ We appreciate contributions of all kinds, whether you are fixing a bug, adding f
 
 ## 1. Start by creating an issue
 
-Please open an issue before you begin working on a change. Use it to explain the problem you want to solve or the feature you would like to add. This helps avoid duplicated work and allows the maintainers to comment on the proposed approach early.
+Please open an issue before you begin working on a change. Use it to explain the problem you want to solve, or the feature you would like to add, or the documentaion you would like to write. This helps avoid duplicated work and allows the maintainers to comment on the proposed approach early.
 
 ## 2. Fork the repository and clone it locally
 
-Create a fork of the repository on GitHub and then clone your fork to your machine:
+Create a fork of the repository on GitHub and then clone your fork to your machine.
 
 ```bash
 git clone https://github.com/<your-username>/SafeInCave.git
 cd SafeInCave
 ```
 
-Then install the package in editable mode:
+The user may intend to either (i) develop SafeInCave *source code* or (ii) write *documentation*. Both cases are described below.
+
+### Develop source code
+
+If you want to develop SafeInCave source code, install safeincave conda environment in *development* mode.
 
 ```bash
-pip install -e .
+conda env create -f envs/dev.yml
 ```
 
-> Note: SafeInCave is intended to run on Linux. If you are using Windows, please work through WSL.
+Activate envinronment.
+
+```bash
+conda activate safeincave-dev
+```
+
+Now, all the changes you make in SafeInCave source code should automatically take effect in your simulations.
+
+
+### Write documentation
+
+If you want to write documentation, install safeincave conda environment in *documentation* mode.
+
+```bash
+conda env create -f envs/docs.yml
+```
+
+Activate envinronment.
+
+```bash
+conda activate safeincave-docs
+```
+
+Load documentation.
+
+```bash
+mkdocs serve
+```
+
+Ctrl+click on the generated URL (usually, http://127.0.0.1:8000/SafeInCave/).
+
 
 ## 3. Create a working branch
 

@@ -71,7 +71,7 @@ See SafeInCave [installation guidelines](https://admire-public.github.io/SafeInC
 
 
 ## Getting started
-Users can build their own simulators using the *safeincave* package. The [Examples](http://127.0.0.1:8000/SafeInCave/examples/mechanics/1_triaxial/) section shows detailed examples of how to set up purely **mechanical**, **heat diffusion**, and **thermomechanical** simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
+Users can build their own simulators using the *safeincave* package. The [Examples](https://admire-public.github.io/SafeInCave/examples/mechanics/1_triaxial/) section shows detailed examples of how to set up purely **mechanical**, **heat diffusion**, and **thermomechanical** simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
 
 
 ## Mantainers
