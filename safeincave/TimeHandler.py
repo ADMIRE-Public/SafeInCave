@@ -43,6 +43,9 @@ class TimeControllerBase(ABC):
         Current time in seconds.
     step_counter : int
         Number of completed steps (starts at 0).
+    flag_functionOfIteration: bool
+        Flag to define if the dt is a function of iteration number (adaptive)
+
     """
 
     def __init__(
@@ -55,6 +58,7 @@ class TimeControllerBase(ABC):
         self.t = initial_time * self.time_conversion
         self.dt = 0.0
         self.step_counter = 0
+        self.flag_functionOfIteration = False
 
     def __decide_time_unit(self) -> None:
         """
@@ -162,6 +166,72 @@ class TimeController(TimeControllerBase):
         -------
         None
         """
+        self.step_counter += 1
+        self.t += self.dt
+
+class TimeControllerAdaptive(TimeControllerBase):
+    """
+    Adaptive-step time controller.
+
+    Advances the current time by a step `dt` expressed in the chosen
+    unit. dt is increased if the number of iterations are small enough or decreased if too much
+
+    Parameters
+    ----------
+    initial_dt : float
+    Initial time-step size expressed in the units given by `time_unit`.
+    max_dt : float
+    Maximum time-step size expressed in the units given by `time_unit`.
+    initial_time : float
+    Start time expressed in the units given by `time_unit`.
+    final_time : float
+    Final time expressed in the units given by `time_unit`.
+    time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
+    Unit used to interpret `dt`, `initial_time`, and `final_time`.
+
+    Attributes
+    ----------
+    dt : float
+    Fixed time-step size in **seconds**.
+    """
+
+    def __init__(
+        self,
+        initial_dt: float,
+        max_dt: float,
+        iterations_min: int,
+        iterations_max: int,
+        initial_time: float,
+        final_time: float,
+        time_unit: str = "second",
+        inflation: float = 2.0,
+    ):
+        super().__init__(initial_time, final_time, time_unit)
+        self.dt = initial_dt * self.time_conversion
+        self.max_dt = max_dt * self.time_conversion
+        self.flag_functionOfIteration = True
+        self.iterations_min = iterations_min
+        self.iterations_max = iterations_max
+        self.inflation = inflation
+
+    def advance_time(self,numberIterations) -> None:
+        """
+        Increment the current time by a `dt` that changes as a function of the number of iterations.
+
+        Returns
+        -------
+        None
+        """
+        if numberIterations<=self.iterations_min:
+            self.dt=self.dt*self.inflation
+            if(self.dt>self.max_dt):
+                self.dt = self.max_dt
+
+        elif numberIterations>=self.iterations_max:
+            self.dt=self.dt/self.inflation
+
+        self.dt=self.dt
+
         self.step_counter += 1
         self.t += self.dt
 

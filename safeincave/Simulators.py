@@ -432,10 +432,21 @@ class Simulator_M(Simulator):
         for output in self.outputs:
             output.save_fields(0)
 
+        # If adaptive, define first iteration number
+        if(self.t_control.flag_functionOfIteration):
+            ite = self.t_control.iterations_min + 1
+        else:
+            ite = 0
+
         # Time loop
         while self.t_control.keep_looping():
-            # Advance time
-            self.t_control.advance_time()
+
+            # Advance time. If adaptive, it need to send the iteration number
+            if(self.t_control.flag_functionOfIteration):
+                self.t_control.advance_time(ite)
+            else:
+                self.t_control.advance_time()
+
             t = self.t_control.t
             dt = self.t_control.dt
 

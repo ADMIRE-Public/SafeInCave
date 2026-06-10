@@ -2,7 +2,7 @@
 SafeInCave
 =========
 
-A FEniCSx-based 3D simulator designed to simulate the mechanical behavior of salt 
+A FEniCSx-based 3D simulator designed to simulate the mechanical behavior of salt
 caverns under different operational conditions.
 
 This module exposes the public API for the package and
@@ -36,7 +36,7 @@ from .Simulators import (
     Simulator_M,
 )
 from .ScreenOutput import ScreenPrinter
-from .TimeHandler import TimeControllerBase, TimeController, TimeControllerParabolic
+from .TimeHandler import TimeControllerBase, TimeController, TimeControllerParabolic, TimeControllerAdaptive
 from . import MomentumBC
 from . import HeatBC
 from . import PostProcessingTools
