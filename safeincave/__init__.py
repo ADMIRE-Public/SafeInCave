@@ -67,6 +67,7 @@ __all__ = [
     "TimeControllerBase",
     "TimeController",
     "TimeControllerParabolic",
+    "TimeControllerAdaptive",
     "MomentumBC",
     "HeatBC",
     "CavernBC",

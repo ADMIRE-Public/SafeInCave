@@ -180,8 +180,13 @@ class Simulator_TM(Simulator):
 
         # Time loop
         while self.t_control.keep_looping():
-            # Advance time
-            self.t_control.advance_time()
+
+            # Advance time. If adaptive, it need to send the iteration number
+            try:
+                self.t_control.advance_time(ite)
+            except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
+                self.t_control.advance_time()
+
             t = self.t_control.t
             dt = self.t_control.dt
 
@@ -432,19 +437,13 @@ class Simulator_M(Simulator):
         for output in self.outputs:
             output.save_fields(0)
 
-        # If adaptive, define first iteration number
-        if(self.t_control.flag_functionOfIteration):
-            ite = self.t_control.iterations_min + 1
-        else:
-            ite = 0
-
         # Time loop
         while self.t_control.keep_looping():
 
             # Advance time. If adaptive, it need to send the iteration number
-            if(self.t_control.flag_functionOfIteration):
+            try:
                 self.t_control.advance_time(ite)
-            else:
+            except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
                 self.t_control.advance_time()
 
             t = self.t_control.t
@@ -628,8 +627,13 @@ class Simulator_T(Simulator):
 
         # Time loop
         while self.t_control.keep_looping():
-            # Advance time
-            self.t_control.advance_time()
+
+            # Advance time. If adaptive, it need to send the iteration number
+            try:
+                self.t_control.advance_time(ite)
+            except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
+                self.t_control.advance_time()
+
             t = self.t_control.t
             dt = self.t_control.dt
 
@@ -776,8 +780,13 @@ class Simulator_Mout(Simulator):
 
         # Time loop
         while self.t_control.keep_looping():
-            # Advance time
-            self.t_control.advance_time()
+
+            # Advance time. If adaptive, it need to send the iteration number
+            try:
+                self.t_control.advance_time(ite)
+            except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
+                self.t_control.advance_time()
+
             t = self.t_control.t
             dt = self.t_control.dt
 

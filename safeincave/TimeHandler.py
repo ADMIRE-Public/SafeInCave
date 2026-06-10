@@ -199,11 +199,11 @@ class TimeControllerAdaptive(TimeControllerBase):
         self,
         initial_dt: float,
         max_dt: float,
-        iterations_min: int,
-        iterations_max: int,
         initial_time: float,
         final_time: float,
         time_unit: str = "second",
+        iterations_min: int = 5,
+        iterations_max: int = 10,
         inflation: float = 2.0,
     ):
         super().__init__(initial_time, final_time, time_unit)
@@ -214,7 +214,7 @@ class TimeControllerAdaptive(TimeControllerBase):
         self.iterations_max = iterations_max
         self.inflation = inflation
 
-    def advance_time(self,numberIterations) -> None:
+    def advance_time(self, numberIterations: int = 0) -> None:
         """
         Increment the current time by a `dt` that changes as a function of the number of iterations.
 
@@ -222,15 +222,16 @@ class TimeControllerAdaptive(TimeControllerBase):
         -------
         None
         """
-        if numberIterations<=self.iterations_min:
+
+        # this numberIterations == 0 is here to make timeAdaptive controller work whenever it is called as a regular non-adaptive timecontroller
+        if self.step_counter == 0 or numberIterations == 0:
+            pass
+        elif numberIterations<=self.iterations_min:
             self.dt=self.dt*self.inflation
             if(self.dt>self.max_dt):
                 self.dt = self.max_dt
-
         elif numberIterations>=self.iterations_max:
             self.dt=self.dt/self.inflation
-
-        self.dt=self.dt
 
         self.step_counter += 1
         self.t += self.dt

@@ -53,7 +53,7 @@ def run(formulation):
 #        dt=dt, initial_time=t_0, final_time=t_final, time_unit=unit
 #    )
     t_control = sf.TimeControllerAdaptive(
-        initial_dt=dt,max_dt=6*dt,  initial_time=t_0, final_time=t_final,iterations_min=5,iterations_max=10, time_unit=unit
+        initial_dt=dt,max_dt=10*dt,  initial_time=t_0, final_time=t_final,iterations_min=5,iterations_max=10, time_unit=unit
     )
 
     # Define momentum equation
