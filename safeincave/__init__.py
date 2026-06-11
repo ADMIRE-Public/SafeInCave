@@ -16,11 +16,7 @@ __version__ = "3.0.0"
 
 from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
-from .MomentumEquation import (
-    LinearMomentumBase,
-    LinearMomentum,
-    LinearMomentumMixed
-)
+from .MomentumEquation import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
 from .MaterialProps import (
     Material,
     NonElasticElement,
@@ -46,7 +42,7 @@ from .TimeHandler import (
     TimeControllerBase,
     TimeController,
     TimeControllerParabolic,
-    TimeControllerAdaptive
+    TimeControllerAdaptive,
 )
 from . import MomentumBC
 from . import HeatBC
