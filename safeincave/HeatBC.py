@@ -230,11 +230,11 @@ class BcHandler:
             If the boundary condition type is not supported.
         """
         if bc.type == "dirichlet":
-            self.dirichlet_boundaries.append(bc)
+        	self.dirichlet_boundaries.append(bc)
         elif bc.type == "neumann":
-            self.neumann_boundaries.append(bc)
+        	self.neumann_boundaries.append(bc)
         elif bc.type == "robin":
-            self.robin_boundaries.append(bc)
+        	self.robin_boundaries.append(bc)
         else:
             raise Exception(f"Boundary type {bc.type} not supported.")
 

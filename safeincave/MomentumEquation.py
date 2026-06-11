@@ -1005,6 +1005,15 @@ class LinearMomentum(LinearMomentumBase):
         """
         self.u = self.X
 
+	# def compute_p_nodes(self) -> do.fem.Function:
+	# 	self.p_nodes = project(ufl.tr(self.sig)/3, self.CG1_1)
+
+	# def compute_p_elems(self) -> do.fem.Function:
+	# 	# self.p_elems = project(ufl.tr(self.sig)/3, self.DG0_1)
+	# 	stress_to = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+	# 	p_to = to.einsum("kii->k", stress_to)
+	# 	self.p_elems.x.array[:] = to.flatten(p_to)
+
     def compute_p_nodes(self) -> None:
         """
         Compute nodal pressure ``p = tr(σ)/3`` via node-element averaging.
