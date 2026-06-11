@@ -1,0 +1,152 @@
+# Install mkdocs
+# pip install mkdocs
+
+# Install mkdocs materials
+# pip install mkdocs-material
+
+# To use Latex equations
+# pip install pymdown-extensions
+
+# For automatic numbering and cross-referencing
+# pip install mkdocs-caption
+
+# For automatic API documentation based on docstrings
+# pip install mkdocstrings[python]
+
+site_name: The SafeInCave Simulator
+
+extra_css:
+  - stylesheets/extra.css
+
+theme:
+  name: material
+  palette:
+    scheme: default
+    primary: custom
+
+  favicon: images/logo.png
+  logo: images/logo_2.png
+  features:
+    - navigation.path
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.expand
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+# Repository
+repo_name: SafeInCave
+repo_url: https://github.com/ADMIRE-Public/SafeInCave
+
+# Documentation
+site_name: SafeInCave Documentation
+site_url: https://ADMIRE-Public.github.io/SafeInCave/
+
+markdown_extensions:
+  - attr_list
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+
+plugins:
+  - search
+  - caption
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            show_signature_annotations: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home:
+      - Welcome: index.md
+      - Installation: home/installation.md
+      - Contribution Guide: contributing.md
+      - Cite SafeInCave: home/cite.md
+      - Changelog: CHANGELOG.md
+
+
+  - Theory:
+      - Introduction: theory/intro.md
+      - Governing equations: 
+          # - Introduction: theory/governing_equations/intro.md
+          - Heat Diffusion: theory/governing_equations/heat_diffusion.md
+          - Mechanics: theory/governing_equations/mechanics.md
+          - Thermodynamics: theory/governing_equations/thermodynamics.md
+
+      - Constitutive models: 
+          - Introduction: theory/constitutive_models/intro.md
+          - TUD model: theory/constitutive_models/TUD.md
+          - Munson-Dawson: theory/constitutive_models/MD.md
+        #   - Cam-Clay model: theory/constitutive_models/CC.md
+        #   - Gunther-Salzer: theory/constitutive_models/GS.md
+      
+      - Numerical formulations:
+          - Heat diffusion: theory/numerical_formulations/model_heat.md
+          - Momentum P1: theory/numerical_formulations/model_momentum_P1.md
+          - Momentum P1-P1: theory/numerical_formulations/model_momentum_P1P1.md
+
+
+  - Implementation:
+      - Overview: implementation/intro.md
+      - Simulators:
+          - Simulator T: implementation/simulators/simulator_T.md
+          - Simulator M: implementation/simulators/simulator_M.md
+          - Simulator TM: implementation/simulators/simulator_TM.md
+      - Material: implementation/material/index.md
+      - Boundary conditions:
+          - Heat diffusion: implementation/boundary_conditions/heat_diffusion.md
+          - Mechanics: implementation/boundary_conditions/mechanics.md
+      - Equations:
+          - Heat diffusion: implementation/equations/heat_diffusion.md
+          - Mechanics: implementation/equations/mechanics.md
+      - Time controllers: implementation/time_controllers/index.md
+      - Solvers: implementation/solvers/index.md
+      - Outputs: implementation/outputs/index.md
+
+
+  - Examples:
+      - Mechanics:
+          - 1 - Triaxial Test: examples/mechanics/1_triaxial.md
+          - 2 - Different regions: examples/mechanics/2_cube_regions.md
+          - 3 - Single cavern: examples/mechanics/3_cavern.md
+          - 4 - Single cavern operation: examples/mechanics/4_cavern.md
+          - 5 - Single cavern PT: examples/mechanics/5_single_cavern_PT.md
+          - 6 - Single cavern mass flux: examples/mechanics/6_single_cavern_MFlux.md
+          - 7 - Multicavern: examples/mechanics/7_multicavern.md
+          - 8 - Settlement: examples/mechanics/8_settlement.md
+
+      - Thermal:
+          - 1 - Cube: examples/thermal/1_cube.md
+          - 2 - Cavern: examples/thermal/2_cavern.md
+
+      - Thermodynamics:
+          - 1 - Adiabatic volumetric variation: examples/thermodynamics/1_adiabatic_volumetric_variation.md
+          - 2 - Isochoric heat exchange: examples/thermodynamics/2_isochoric_heat_exchange.md
+          - 3 - Mass exchange: examples/thermodynamics/3_mass_exchange.md
+
+      - Thermomechanics:
+          - 1 - Cube: examples/thermomechanics/1_cube.md
+          - 2 - Single cavern: examples/thermomechanics/2_cavern.md
+          - 3 - Cavern PT: examples/thermomechanics/3_cavern_PT.md
+          - 4 - Cavern water: examples/thermomechanics/4_cavern_water.md
+          - 5 - Cavern methane: examples/thermomechanics/5_cavern_methane.md
+          - 6 - Cavern hydrogen: examples/thermomechanics/6_cavern_hydrogen.md
+          - 7 - Multicavern: examples/thermomechanics/7_multicavern.md
+
+
+  - Publications: publications/index.md
+
+  - API Reference: api/api.md
+

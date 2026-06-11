@@ -1,18 +1,7 @@
-# Copyright 2025 The safeincave community.
+# Copyright (c) 2026, The SafeInCave Developers
 #
-# This file is part of safeincave.
-#
-# Licensed under the GNU GENERAL PUBLIC LICENSE, Version 3 (the "License"); you may not
-# use this file except in compliance with the License.  You may obtain a copy
-# of the License at
-#
-#     https://spdx.org/licenses/GPL-3.0-or-later.html
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
-# License for the specific language governing permissions and limitations under
-# the License.
+# SPDX-License-Identifier: BSD-3-Clause
+
 from abc import ABC, abstractmethod
 from typing import Callable
 from .Utils import minute, hour, day, year
@@ -20,6 +9,7 @@ import numpy as np
 
 # Type alias
 Fn = Callable[[float], float]
+
 
 class TimeControllerBase(ABC):
     """
@@ -53,14 +43,22 @@ class TimeControllerBase(ABC):
         Current time in seconds.
     step_counter : int
         Number of completed steps (starts at 0).
+    flag_functionOfIteration: bool
+        Flag to define if the dt is a function of iteration number (adaptive)
+
     """
-    def __init__(self, initial_time: float, final_time: float, time_unit: str="second"):
+
+    def __init__(
+        self, initial_time: float, final_time: float, time_unit: str = "second"
+    ):
         self.time_unit = time_unit
         self.__decide_time_unit()
-        self.t_final = final_time*self.time_conversion
-        self.t_initial = initial_time*self.time_conversion
-        self.t = initial_time*self.time_conversion
+        self.t_final = final_time * self.time_conversion
+        self.t_initial = initial_time * self.time_conversion
+        self.t = initial_time * self.time_conversion
+        self.dt = 0.0
         self.step_counter = 0
+        self.flag_functionOfIteration = False
 
     def __decide_time_unit(self) -> None:
         """
@@ -126,45 +124,117 @@ class TimeControllerBase(ABC):
         pass
 
 
-
 class TimeController(TimeControllerBase):
+    """
+    Fixed-step time controller.
+
+    Advances the current time by a constant step `dt` expressed in the chosen
+    unit.
+
+    Parameters
+    ----------
+    dt : float
+    Time-step size expressed in the units given by `time_unit`.
+    initial_time : float
+    Start time expressed in the units given by `time_unit`.
+    final_time : float
+    Final time expressed in the units given by `time_unit`.
+    time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
+    Unit used to interpret `dt`, `initial_time`, and `final_time`.
+
+    Attributes
+    ----------
+    dt : float
+    Fixed time-step size in **seconds**.
+    """
+
+    def __init__(
+        self,
+        dt: float,
+        initial_time: float,
+        final_time: float,
+        time_unit: str = "second",
+    ):
+        super().__init__(initial_time, final_time, time_unit)
+        self.dt = dt * self.time_conversion
+
+    def advance_time(self) -> None:
         """
-        Fixed-step time controller.
-
-        Advances the current time by a constant step `dt` expressed in the chosen
-        unit.
-
-        Parameters
-        ----------
-        dt : float
-        Time-step size expressed in the units given by `time_unit`.
-        initial_time : float
-        Start time expressed in the units given by `time_unit`.
-        final_time : float
-        Final time expressed in the units given by `time_unit`.
-        time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
-        Unit used to interpret `dt`, `initial_time`, and `final_time`.
-
-        Attributes
-        ----------
-        dt : float
-        Fixed time-step size in **seconds**.
-        """
-        def __init__(self, dt: float, initial_time: float, final_time: float, time_unit: str="second"):
-            super().__init__(initial_time, final_time, time_unit)
-            self.dt = dt*self.time_conversion
-
-        def advance_time(self) -> None:
-            """
         Increment the current time by the fixed step `dt`.
 
         Returns
         -------
         None
-            """
-            self.step_counter += 1
-            self.t += self.dt
+        """
+        self.step_counter += 1
+        self.t += self.dt
 
+class TimeControllerAdaptive(TimeControllerBase):
+    """
+    Adaptive-step time controller.
+
+    Advances the current time by a step `dt` expressed in the chosen
+    unit. dt is increased if the number of iterations are small enough or decreased if too much
+
+    Parameters
+    ----------
+    initial_dt : float
+    Initial time-step size expressed in the units given by `time_unit`.
+    max_dt : float
+    Maximum time-step size expressed in the units given by `time_unit`.
+    initial_time : float
+    Start time expressed in the units given by `time_unit`.
+    final_time : float
+    Final time expressed in the units given by `time_unit`.
+    time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
+    Unit used to interpret `dt`, `initial_time`, and `final_time`.
+
+    Attributes
+    ----------
+    dt : float
+    Fixed time-step size in **seconds**.
+    """
+
+    def __init__(
+        self,
+        initial_dt: float,
+        max_dt: float,
+        initial_time: float,
+        final_time: float,
+        time_unit: str = "second",
+        iterations_min: int = 5,
+        iterations_max: int = 10,
+        inflation: float = 2.0,
+    ):
+        super().__init__(initial_time, final_time, time_unit)
+        self.dt = initial_dt * self.time_conversion
+        self.max_dt = max_dt * self.time_conversion
+        self.flag_functionOfIteration = True
+        self.iterations_min = iterations_min
+        self.iterations_max = iterations_max
+        self.inflation = inflation
+
+    def advance_time(self, numberIterations: int = 0) -> None:
+        """
+        Increment the current time by a `dt` that changes as a function of the number of iterations.
+
+        Returns
+        -------
+        None
+        """
+
+        # this numberIterations == 0 is here to make timeAdaptive controller work whenever it is called as a regular non-adaptive timecontroller
+        if self.step_counter == 0 or numberIterations == 0:
+            pass
+        elif numberIterations<=self.iterations_min:
+            self.dt=self.dt*self.inflation
+            if(self.dt>self.max_dt):
+                self.dt = self.max_dt
+        elif numberIterations>=self.iterations_max:
+            self.dt=self.dt/self.inflation
+
+        self.step_counter += 1
+        self.t += self.dt
 
 
 class TimeControllerParabolic(TimeControllerBase):
@@ -199,7 +269,14 @@ class TimeControllerParabolic(TimeControllerBase):
     step_counter : int
         Index of the most recently advanced step (starts at 0).
     """
-    def __init__(self, n_time_steps: int, initial_time: float, final_time: float, time_unit: str="second"):
+
+    def __init__(
+        self,
+        n_time_steps: int,
+        initial_time: float,
+        final_time: float,
+        time_unit: str = "second",
+    ):
         super().__init__(initial_time, final_time, time_unit)
         self.n_time_steps = n_time_steps
         self.time_list = self.calculate_varying_times(self.fun_parabolic)
@@ -247,8 +324,8 @@ class TimeControllerParabolic(TimeControllerBase):
         y = fun(t_eq)
         f_min = np.min(t_eq)
         f_max = np.max(y)
-        k = (t_eq.max() - t_eq.min())/(f_max - f_min)
-        y = k*(y - f_min) + t_eq.min()
+        k = (t_eq.max() - t_eq.min()) / (f_max - f_min)
+        y = k * (y - f_min) + t_eq.min()
         return y
 
     def advance_time(self) -> None:
@@ -270,5 +347,6 @@ class TimeControllerParabolic(TimeControllerBase):
         """
         self.step_counter += 1
         self.t = self.time_list[self.step_counter]
-        self.dt = self.time_list[self.step_counter] - self.time_list[self.step_counter-1]
-
+        self.dt = (
+            self.time_list[self.step_counter] - self.time_list[self.step_counter - 1]
+        )

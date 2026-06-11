@@ -1,0 +1,184 @@
+size_coarse = 105;
+size_fine = 8.5;
+
+Lv = 660;
+Lh = 800;
+
+h = 200;
+H = 120;
+R = 50;
+
+Point(1) = {0.0, 0.0, 0.0, size_coarse};
+Point(2) = {Lh, 0.0, 0.0, size_coarse};
+Point(3) = {Lh, 0.0, Lv, size_coarse};
+Point(4) = {0.0, 0.0, Lv, size_coarse};
+
+Point(5) = {0.0, 0.0, h, size_fine};
+Point(6) = {0.0, 0.0, h+R, size_coarse};
+Point(7) = {0.0, 0.0, h+R+H, size_coarse};
+Point(8) = {0.0, 0.0, h+R+H+R, size_fine};
+
+Point(9) = {R, 0.0, h+R, size_fine};
+Point(10) = {R, 0.0, h+R+H, size_fine};
+Point(11) = {0, R, h+R+H, size_fine};
+Point(12) = {0, R, h+R, size_fine};
+
+Point(13) = {0, Lh, 0, size_coarse};
+Point(14) = {0, Lh, Lv, size_coarse};
+Point(15) = {Lh, Lh, 0, size_coarse};
+Point(16) = {Lh, Lh, Lv, size_coarse};
+
+Point(17) = {Lh, Lh/2, h, size_fine};
+Point(18) = {Lh, Lh/2+R, h+R, size_fine};
+Point(19) = {Lh, Lh/2-R, h+R, size_fine};
+Point(20) = {Lh-R, Lh/2, h+R, size_fine};
+Point(21) = {Lh, Lh/2+R, h+R+H, size_fine};
+Point(22) = {Lh, Lh/2-R, h+R+H, size_fine};
+Point(23) = {Lh-R, Lh/2, h+R+H, size_fine};
+Point(24) = {Lh, Lh/2, h+H+2*R, size_fine};
+
+Point(25) = {Lh/2, Lh/2, h, size_fine};
+Point(26) = {Lh/2+R, Lh/2, h+R, size_fine};
+Point(27) = {Lh/2-R, Lh/2, h+R, size_fine};
+Point(28) = {Lh/2, Lh/2+R, h+R, size_fine};
+Point(29) = {Lh/2, Lh/2-R, h+R, size_fine};
+Point(30) = {Lh/2+R, Lh/2, h+R+H, size_fine};
+Point(31) = {Lh/2-R, Lh/2, h+R+H, size_fine};
+Point(32) = {Lh/2, Lh/2+R, h+R+H, size_fine};
+Point(33) = {Lh/2, Lh/2-R, h+R+H, size_fine};
+Point(34) = {Lh/2, Lh/2, h+H+2*R, size_fine};
+
+Point(35) = {Lh, Lh/2, h+R, size_fine};
+Point(36) = {Lh, Lh/2, h+R+H, size_fine};
+
+Point(37) = {Lh/2, Lh/2, h+R, size_fine};
+Point(38) = {Lh/2, Lh/2, h+R+H, size_fine};
+
+
+
+Line(1) = {1, 2};
+Line(2) = {2, 15};
+Line(3) = {15, 13};
+Line(4) = {13, 1};
+Line(5) = {1, 5};
+Line(6) = {8, 4};
+Line(7) = {4, 3};
+Line(8) = {3, 16};
+Line(9) = {16, 14};
+Line(10) = {14, 4};
+Line(11) = {13, 14};
+Line(12) = {15, 16};
+Line(13) = {2, 3};
+Line(14) = {9, 10};
+Line(15) = {12, 11};
+Circle(16) = {5, 6, 9};
+Circle(17) = {5, 6, 12};
+Circle(18) = {12, 6, 9};
+Circle(19) = {11, 7, 10};
+Circle(20) = {10, 7, 8};
+Circle(21) = {8, 7, 11};
+
+Line(22) = {29, 33};
+Line(23) = {26, 30};
+Line(24) = {28, 32};
+Line(25) = {27, 31};
+Line(26) = {20, 23};
+Line(27) = {19, 22};
+Line(28) = {18, 21};
+
+Circle(29) = {29, 37, 26};
+Circle(30) = {26, 37, 28};
+Circle(31) = {28, 37, 27};
+Circle(32) = {27, 37, 29};
+Circle(33) = {29, 37, 25};
+Circle(34) = {25, 37, 26};
+Circle(35) = {28, 37, 25};
+Circle(36) = {25, 37, 27};
+Circle(37) = {31, 38, 34};
+Circle(38) = {34, 38, 32};
+Circle(39) = {32, 38, 30};
+Circle(40) = {30, 38, 34};
+Circle(41) = {34, 38, 33};
+Circle(42) = {33, 38, 31};
+Circle(43) = {31, 38, 32};
+Circle(44) = {30, 38, 33};
+Circle(45) = {19, 35, 17};
+Circle(46) = {17, 35, 20};
+Circle(47) = {20, 35, 18};
+Circle(48) = {18, 35, 17};
+Circle(49) = {19, 35, 20};
+Circle(50) = {22, 36, 24};
+Circle(51) = {24, 36, 21};
+Circle(52) = {21, 36, 23};
+Circle(53) = {23, 36, 22};
+Circle(54) = {24, 36, 23};
+
+Curve Loop(1) = {4, 1, 2, 3};
+Plane Surface(1) = {-1};
+Curve Loop(2) = {1, 13, -7, -6, -20, -14, -16, -5};
+Plane Surface(2) = {2};
+Curve Loop(3) = {5, 17, 15, -21, 6, -10, -11, 4};
+Plane Surface(3) = {3};
+Curve Loop(4) = {11, -9, -12, 3};
+Plane Surface(4) = {4};
+Curve Loop(5) = {9, 10, 7, 8};
+Plane Surface(5) = {5};
+Curve Loop(6) = {8, -12, -2, 13};
+Curve Loop(7) = {27, 50, 51, -28, 48, -45};
+Plane Surface(6) = {-6, -7};
+Curve Loop(8) = {16, -18, -17};
+Surface(7) = {8};
+Curve Loop(9) = {15, 19, -14, -18};
+Surface(8) = {-9};
+Curve Loop(10) = {19, 20, 21};
+Surface(9) = {10};
+Curve Loop(11) = {36, 32, 33};
+Surface(10) = {11};
+Curve Loop(12) = {32, 22, 42, -25};
+Surface(11) = {-12};
+Curve Loop(13) = {31, 25, 43, -24};
+Surface(12) = {-13};
+Curve Loop(14) = {31, -36, -35};
+Surface(13) = {14};
+Curve Loop(15) = {43, -38, -37};
+Surface(14) = {15};
+Curve Loop(16) = {42, 37, 41};
+Surface(15) = {16};
+Curve Loop(17) = {33, 34, -29};
+Surface(16) = {-17};
+Curve Loop(18) = {34, 30, 35};
+Surface(17) = {18};
+Curve Loop(19) = {29, 23, 44, -22};
+Surface(18) = {-19};
+Curve Loop(20) = {44, -41, -40};
+Surface(19) = {20};
+Curve Loop(21) = {39, 40, 38};
+Surface(20) = {21};
+Curve Loop(22) = {23, -39, -24, -30};
+Surface(21) = {22};
+Curve Loop(23) = {51, 52, -54};
+Surface(22) = {-23};
+Curve Loop(24) = {54, 53, 50};
+Surface(23) = {-24};
+Curve Loop(25) = {53, -27, 49, 26};
+Surface(24) = {25};
+Curve Loop(26) = {49, -46, -45};
+Surface(25) = {-26};
+Curve Loop(27) = {46, 47, 48};
+Surface(26) = {-27};
+Curve Loop(28) = {28, 52, -26, 47};
+Surface(27) = {28};
+
+Surface Loop(1) = {3, 2, 1, 4, 5, 6, 24, 23, 22, 27, 26, 25, 9, 8, 7};
+Surface Loop(2) = {18, 11, 12, 21, 20, 19, 15, 14, 17, 16, 10, 13};
+Volume(1) = {1, 2};
+Physical Volume("Body", 55) = {1};
+Physical Surface("Bottom", 56) = {1};
+Physical Surface("Top", 57) = {5};
+Physical Surface("South", 58) = {2};
+Physical Surface("North", 59) = {4};
+Physical Surface("West", 60) = {3};
+Physical Surface("East", 61) = {6};
+Physical Surface("Cavern_full", 62) = {10, 13, 17, 16, 18, 21, 12, 11, 14, 15, 19, 20};
+Physical Surface("Cavern_half", 63) = {23, 22, 24, 27, 25, 26};
+Physical Surface("Cavern_quarter", 64) = {9, 8, 7};

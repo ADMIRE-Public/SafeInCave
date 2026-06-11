@@ -1,94 +1,72 @@
 <img src="https://raw.githubusercontent.com/ADMIRE-Public/SafeInCave/develop/assets/logo_2.png" width="500"/>
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/ADMIRE-Public/SafeInCave)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue)](https://github.com/ADMIRE-Public/SafeInCave)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
 [![FEniCSx](https://img.shields.io/badge/Dependency-FEniCSx%200.9.0-important)](https://fenicsproject.org)
 
 
-> **Note**: This project requires **FEniCSx** and runs natively on Ubuntu.  
-> Windows users must use [WSL](https://learn.microsoft.com/en-us/windows/wsl/).
-
----
-
 ## Overview
-SafeInCave is a 3D finite element simulator based on FEniCSx. It is designed to simulate the mechanical behavior of salt caverns under different operational conditions.
+SafeInCave is an open-source 3D finite element simulator specifically designed for salt cavern mechanics. It combines the most relevant physical phenomena with a robust numerical scheme, placing SafeInCave as a powerful tool for performance assessments of salt caverns under different operational conditions. 
 
----
+<img src="https://raw.githubusercontent.com/ADMIRE-Public/SafeInCave/develop/docs/images/multicavern_q.gif" width="500"/>
+
+
+## Open-source
+Being **open-source** is one of the most important aspect of SafeInCave. This has important implications for both academic and industrial applications. Full transparency, auditability, and reproducibility are essential for building trust in simulation results. Moreover, access to the source code allows users to inspect, adapt, and extend the simulator when needed, enabling contributions that can benefit the entire salt community.
 
 ## Key Features
 
-- **MPI-powered parallelism**: Scale simulations efficiently with mpi4py for distributed computing
-- **Thermal effects**: Solve heat diffusion equation and include thermal strains and creep thermal responses
-- **Graphical user interface**: Build your simulation without writing lines of code
-- **Constitutive model**: Include transient, reverse transient, dislocation, and pressure solution creep
-- **Robust linearization**: Provides robustness and flexibility to include new constitutive models
-- **Time discretization**: Choose between Explicit, Crank-Nicolson, and Fully-Implicit schemes
-- **XDMF output**: Efficient output format in terms of size and postprocessing
+- **Tetrahedral meshes**: Easily discretize complex geometries without compromising numerical stability.
+- **Thermodynamics**: Different fluids with different operational conditions are possible.
+- **Coupled physics**: Mechanics, heat diffusion, and thermodynamic models are fully coupled.
+- **Thermal effects**: Solve heat diffusion equation and include thermal strains and creep thermal responses.
+- **Constitutive model**: Munson-Dawson model, two branches model, thermal strains, Cam-Clay model, etc.
+- **Robust linearization**: Provides robustness and flexibility to include new constitutive models.
+- **Time discretization**: Choose between Explicit, Crank-Nicolson, and Fully-Implicit schemes.
+- **XDMF output**: Efficient output format in terms of size and postprocessing.
 
----
 
 ## Installation
 SafeInCave installation depends on [FEniCSx](https://fenicsproject.org/) installation. For Windows users, the installaion pipeline consists of:
 
-1) Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/)
+1) Installing [WSL](https://learn.microsoft.com/en-us/windows/wsl/)
 
-2) Install Ubuntu
+2) Installing Ubuntu
 
-3) Install [FEniCSx](https://fenicsproject.org/download/)
+3) Installing [FEniCSx](https://fenicsproject.org/download/)
 
-4) Install SafeInCave
+4) Installing SafeInCave
 
-See SafeInCave [documentation](https://safeincave-docs.streamlit.app/installation) for a detailed explanation on the installation process.
+See SafeInCave [documentation](https://admire-public.github.io/SafeInCave/home/) for a detailed explanation on the installation process.
 
----
 
 ## Getting started
-After installation, the easiest way to set up SafeInCave simulations is by using the SafeInCave App, as shown in the image below.
+Users can build their own simulators using the *safeincave* package. The [documentation](https://admire-public.github.io/SafeInCave/) webpage shows detailed examples of how to set up purely **mechanical**, **heat diffusion**, and **thermomechanical** simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
 
-<img src="https://raw.githubusercontent.com/ADMIRE-Public/SafeInCave/develop/assets/gui_safeincave.jpeg" width="800"/>
 
-Alternatively, users can build their own simulators using the *safeincave* package. Our [documentation](https://safeincave-docs.streamlit.app/) webpage shows detailed examples of how to set up purely [mechanical](https://safeincave-docs.streamlit.app/mechanics_4_cavern) simulations, [heat diffusion](https://safeincave-docs.streamlit.app/thermal_1_cube) simulations, and [thermomechanical](https://safeincave-docs.streamlit.app/thermomech_2_cavern) simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
+## Mantainers
+- [Davi R. Damasceno](https://www.linkedin.com/in/drdamasceno/)
+- [Gijs van den Brekel](https://www.linkedin.com/in/gijs-van-den-brekel-041866229/)
+- [Hadi Hajibeygi](https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/sections/reservoir-engineering/staff/academic-staff/profdr-h-hajibeygi)
+- [Hermínio Tasinafo Honório](https://www.linkedin.com/in/herminioth/)
+- [Lucas Landeweerd](https://www.linkedin.com/in/lucaslandeweerd/)
 
----
-
-## Extra material
-Video lectures and video tutorials can be found in the [ADMIRE](https://www.youtube.com/@ADMIRE1/featured) YouTube channel. The following videos are currently available:
-
-1) [Tensorial operations (theory)](https://youtu.be/w5KX3F_rdzU?si=QQLVBq1NcrvOiS32)
-
-2) [Tensorial operations (exercises)](https://www.youtube.com/watch?v=JiN6jwp0RPk&t=0s)
-
-3) [Constitutive modeling](https://www.youtube.com/watch?v=fCeJIbjIL10)
-
-4) Stay tuned to [ADMIRE](https://www.youtube.com/@ADMIRE1/featured) YouTube channel for upcoming video lectures.
-
----
-
-## Current members 
-- [Hermínio Tasinafo Honório](https://www.linkedin.com/in/herminioth/), Maintainer, 2023-present
-- [Hadi Hajibeygi](https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/sections/reservoir-engineering/staff/academic-staff/profdr-h-hajibeygi), Principal Investigator
-
----
 
 ## License
-This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).  
-See the [LICENSE](LICENSE) file for full terms, or review the [official GPLv3 text](https://www.gnu.org/licenses/gpl-3.0.en.html).
+SafeInCave is released under the **BSD 3-Clause License** (BSD-3-Clause), a permissive open-source license that allows use, modification, and redistribution in both open-source and proprietary software.
 
----
+See the [LICENSE](https://opensource.org/license/BSD-3-clause) file for the complete license terms.
 
-## Papers and publications
-[1] Honório, H.T, Houben, M., Bisdom, K., van der Linden, A., de Borst, K., Sluys, L.J., Hajibeygi, H. A multi-step calibration strategy for reliable parameter determination of salt rock mechanics constitutive models. Int J Rock Mech Min, 2024 (https://doi.org/10.1016/j.ijrmms.2024.105922)
 
-[2] Honório, H.T, Hajibeygi, H. Three-dimensional multi-physics simulation and sensitivity analysis of cyclic hydrogen storage in salt caverns. Int J Hydrogen Energ, 2024 (https://doi.org/10.1016/j.ijhydene.2024.11.081)
+## Key publications
+- Honório, H.T, Hajibeygi, H. [Three-dimensional multi-physics simulation and sensitivity analysis of cyclic hydrogen storage in salt caverns](https://doi.org/10.1016/j.ijhydene.2024.11.081). International Journal of Hydrogen Energy, 2024.
 
-[3] Kumar, K.R., Makhmutov, A., Spiers, C.J., Hajibeygi, H. Geomechanical simulation of energy storage in salt formations. Scientific Reports, 2022 (https://doi.org/10.1038/s41598-021-99161-8)
+- Honório, H.T., Franceschini, A., Ferronato, M., & Hajibeygi, H. [Salt cavern simulations with a stabilized mixed finite element formulation for low-order tetrahedral elements](https://doi.org/10.1016/j.cma.2026.119073). CMAME, 2026.
 
-[4] Kumar, K.R., Hajibeygi, H. Influence of pressure solution and evaporate heterogeneity on the geo-mechanical behavior of salt caverns. The Mechanical Behavior of Salt X, 2022 (https://doi.org/10.1201/9781003295808)
+- Honório, H.T., Amini, M.S., Landeweerd, L., & Hajibeygi, H. [SafeInCave: An Open-Source Simulator for Energy Storage in Heterogeneous Salt Caverns](https://smri.memberclicks.net/assets/docs/Fall2025/TechSessions/20_MP2025F_Honorio.pdf). In Proceedings of the SMRI Fall Technical Conference, Whichita, Kansas, US, 2025.
 
----
 
 ## Acknowledgements
-We would like to thank:
-- Shell Global Solutions International B.V for sponsoring the project SafeInCave, within which this simulator was developed.
-- Energi Simulation for currently supporting this project.
+- [Shell Global Solutions International B.V](https://www.shell.com/) for sponsoring the [project SafeInCave](https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/research/research-themes/energy-transition/safeincave), within which this simulator was developed.
+- [Energi Simulation](https://energisimulation.com/) for currently supporting this project.
 

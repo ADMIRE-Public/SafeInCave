@@ -4,3 +4,5 @@
 4) Files "geom.xml", "geom_facet_region.xml" and "geom_physical_region.xml" should be created.
 
 gmsh -3 geom.geo -format msh2 && dolfin-convert geom.msh geom.xml
+
+alias gmshsoft='LIBGL_ALWAYS_SOFTWARE=true gmsh'

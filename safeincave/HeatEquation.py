@@ -1,25 +1,13 @@
-# Copyright 2025 The safeincave community.
+# Copyright (c) 2026, The SafeInCave Developers
 #
-# This file is part of safeincave.
-#
-# Licensed under the GNU GENERAL PUBLIC LICENSE, Version 3 (the "License"); you may not
-# use this file except in compliance with the License.  You may obtain a copy
-# of the License at
-#
-#     https://spdx.org/licenses/GPL-3.0-or-later.html
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
-# License for the specific language governing permissions and limitations under
-# the License.
+# SPDX-License-Identifier: BSD-3-Clause
+
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .HeatBC import BcHandler
 
-from abc import ABC, abstractmethod
 import dolfinx as do
 import ufl
 from petsc4py import PETSc
@@ -29,9 +17,7 @@ from .Grid import GridHandlerGMSH
 from .Utils import numpy2torch, project
 
 
-
-
-class HeatDiffusion():
+class HeatDiffusion:
     """
     Transient heat-diffusion solver on a DOLFINx mesh.
 
@@ -85,19 +71,42 @@ class HeatDiffusion():
       (:class:`Material`), and a BC handler (:class:`BcHandler`) are set
       before calling :meth:`solve`.
     """
-    def __init__(self, grid: GridHandlerGMSH):
-        self.grid = grid
 
+    def __init__(
+        self,
+        grid: GridHandlerGMSH,
+        solver_name: str = "cg",
+        preconditioner: str = "asm",
+        rtol: float = 1e-12,
+        max_it: int = 100,
+    ):
+        self.grid = grid
+        self.solver_name = solver_name
+        self.preconditioner = preconditioner
+        self.rtol = rtol
+        self.max_it = max_it
+
+        self.build_solver()
         self.create_function_spaces()
 
-        self.n_elems = self.DG0_1.dofmap.index_map.size_local + len(self.DG0_1.dofmap.index_map.ghosts)
-        self.n_nodes = self.V.dofmap.index_map.size_local + len(self.V.dofmap.index_map.ghosts)
+        self.n_elems = self.DG0_1.dofmap.index_map.size_local + len(
+            self.DG0_1.dofmap.index_map.ghosts
+        )
+        self.n_nodes = self.V.dofmap.index_map.size_local + len(
+            self.V.dofmap.index_map.ghosts
+        )
         self.dt = do.fem.Constant(self.grid.mesh, 1.0)
 
         self.create_trial_test_functions()
         self.create_ds_dx()
         self.create_fenicsx_fields()
         # self.create_pytorch_fields()
+
+    def build_solver(self) -> None:
+        self.solver = PETSc.KSP().create(self.grid.mesh.comm)
+        self.solver.setType(self.solver_name)
+        self.solver.getPC().setType(self.preconditioner)
+        self.solver.setTolerances(rtol=self.rtol, max_it=self.max_it)
 
     def set_material(self, material: Material) -> None:
         """
@@ -148,6 +157,13 @@ class HeatDiffusion():
         -------
         None
         """
+        bc.set_V(self.V)
+        bc.set_boundary_dim(self.grid.boundary_dim)
+        bc.set_boudary_tags(self.grid.boundary_tags)
+        bc.set_dolfin_tags(self.grid.dolfin_tags)
+        bc.set_ds(self.ds)
+        bc.set_test_function(self.T_)
+        bc.set_trial_function(self.dT)
         self.bc = bc
 
     def create_trial_test_functions(self) -> None:
@@ -193,8 +209,12 @@ class HeatDiffusion():
         Defines :attr:`ds` for boundary integrals and :attr:`dx` for domain integrals,
         using mesh tags from :attr:`grid`.
         """
-        self.ds = ufl.Measure("ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries())
-        self.dx = ufl.Measure("dx", domain=self.grid.mesh, subdomain_data=self.grid.get_subdomains())
+        self.ds = ufl.Measure(
+            "ds", domain=self.grid.mesh, subdomain_data=self.grid.get_boundaries()
+        )
+        self.dx = ufl.Measure(
+            "dx", domain=self.grid.mesh, subdomain_data=self.grid.get_subdomains()
+        )
 
     def create_fenicsx_fields(self) -> None:
         """
@@ -300,7 +320,6 @@ class HeatDiffusion():
         T_elems = project(self.T, self.DG0_1)
         return numpy2torch(T_elems.x.array)
 
-
     def solve(self, t: float, dt: float) -> None:
         """
         Assemble and solve one implicit time step.
@@ -340,14 +359,23 @@ class HeatDiffusion():
         self.dt.value = dt
 
         # Build bilinear form
-        a = (self.rho*self.cp*self.dT*self.T_/self.dt + self.k*ufl.dot(ufl.grad(self.dT), ufl.grad(self.T_)))*self.dx
+        a = (
+            self.rho * self.cp * self.dT * self.T_ / self.dt
+            + self.k * ufl.dot(ufl.grad(self.dT), ufl.grad(self.T_))
+        ) * self.dx
         a += sum(self.bc.robin_bcs_a)
+        a += sum(self.bc.cavern_bcs_a)
         bilinear_form = do.fem.form(a)
         A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
         A.assemble()
 
         # Build linear form
-        L = (self.rho*self.cp*self.T_old*self.T_/self.dt)*self.dx + sum(self.bc.neumann_bcs) + sum(self.bc.robin_bcs_b)
+        L = (self.rho * self.cp * self.T_old * self.T_ / self.dt) * self.dx
+        L += (
+            sum(self.bc.neumann_bcs)
+            + sum(self.bc.robin_bcs_b)
+            + sum(self.bc.cavern_bcs_b)
+        )
         linear_form = do.fem.form(L)
         b = do.fem.petsc.assemble_vector(linear_form)
         do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
@@ -361,7 +389,5 @@ class HeatDiffusion():
         self.X.x.scatter_forward()
         self.split_solution()
 
-        # Update old temperature field
-        self.update_T_old()
-
-
+        # # Update old temperature field
+        # self.update_T_old()

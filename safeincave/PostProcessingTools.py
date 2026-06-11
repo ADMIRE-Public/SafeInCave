@@ -1,22 +1,9 @@
-# Copyright 2025 The safeincave community.
+# Copyright (c) 2026, The SafeInCave Developers
 #
-# This file is part of safeincave.
-#
-# Licensed under the GNU GENERAL PUBLIC LICENSE, Version 3 (the "License"); you may not
-# use this file except in compliance with the License.  You may obtain a copy
-# of the License at
-#
-#     https://spdx.org/licenses/GPL-3.0-or-later.html
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
-# License for the specific language governing permissions and limitations under
-# the License.
+# SPDX-License-Identifier: BSD-3-Clause
 
 import meshio as ms
 import numpy as np
-import os
 from scipy.sparse import csr_matrix
 
 
@@ -54,11 +41,17 @@ def build_smoother(points: np.ndarray, conn: np.ndarray) -> np.ndarray:
     --------
     scipy.sparse.csr_matrix
     """
+
     def tetrahedron_volume(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4):
         """Compute signed volume of a tetrahedron given its four vertices."""
-        volume = abs((1/6) * ((x2 - x1) * ((y3 - y1)*(z4 - z1) - (z3 - z1)*(y4 - y1)) + 
-                     (y2 - y1) * ((z3 - z1)*(x4 - x1) - (x3 - x1)*(z4 - z1)) + 
-                     (z2 - z1) * ((x3 - x1)*(y4 - y1) - (y3 - y1)*(x4 - x1))))
+        volume = abs(
+            (1 / 6)
+            * (
+                (x2 - x1) * ((y3 - y1) * (z4 - z1) - (z3 - z1) * (y4 - y1))
+                + (y2 - y1) * ((z3 - z1) * (x4 - x1) - (x3 - x1) * (z4 - z1))
+                + (z2 - z1) * ((x3 - x1) * (y4 - y1) - (y3 - y1) * (x4 - x1))
+            )
+        )
         return volume
 
     def build_node_elem_stencil(conn, coord):
@@ -92,7 +85,7 @@ def build_smoother(points: np.ndarray, conn: np.ndarray) -> np.ndarray:
         for elem in stencil[node]:
             A_row.append(node)
             A_col.append(elem)
-            A_data.append(volumes[elem]/vol)
+            A_data.append(volumes[elem] / vol)
     A_csr = csr_matrix((A_data, (A_row, A_col)), shape=(n_nodes, n_elems))
 
     B_row, B_col, B_data = [], [], []
@@ -100,11 +93,12 @@ def build_smoother(points: np.ndarray, conn: np.ndarray) -> np.ndarray:
         for node in nodes:
             B_row.append(elem)
             B_col.append(node)
-            B_data.append(1/len(nodes))
+            B_data.append(1 / len(nodes))
     B_csr = csr_matrix((B_data, (B_row, B_col)), shape=(n_elems, n_nodes))
     smoother = B_csr.dot(A_csr)
 
     return smoother
+
 
 def build_mapping(nodes_xdmf: np.ndarray, nodes_msh: np.ndarray) -> list[int]:
     """
@@ -134,6 +128,7 @@ def build_mapping(nodes_xdmf: np.ndarray, nodes_msh: np.ndarray) -> list[int]:
     """
     return [np.where((nodes_msh == row).all(axis=1))[0][0] for row in nodes_xdmf]
 
+
 def find_closest_point(target_point: np.ndarray, points: np.ndarray) -> int:
     """
     Find the index of the closest point in a set to a target point.
@@ -151,9 +146,11 @@ def find_closest_point(target_point: np.ndarray, points: np.ndarray) -> int:
         Index of the closest point in ``points`` (Euclidean distance).
     """
     x_p, y_p, z_p = target_point
-    d = np.sqrt(  (points[:,0] - x_p)**2
-                + (points[:,1] - y_p)**2
-                + (points[:,2] - z_p)**2 )
+    d = np.sqrt(
+        (points[:, 0] - x_p) ** 2
+        + (points[:, 1] - y_p) ** 2
+        + (points[:, 2] - z_p) ** 2
+    )
     p_idx = d.argmin()
     return p_idx
 
@@ -182,10 +179,10 @@ def compute_cell_centroids(cells: np.ndarray, points: np.ndarray) -> np.ndarray:
         p1 = points[cell[1]]
         p2 = points[cell[2]]
         p3 = points[cell[3]]
-        x = (p0[0] + p1[0] + p2[0] + p3[0])/4
-        y = (p0[1] + p1[1] + p2[1] + p3[1])/4
-        z = (p0[2] + p1[2] + p2[2] + p3[2])/4
-        centroids[i,:] = np.array([x, y, z])
+        x = (p0[0] + p1[0] + p2[0] + p3[0]) / 4
+        y = (p0[1] + p1[1] + p2[1] + p3[1]) / 4
+        z = (p0[2] + p1[2] + p2[2] + p3[2]) / 4
+        centroids[i, :] = np.array([x, y, z])
     return centroids
 
 
@@ -230,7 +227,7 @@ def read_cell_tensor(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.n
 
         # Add tensor
         field_name = list(cell_data["tetra"].keys())[0]
-        tensor_field[k,:,:] = cell_data["tetra"][field_name].reshape((n_cells, 3, 3))
+        tensor_field[k, :, :] = cell_data["tetra"][field_name].reshape((n_cells, 3, 3))
 
     return centroids, time_list, tensor_field
 
@@ -369,6 +366,6 @@ def read_node_vector(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.n
 
         # Add scalar
         field_name = list(point_data.keys())[0]
-        vector_field[k,:,:] = point_data[field_name]
+        vector_field[k, :, :] = point_data[field_name]
 
     return points, time_list, vector_field
