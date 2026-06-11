@@ -1,6 +1,6 @@
 # Changelog
 
-## Next release
+## 3.0.0
 - Implemented stabilized mixed formulation. Unknowns are displacement and mean stress fields
 - Included proper tests for linear elasticity model
 - Fixed issue of Robin boundary condition not being updated
