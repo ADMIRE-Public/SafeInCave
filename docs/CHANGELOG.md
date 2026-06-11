@@ -2,6 +2,7 @@
 
 ## 3.0.1
 - Fixed License typos.
+- Updated patch version
 
 ## 3.0.0
 - Implemented stabilized mixed formulation. Unknowns are displacement and mean stress fields
