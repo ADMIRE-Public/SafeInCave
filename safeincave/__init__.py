@@ -1,3 +1,6 @@
+# Copyright (c) 2026, The SafeInCave Developers
+#
+# SPDX-License-Identifier: BSD-3-Clause
 """
 SafeInCave
 =========
@@ -9,12 +12,15 @@ This module exposes the public API for the package and
 sets version information.
 """
 
-# Version info
-__version__ = "2.1.0"
+__version__ = "3.0.0"
 
 from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
-from .MomentumEquation import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
+from .MomentumEquation import (
+    LinearMomentumBase,
+    LinearMomentum,
+    LinearMomentumMixed
+)
 from .MaterialProps import (
     Material,
     NonElasticElement,
@@ -36,7 +42,12 @@ from .Simulators import (
     Simulator_M,
 )
 from .ScreenOutput import ScreenPrinter
-from .TimeHandler import TimeControllerBase, TimeController, TimeControllerParabolic, TimeControllerAdaptive
+from .TimeHandler import (
+    TimeControllerBase,
+    TimeController,
+    TimeControllerParabolic,
+    TimeControllerAdaptive
+)
 from . import MomentumBC
 from . import HeatBC
 from . import PostProcessingTools
