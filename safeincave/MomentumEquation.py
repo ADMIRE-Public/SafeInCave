@@ -18,6 +18,7 @@ import torch as to
 from .MaterialProps import Material
 from .Grid import GridHandlerGMSH
 from .Utils import numpy2torch, project, epsilon, dotdot_torch, dotdot_ufl
+from .Parameter_h import ModelML
 
 
 class LinearMomentumBase(ABC):
