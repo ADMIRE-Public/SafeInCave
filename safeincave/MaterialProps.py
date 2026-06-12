@@ -6,7 +6,8 @@ from __future__ import annotations
 import torch as to
 
 # Import all constitutive models from the ConstitutiveModels folder
-from .ConstitutiveModels import *
+from .ConstitutiveModels import Spring, Thermoelastic
+from .ConstitutiveModels import *  # noqa: F403, F405
 from .ConstitutiveModels import __all__ as _CONSTITUTIVE_ALL
 
 __all__ = ["Material"] + _CONSTITUTIVE_ALL

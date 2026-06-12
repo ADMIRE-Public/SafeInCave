@@ -18,7 +18,7 @@ from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
 from .MomentumEquation import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
 from .MaterialProps import Material
-from .ConstitutiveModels import *
+from .ConstitutiveModels import *  # noqa: F403, F405
 from .ConstitutiveModels import __all__ as _CONSTITUTIVE_ALL
 from .OutputHandler import SaveFields
 from .Thermodynamics import CavernThermodynamics
