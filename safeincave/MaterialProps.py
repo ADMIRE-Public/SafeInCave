@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 import torch as to
-import numpy as np
-from .Utils import MPa
 
 
 class Material:
