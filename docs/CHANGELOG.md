@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.0.3
+- Implemented unified output file (solution.xdmf) containing all simulation fields.
+
 ## 3.0.2
 - Refactored MaterialProps.py by moving classes into individual files in ConstitutiveModels folder.
 - Import automation of files in ConstitutiveModels so that the only step to add a new constitutive model is to include the file in the folder.
