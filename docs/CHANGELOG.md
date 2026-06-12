@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.2
+## Next release
 - Refactored MaterialProps.py by moving classes into individual files in ConstitutiveModels folder.
 - Import automation of files in ConstitutiveModels so that the only step to add a new constitutive model is to include the file in the folder.
 - Fixed relative paths inside pytest so that it is more robust to run from anywhere in the repo.
