@@ -10,28 +10,28 @@ This module contains all constitutive element classes for material behavior mode
 - Thermoelastic: Thermoelastic
 - Non-elastic mechanisms: Viscoelastic, LinearDashpot, DislocationCreep, 
   PressureSolutionCreep, ViscoplasticDesai, MunsonDawsonCreep, ModifiedCamClayViscoplastic
+
+Note: Models are auto-discovered from this folder. New model files are automatically
+imported and exported without manual __init__ edits.
 """
 
-from .NonElasticElement import NonElasticElement
-from .Thermoelastic import Thermoelastic
-from .Spring import Spring
-from .Viscoelastic import Viscoelastic
-from .LinearDashpot import LinearDashpot
-from .DislocationCreep import DislocationCreep
-from .PressureSolutionCreep import PressureSolutionCreep
-from .ViscoplasticDesai import ViscoplasticDesai
-from .MunsonDawsonCreep import MunsonDawsonCreep
-from .ModifiedCamClayViscoplastic import ModifiedCamClayViscoplastic
+import pkgutil
+import importlib
 
-__all__ = [
-    "NonElasticElement",
-    "Thermoelastic",
-    "Spring",
-    "Viscoelastic",
-    "LinearDashpot",
-    "DislocationCreep",
-    "PressureSolutionCreep",
-    "ViscoplasticDesai",
-    "MunsonDawsonCreep",
-    "ModifiedCamClayViscoplastic",
-]
+__all__ = []
+
+# Dynamically discover and import all model modules
+for importer, modname, ispkg in pkgutil.iter_modules(__path__):
+    if not modname.startswith('_'):  # Skip private modules
+        module = importlib.import_module(f'.{modname}', package=__name__)
+        # Assume class name matches module name
+        if hasattr(module, modname):
+            class_obj = getattr(module, modname)
+            globals()[modname] = class_obj
+            __all__.append(modname)
+        else:
+            # Fallback: export all public names from module
+            for name in dir(module):
+                if not name.startswith('_'):
+                    globals()[name] = getattr(module, name)
+                    __all__.append(name)

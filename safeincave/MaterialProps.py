@@ -5,6 +5,11 @@
 from __future__ import annotations
 import torch as to
 
+# Import all constitutive models from the ConstitutiveModels folder
+from .ConstitutiveModels import *
+from .ConstitutiveModels import __all__ as _CONSTITUTIVE_ALL
+
+__all__ = ["Material"] + _CONSTITUTIVE_ALL
 
 class Material:
     """
@@ -304,30 +309,3 @@ class Material:
         )
 
 
-# Import all constitutive models from the ConstitutiveModels folder
-from .ConstitutiveModels import (
-    NonElasticElement,
-    Thermoelastic,
-    Spring,
-    Viscoelastic,
-    LinearDashpot,
-    DislocationCreep,
-    PressureSolutionCreep,
-    ViscoplasticDesai,
-    MunsonDawsonCreep,
-    ModifiedCamClayViscoplastic,
-)
-
-__all__ = [
-    "Material",
-    "NonElasticElement",
-    "Thermoelastic",
-    "Spring",
-    "Viscoelastic",
-    "LinearDashpot",
-    "DislocationCreep",
-    "PressureSolutionCreep",
-    "ViscoplasticDesai",
-    "MunsonDawsonCreep",
-    "ModifiedCamClayViscoplastic",
-]
