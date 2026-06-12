@@ -17,12 +17,13 @@ __version__ = "3.0.1"
 from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
 from .MomentumEquation import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
-from .MaterialProps import (
-    Material,
+from .MaterialProps import Material
+from .ConstitutiveModels import (
     NonElasticElement,
     Spring,
     Thermoelastic,
     Viscoelastic,
+    LinearDashpot,
     DislocationCreep,
     PressureSolutionCreep,
     ViscoplasticDesai,
@@ -61,6 +62,7 @@ __all__ = [
     "Spring",
     "Thermoelastic",
     "Viscoelastic",
+    "LinearDashpot",
     "DislocationCreep",
     "PressureSolutionCreep",
     "ViscoplasticDesai",
