@@ -216,6 +216,29 @@ class SaveFields:
             # use individual field files in ParaView instead.
             self.merged_output.write_function(field, t)
 
+    def close(self) -> None:
+        """
+        Close all open XDMF output files.
+
+        Ensures that all file handles opened during :meth:`initialize` are
+        properly closed. This should be called at the end of a simulation to
+        prevent resource leaks and ensure all data is flushed to disk.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Safe to call multiple times (subsequent calls are no-ops).
+        """
+        for output_field in self.output_fields:
+            output_field.close()
+
     def save_mesh(self) -> None:
         """
         Copy the original Gmsh mesh file into ``{output_folder}/mesh/``.
