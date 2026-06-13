@@ -304,6 +304,7 @@ class Simulator_TM(Simulator):
         self.screen.close()
 
         for output in self.outputs:
+            output.close()
             output.save_mesh()
 
 
@@ -546,6 +547,7 @@ class Simulator_M(Simulator):
         self.screen.close()
 
         for output in self.outputs:
+            output.close()
             output.save_mesh()
 
 
@@ -662,6 +664,7 @@ class Simulator_T(Simulator):
         self.screen.close()
 
         for output in self.outputs:
+            output.close()
             output.save_mesh()
 
 
@@ -877,4 +880,5 @@ class Simulator_Mout(Simulator):
 
         self.screen.close()
         for output in self.outputs:
+            output.close()
             output.save_mesh()
