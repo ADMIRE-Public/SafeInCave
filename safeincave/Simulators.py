@@ -35,6 +35,22 @@ class Simulator(ABC):
         """
         pass
 
+    def _finalize_outputs(self) -> None:
+        """
+        Close and finalize all output handlers.
+
+        Closes all XDMF file handles and copies mesh files to the output
+        directory for provenance. This should be called at the end of a
+        simulation's `run()` method.
+
+        Returns
+        -------
+        None
+        """
+        for output in self.outputs:
+            output.close()
+            output.save_mesh()
+
 
 class Simulator_TM(Simulator):
     """
@@ -303,8 +319,7 @@ class Simulator_TM(Simulator):
 
         self.screen.close()
 
-        for output in self.outputs:
-            output.save_mesh()
+        self._finalize_outputs()
 
 
 class Simulator_M(Simulator):
@@ -545,8 +560,7 @@ class Simulator_M(Simulator):
 
         self.screen.close()
 
-        for output in self.outputs:
-            output.save_mesh()
+        self._finalize_outputs()
 
 
 class Simulator_T(Simulator):
@@ -661,8 +675,7 @@ class Simulator_T(Simulator):
 
         self.screen.close()
 
-        for output in self.outputs:
-            output.save_mesh()
+        self._finalize_outputs()
 
 
 class Simulator_Mout(Simulator):
@@ -876,5 +889,4 @@ class Simulator_Mout(Simulator):
             # 		pass
 
         self.screen.close()
-        for output in self.outputs:
-            output.save_mesh()
+        self._finalize_outputs()
