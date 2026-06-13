@@ -16,7 +16,8 @@ import unittest
 
 class Test_CavernVolumeComputer(unittest.TestCase):
     def setUp(self):
-        self.grid = GridHandlerGMSH("geom", os.path.join("files", "cube_caverns"))
+        test_dir = os.path.dirname(__file__)
+        self.grid = GridHandlerGMSH("geom", os.path.join(test_dir, "files", "cube_caverns"))
 
         self.__calculate_expected_volume()
         self.__expected_normals()
@@ -176,7 +177,8 @@ class Test_T(unittest.TestCase):
 
 class Test_PT(unittest.TestCase):
     def setUp(self):
-        self.grid = GridHandlerGMSH("geom", os.path.join("files", "cube_caverns"))
+        test_dir = os.path.dirname(__file__)
+        self.grid = GridHandlerGMSH("geom", os.path.join(test_dir, "files", "cube_caverns"))
 
         MPa = 1e6
 
@@ -252,7 +254,8 @@ class Test_PT(unittest.TestCase):
 
 class Test_MFlux(unittest.TestCase):
     def setUp(self):
-        self.grid = GridHandlerGMSH("geom", os.path.join("files", "cube_caverns"))
+        test_dir = os.path.dirname(__file__)
+        self.grid = GridHandlerGMSH("geom", os.path.join(test_dir, "files", "cube_caverns"))
 
         CG1_3x1 = do.fem.functionspace(
             self.grid.mesh, ("Lagrange", 1, (self.grid.domain_dim,))

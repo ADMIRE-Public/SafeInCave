@@ -180,7 +180,8 @@ class Test1(unittest.TestCase):
 
 class Test2(unittest.TestCase):
     def setUp(self):
-        self.grid = GridHandlerGMSH("geom", os.path.join("..", "grids", "cube_regions"))
+        test_dir = os.path.dirname(__file__)
+        self.grid = GridHandlerGMSH("geom", os.path.join(test_dir, "..", "grids", "cube_regions"))
 
     def test_fields(self):
         def fun_1x1(x, y, z):
@@ -194,8 +195,9 @@ class Test2(unittest.TestCase):
 
         field_nodes = ut.create_field_nodes(self.grid, fun_1x1)
         field_elems = ut.create_field_elems(self.grid, fun_1x1)
+        test_dir = os.path.dirname(__file__)
         data = ut.read_json(
-            os.path.join("files", "expected_values_equations", "field_nodes_elems.json")
+            os.path.join(test_dir, "files", "expected_values_equations", "field_nodes_elems.json")
         )
         expected_field_nodes = to.tensor(data["field_nodes"], dtype=to.float64)
         expected_field_elems = to.tensor(data["field_elems"], dtype=to.float64)
