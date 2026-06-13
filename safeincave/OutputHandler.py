@@ -145,16 +145,12 @@ class SaveFields:
         #    VTK interprets this as a composite dataset and AUTOMATICALLY ADDS:
         #    - vtkCompositeIndex: Internal tracking field (not real data)
         #    - vtkBlockColors: Internal visualization field (not real data)
-        #    These clutter the ParaView field list but are harmless. To hide them:
-        #    Right-click field name in ParaView → Hide
+        #    These clutter the ParaView field list but are harmless.
         #
         # 2. WARP BY VECTOR FILTER FAILURE (Critical Limitation)
         #    ParaView's "Warp by Vector" filter (for mesh deformation visualization)
         #    FAILS or BEHAVES INCORRECTLY when multiple vector fields are present.
         #    ROOT CAUSE: Filter input selection is ambiguous with composite metadata.
-        #    WORKAROUND: Use individual field files instead:
-        #    - output_folder/u/u.xdmf for displacement deformation
-        #    Do NOT use this merged file for deformation visualization.
         #
         # 3. XDMF STRUCTURE LIMITATION (DOLFINx API)
         #    DOLFINx's XDMFFile does not support external mesh references.
@@ -163,6 +159,7 @@ class SaveFields:
         #    Workaround: None; inherent to DOLFINx API design.
         #
         # 4. USE CASES FOR MERGED vs INDIVIDUAL FILES
+        #
         #    USE MERGED (solution.xdmf) FOR:
         #    - Post-processing analysis across all fields simultaneously
         #    - Correlation studies between fields
