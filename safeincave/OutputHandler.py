@@ -148,8 +148,8 @@ class SaveFields:
         #    These clutter the ParaView field list but are harmless. To hide them:
         #    Right-click field name in ParaView → Hide
         #
-        # 2. WRAP BY VECTOR FILTER FAILURE (Critical Limitation)
-        #    ParaView's "Wrap by Vector" filter (for mesh deformation visualization)
+        # 2. WARP BY VECTOR FILTER FAILURE (Critical Limitation)
+        #    ParaView's "Warp by Vector" filter (for mesh deformation visualization)
         #    FAILS or BEHAVES INCORRECTLY when multiple vector fields are present.
         #    ROOT CAUSE: Filter input selection is ambiguous with composite metadata.
         #    WORKAROUND: Use individual field files instead:
@@ -170,7 +170,7 @@ class SaveFields:
         #    - Quick initial result verification
         #
         #    USE INDIVIDUAL FILES FOR:
-        #    - Mesh deformation visualization (Wrap by Vector) → u/u.xdmf
+        #    - Mesh deformation visualization (Warp by Vector) → u/u.xdmf
         #    - Field-specific analysis and filtering
         #    - Publication-quality visualizations
         #    - Large simulations (smaller file size per field)
@@ -212,7 +212,7 @@ class SaveFields:
             field.name = field_data["label_name"]
             self.output_fields[i].write_function(field, t)
             # Write to merged solution file for unified analysis across all fields.
-            # For specific field visualization (e.g., deformation via Wrap by Vector),
+            # For specific field visualization (e.g., deformation via Warp by Vector),
             # use individual field files in ParaView instead.
             self.merged_output.write_function(field, t)
 
