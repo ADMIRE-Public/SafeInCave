@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.0.2
+- Fixed bug in initial stress implementation in the mixed formulation
+
 ## 3.0.1
 - Fixed License typos.
 - Updated patch version
