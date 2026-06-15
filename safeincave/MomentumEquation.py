@@ -128,6 +128,7 @@ class LinearMomentumBase(ABC):
         self.T0 = to.zeros(self.n_elems, dtype=to.float64)
         self.Temp = to.zeros(self.n_elems, dtype=to.float64)
         self.sig = do.fem.Function(self.DG0_3x3)
+        self.sig0 = do.fem.Function(self.DG0_3x3)
         self.eps_tot = do.fem.Function(self.DG0_3x3)
         self.eps_0 = do.fem.Function(self.DG0_3x3)
         self.u = do.fem.Function(self.CG1_3x1)
@@ -930,6 +931,7 @@ class LinearMomentum(LinearMomentumBase):
         self.eps_0.x.array[:] = to.flatten(self.eps0_to)
         # self.eps_tot.x.array[:] = to.flatten(self.eps0_to)
         self.sig.x.array[:] = to.flatten(sig0)
+        self.sig0.x.array[:] = to.flatten(sig0)
 
     def compute_eps_rhs(self, dt: float, stress_k: to.Tensor) -> None:
         """
@@ -979,9 +981,12 @@ class LinearMomentum(LinearMomentumBase):
         A.assemble()
 
         # Build linear form
-        b_rhs = ufl.inner(dotdot_ufl(self.C, -self.eps_0), epsilon(self.u_)) * self.dx
+        b_rhs = ufl.inner(self.sig0, epsilon(self.u_)) * self.dx
         linear_form = do.fem.form(
-            self.b_body + sum(self.bc.neumann_bcs) + sum(self.bc.cavern_bcs) + b_rhs
+            self.b_body + 
+            sum(self.bc.neumann_bcs) +
+            sum(self.bc.cavern_bcs) +
+            b_rhs
         )
         b = fem_petsc.assemble_vector(linear_form)
         fem_petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
@@ -1151,7 +1156,6 @@ class LinearMomentumMixed(LinearMomentumBase):
         self.eps_rhs_tilde = do.fem.Function(self.DG0_3x3)
         self.eps_ne_vol = do.fem.Function(self.DG0_1)
         self.eps_th_vol = do.fem.Function(self.DG0_1)
-        self.eps_0_vol = do.fem.Function(self.DG0_1)
         self.eps_0_tilde = do.fem.Function(self.DG0_3x3)
         self.K = do.fem.Function(self.DG0_1)
         self.E = do.fem.Function(self.DG0_1)
@@ -1225,14 +1229,12 @@ class LinearMomentumMixed(LinearMomentumBase):
         ------------
         Sets :attr:`sig` field.
         """
-        eps0_to = dotdot_torch(self.mat.C_inv, sig0)
-        self.eps_0_tilde_to = self.compute_eps_tilde(eps0_to)
-        eps_0_vol_to = to.einsum("bii->b", eps0_to)
-
-        self.eps_0.x.array[:] = to.flatten(eps0_to)
+        # self.eps0_to = dotdot_torch(self.mat.C_inv, sig0)
+        one_over_2G = self.mat.C_tilde_inv[:,0,0]
+        self.eps_0_tilde_to = sig0 * one_over_2G[:, None, None]
         self.eps_0_tilde.x.array[:] = to.flatten(self.eps_0_tilde_to)
-        self.eps_0_vol.x.array[:] = to.flatten(eps_0_vol_to)
         self.sig.x.array[:] = to.flatten(sig0)
+
 
     def compute_eps_k_ne_vol(self, eps_k_ne):
         eps_k_ne_vol = to.einsum("bii->b", eps_k_ne)
@@ -1269,7 +1271,8 @@ class LinearMomentumMixed(LinearMomentumBase):
         return self.p_nodes
 
     def compute_p_elems(self) -> do.fem.Function:
-        self.p_elems = project(ufl.tr(self.sig) / 3, self.DG0_1)
+        # self.p_elems = project(ufl.tr(self.sig) / 3, self.DG0_1)
+        self.p_elems = project(self.p_nodes, self.DG0_1)
         return self.p_elems
 
     def compute_moduli(self, stress_to):
@@ -1311,7 +1314,10 @@ class LinearMomentumMixed(LinearMomentumBase):
 
         # Build linear form
         linear_form = do.fem.form(
-            self.b_body + sum(self.bc.neumann_bcs) + sum(self.bc.cavern_bcs)
+            self.b_body + 
+            sum(self.bc.neumann_bcs) + 
+            sum(self.bc.cavern_bcs) +
+            ufl.inner(self.sig0, epsilon(self.u_)) * self.dx
         )
         b = do.fem.petsc.assemble_vector(linear_form)
         do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
@@ -1389,7 +1395,6 @@ class LinearMomentumMixed(LinearMomentumBase):
             self.K
             * (
                 phi2 * (self.T_vol * self.p_k + self.B_vol)
-                + self.eps_0_vol
                 - self.eps_ne_vol
                 - self.eps_th_vol
             )
