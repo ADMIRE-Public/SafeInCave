@@ -17,18 +17,9 @@ __version__ = "3.0.1"
 from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
 from .MomentumEquation import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
-from .MaterialProps import (
-    Material,
-    NonElasticElement,
-    Spring,
-    Thermoelastic,
-    Viscoelastic,
-    DislocationCreep,
-    PressureSolutionCreep,
-    ViscoplasticDesai,
-    MunsonDawsonCreep,
-    ModifiedCamClayViscoplastic,
-)
+from .MaterialProps import Material
+from .ConstitutiveModels import *  # noqa: F403, F405
+from .ConstitutiveModels import __all__ as _CONSTITUTIVE_ALL
 from .OutputHandler import SaveFields
 from .Thermodynamics import CavernThermodynamics
 from . import CavernBC
@@ -57,15 +48,6 @@ __all__ = [
     "LinearMomentum",
     "LinearMomentumMixed",
     "Material",
-    "NonElasticElement",
-    "Spring",
-    "Thermoelastic",
-    "Viscoelastic",
-    "DislocationCreep",
-    "PressureSolutionCreep",
-    "ViscoplasticDesai",
-    "MunsonDawsonCreep",
-    "ModifiedCamClayViscoplastic",
     "SaveFields",
     "Simulator_TM",
     "Simulator_T",
@@ -81,7 +63,7 @@ __all__ = [
     "CavernThermodynamics",
     "PostProcessingTools",
     "Utils",
-]
+] + _CONSTITUTIVE_ALL
 
 __author__ = "Hermínio T. Honório"
 __email__ = "h.tasinafohonorio@tno.nl"

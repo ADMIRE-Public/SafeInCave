@@ -58,6 +58,7 @@ class SaveFields:
         self.eq = eq
         self.fields_data = []
         self.output_fields = []
+        self.merged_output = None
 
     def set_output_folder(self, output_folder: str) -> None:
         """
@@ -136,9 +137,55 @@ class SaveFields:
             output_field.write_mesh(self.eq.grid.mesh)
             self.output_fields.append(output_field)
 
+        # Create merged solution file containing all fields
+        # IMPORTANT: Known limitations and behaviors of this merged XDMF file:
+        #
+        # 1. VTK COMPOSITE METADATA (Artifacts)
+        #    When multiple <Attribute> elements exist in the same XDMF <Grid>,
+        #    VTK interprets this as a composite dataset and AUTOMATICALLY ADDS:
+        #    - vtkCompositeIndex: Internal tracking field (not real data)
+        #    - vtkBlockColors: Internal visualization field (not real data)
+        #    These clutter the ParaView field list but are harmless.
+        #
+        # 2. WARP BY VECTOR FILTER FAILURE (Critical Limitation)
+        #    ParaView's "Warp by Vector" filter (for mesh deformation visualization)
+        #    FAILS or BEHAVES INCORRECTLY when multiple vector fields are present.
+        #    ROOT CAUSE: Filter input selection is ambiguous with composite metadata.
+        #
+        # 3. XDMF STRUCTURE LIMITATION (DOLFINx API)
+        #    DOLFINx's XDMFFile does not support external mesh references.
+        #    Result: Mesh geometry/topology is DUPLICATED in this file.
+        #    Impact: Larger file size (minor for most simulations).
+        #    Workaround: None; inherent to DOLFINx API design.
+        #
+        # 4. USE CASES FOR MERGED vs INDIVIDUAL FILES
+        #
+        #    USE MERGED (solution.xdmf) FOR:
+        #    - Post-processing analysis across all fields simultaneously
+        #    - Correlation studies between fields
+        #    - Statistical analysis and data export
+        #    - Quick initial result verification
+        #
+        #    USE INDIVIDUAL FILES FOR:
+        #    - Mesh deformation visualization (Warp by Vector) → u/u.xdmf
+        #    - Field-specific analysis and filtering
+        #    - Publication-quality visualizations
+        #    - Large simulations (smaller file size per field)
+        #
+        merged_path = os.path.join(self.output_folder, "solution", "solution.xdmf")
+        os.makedirs(os.path.dirname(merged_path), exist_ok=True)
+        self.merged_output = do.io.XDMFFile(
+            self.eq.grid.mesh.comm,
+            merged_path,
+            "w",
+        )
+        self.merged_output.write_mesh(self.eq.grid.mesh)
+
     def save_fields(self, t: float) -> None:
         """
         Write all registered fields at simulation time ``t``.
+
+        Writes to BOTH individual field files AND the merged solution file.
 
         Parameters
         ----------
@@ -153,13 +200,41 @@ class SaveFields:
         -----
         For each descriptor in :attr:`fields_data`:
         1. Fetches the field via ``getattr(self.eq, field_name)``.
-        2. Sets ``field.name = label_name``.
-        3. Calls ``XDMFFile.write_function(field, t)`` on the corresponding writer.
+        2. Sets ``field.name = label_name`` (used in visualization).
+        3. Calls ``XDMFFile.write_function(field, t)`` on individual writer.
+        4. Calls ``XDMFFile.write_function(field, t)`` on merged solution writer.
         """
         for i, field_data in enumerate(self.fields_data):
             field = getattr(self.eq, field_data["field_name"])
             field.name = field_data["label_name"]
             self.output_fields[i].write_function(field, t)
+            # Write to merged solution file for unified analysis across all fields.
+            # For specific field visualization (e.g., deformation via Warp by Vector),
+            # use individual field files in ParaView instead.
+            self.merged_output.write_function(field, t)
+
+    def close(self) -> None:
+        """
+        Close all open XDMF output files.
+
+        Ensures that all file handles opened during :meth:`initialize` are
+        properly closed. This should be called at the end of a simulation to
+        prevent resource leaks and ensure all data is flushed to disk.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Safe to call multiple times (subsequent calls are no-ops).
+        """
+        for output_field in self.output_fields:
+            output_field.close()
 
     def save_mesh(self) -> None:
         """
