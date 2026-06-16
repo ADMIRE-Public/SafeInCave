@@ -8,6 +8,10 @@
 - Included closing of output.
 - Implemented unified output file (solution.xdmf) containing all simulation fields.
 
+## 3.0.3
+- Fixed mean stress calculation in P1P1 (mixed) formulation
+- Removed mean stress smoother from P1 formulation
+
 ## 3.0.2
 - Fixed bug in initial stress implementation in the mixed formulation
 

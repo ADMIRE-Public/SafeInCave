@@ -65,9 +65,7 @@ SafeInCave installation depends on [FEniCSx](https://fenicsproject.org/) install
 
 3) Installing [FEniCSx](https://fenicsproject.org/download/)
 
-4) Installing SafeInCave
-
-See SafeInCave [installation guidelines](https://admire-public.github.io/SafeInCave/home/) for further details.
+4) Installing [SafeInCave](https://admire-public.github.io/SafeInCave/home/installation/)
 
 
 ## Getting started
@@ -80,6 +78,7 @@ Users can build their own simulators using the *safeincave* package. The [Exampl
 - [Hadi Hajibeygi](https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/sections/reservoir-engineering/staff/academic-staff/profdr-h-hajibeygi)
 - [Hermínio Tasinafo Honório](https://www.linkedin.com/in/herminioth/)
 - [Lucas Landeweerd](https://www.linkedin.com/in/lucaslandeweerd/)
+- [Mathias Jose Kreutz Erdtmann](https://www.linkedin.com/in/mathias-kreutz-erdtmann/)
 
 
 ## License

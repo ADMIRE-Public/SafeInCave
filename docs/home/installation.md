@@ -60,6 +60,12 @@ Go to *SafeInCave* root folder.
 cd SafeInCave
 ```
 
+It is recommended to use the latest stable release, currently 3.0.2.
+
+```bash
+git checkout v3.0.2
+```
+
 Install SafeInCave and all of its dependencies.
 
 ```bash
