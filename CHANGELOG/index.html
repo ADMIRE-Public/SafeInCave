@@ -600,6 +600,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#next-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next release
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#303" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.0.3
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#302" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2719,6 +2741,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#next-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next release
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#303" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.0.3
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#302" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2789,6 +2833,20 @@
 
 
 <h1 id="changelog">Changelog</h1>
+<h2 id="next-release">Next release</h2>
+<ul>
+<li>Refactored MaterialProps.py by moving classes into individual files in ConstitutiveModels folder.</li>
+<li>Import automation of files in ConstitutiveModels so that the only step to add a new constitutive model is to include the file in the folder.</li>
+<li>Fixed relative paths inside pytest so that it is more robust to run from anywhere in the repo.</li>
+<li>Fixed import standards to comply with linting.</li>
+<li>Included closing of output.</li>
+<li>Implemented unified output file (solution.xdmf) containing all simulation fields.</li>
+</ul>
+<h2 id="303">3.0.3</h2>
+<ul>
+<li>Fixed mean stress calculation in P1P1 (mixed) formulation</li>
+<li>Removed mean stress smoother from P1 formulation</li>
+</ul>
 <h2 id="302">3.0.2</h2>
 <ul>
 <li>Fixed bug in initial stress implementation in the mixed formulation</li>
