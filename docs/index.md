@@ -67,7 +67,7 @@ SafeInCave installation depends on [FEniCSx](https://fenicsproject.org/) install
 
 4) Installing SafeInCave
 
-See SafeInCave [installation guidelines](https://admire-public.github.io/SafeInCave/home/) for further details.
+See SafeInCave [installation guidelines](https://admire-public.github.io/SafeInCave/home/installation/) for further details.
 
 
 ## Getting started

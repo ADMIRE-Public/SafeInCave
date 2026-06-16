@@ -1,15 +1,50 @@
 # P1-P1 formulation
 
-The stress tensor can be decomposed in a deviatoric and a sphecial part as follows
+<!-- The stress tensor can be decomposed in a deviatoric and a sphecial part as follows -->
 
-$$
+<!-- $$
 \begin{equation}
     \pmb{\sigma} = \tilde{\pmb{\sigma}} + p \mathbf{I}
     \label{eq:stress_0}
 \end{equation}
+$$ -->
+
+The stress tensor can be represented in terms of the elastic strain tensor as
+
+$$
+\begin{equation}
+    \pmb{\sigma} = \pmb{\sigma}_0 + 2G \pmb{\varepsilon}_e + \lambda \varepsilon_{e,v} \mathbf{I}.
+\end{equation}
 $$
 
-where $p = \frac{1}{3} \mathrm{tr}(\pmb{\sigma})$ is referred to as the mean stress, and $\tilde{\pmb{\sigma}}$ denotes the deviatoric stress tensor. 
+where $G$ and $\lambda$ denote the shear modulus and first Lamè's parameter, respectively. Decomposing the elastic strain tensor in its deviatoric $\tilde{\pmb{\varepsilon}}_e$ and spherical parts, gives
+
+$$
+\begin{equation}
+    \pmb{\sigma} = \pmb{\sigma}_0 + 2G \left( \tilde{\pmb{\varepsilon}}_e + \frac{1}{3} \varepsilon_{e,v} \right) + \lambda \varepsilon_{e,v} \mathbf{I}
+\end{equation}
+$$
+
+Recognizing that the elastic bulk modulus is given by $K = \frac{2G}{3} + \lambda$, and the mean stress relates to the volumetric elastic strain by $p = K \varepsilon_{e,v}$, it follows that,
+
+$$
+\begin{equation}
+    \pmb{\sigma} = \pmb{\sigma}_0 + 2G \tilde{\pmb{\varepsilon}}_e + p \mathbf{I}
+\end{equation}
+$$
+
+Moreover, we have defined that $\tilde{\pmb{\varepsilon}}_e = \tilde{\pmb{\varepsilon}} - \tilde{\pmb{\varepsilon}}_{ne}$, therefore, the stress tensor can be represented as
+
+$$
+\begin{equation}
+    \pmb{\sigma} = \pmb{\sigma}_0 + 2G \left( \tilde{\pmb{\varepsilon}} - \tilde{\pmb{\varepsilon}}_{ne} \right) + p \mathbf{I}
+    \label{eq:stress_0}
+\end{equation}
+$$
+
+where $\tilde{\pmb{\varepsilon}}_{ne}$ is the deviatoric part of the non-elastic strain tensor. The term $\tilde{\pmb{\varepsilon}}_{ne}$ is a function of the stress itself (among other parameters). As result, Eq. $\eqref{eq:stress_0}$ becomes non-linear. The linearization of Eq. $\eqref{eq:stress_0}$ is described below.
+
+<!-- where $p = \frac{1}{3} \mathrm{tr}(\pmb{\sigma})$ is referred to as the mean stress, and $\tilde{\pmb{\sigma}}$ denotes the deviatoric stress tensor.  -->
 
 <!-- Considering an initial stress $\pmb{\sigma}_0$, the above decomposition becomes
 
@@ -23,7 +58,7 @@ $$ -->
 
 <a id="sec-linearization-P1P1"></a>
 ## Stress linearization
-The deviatoric stress tensor relates to the deviatoric part of the elastic strain tensor through the shear modulus $G$, that is,
+<!-- The deviatoric stress tensor relates to the deviatoric part of the elastic strain tensor through the shear modulus $G$, that is,
 
 $$
 \begin{equation}
@@ -32,7 +67,7 @@ $$
 \end{equation}
 $$
 
-where $\tilde{\pmb{\sigma}}_0$ is the initial deviatoric stress tensor, and $\tilde{\pmb{\varepsilon}}$ and $\tilde{\pmb{\varepsilon}}_{ne}$ respectively denote the deviatoric parts of the total strain and non-elastic strain tensors.
+where $\tilde{\pmb{\sigma}}_0$ is the initial deviatoric stress tensor, and $\tilde{\pmb{\varepsilon}}$ and $\tilde{\pmb{\varepsilon}}_{ne}$ respectively denote the deviatoric parts of the total strain and non-elastic strain tensors. -->
 
 The total volumetric strain and the deviatoric total strain tensor are given by
 
@@ -84,15 +119,27 @@ $$
 
     See [1] for further details on the derivation of the above equations.
 
-Substituting Eq. $\eqref{eq:tilde_eps_ne_1}$ into Eq. $\eqref{eq:tilde_sigma_0}$ leads to
+Substituting Eq. $\eqref{eq:tilde_eps_ne_1}$ into Eq. $\eqref{eq:stress_0}$ and dividing by $2G$ leads to
 
 $$
 \begin{equation}
-    \tilde{\pmb{\sigma}} - \tilde{\pmb{\sigma}}_0 = 2 G \left[ \tilde{\pmb{\varepsilon}} - \tilde{\pmb{\varepsilon}}_{ne}^k - \phi_2 \left( \tilde{\mathbb{G}}_{ne}^k : \delta \pmb{\sigma} - \tilde{\mathbf{B}}_{ne}^k \right) \right],
+    \frac{1}{2G}\pmb{\sigma} = \frac{1}{2G}\pmb{\sigma}_0 + \tilde{\pmb{\varepsilon}} - \tilde{\pmb{\varepsilon}}_{ne}^k - \phi_2 \left( \tilde{\mathbb{G}}_{ne}^k : \delta \pmb{\sigma} - \tilde{\mathbf{B}}_{ne}^k \right) + p \mathbf{I},
 \end{equation}
 $$
 
 Recalling that $\delta \pmb{\sigma} = \pmb{\sigma} - \pmb{\sigma}^k$, then
+
+$$
+\begin{equation}
+    \underbrace{\left( \frac{1}{2G} \mathbb{I} + \phi_2 \tilde{\mathbb{G}}_{ne}^k \right)}_{\tilde{\mathbb{C}}_T^{-1}} : \pmb{\sigma} = \tilde{\pmb{\varepsilon}} + \frac{1}{2G} p \mathbf{I} + \frac{1}{2G} \pmb{\sigma}_0 - \tilde{\pmb{\varepsilon}}_\text{rhs}^k
+\end{equation}
+$$
+
+$$
+\begin{equation}
+    \pmb{\sigma} = \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}} + \frac{1}{2G} p \mathbf{I} + \frac{1}{2G} \pmb{\sigma}_0 - \tilde{\pmb{\varepsilon}}_\text{rhs}^k \right)
+\end{equation}
+$$
 
 $$
 \begin{equation}
