@@ -12,7 +12,7 @@ This module exposes the public API for the package and
 sets version information.
 """
 
-__version__ = "3.0.1"
+__version__ = "3.0.3"
 
 from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
