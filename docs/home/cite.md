@@ -4,44 +4,47 @@ If you use SafeInCave in your publications, you can cite it according to your pr
 <details>
 <summary>.bib</summary>
 ```latex
-@software{admirepublic_safeincave_2025,
-  author    = {{ADMIRE-Public}},
-  title     = {{ADMIRE-Public/SafeInCave: SafeInCave V2.0.0}},
-  publisher = {Zenodo},
-  date      = {2025-09-21},
-  doi       = {10.5281/zenodo.17169591},
-  url       = {https://doi.org/10.5281/zenodo.17169591},
-  version   = {V2.0.0}
+@software{honorio_2026_20722991,
+  author       = {Honório, Hermínio and
+                  Hajibeygi, Hadi},
+  title        = {SafeInCave v3.0.3},
+  month        = jun,
+  year         = 2026,
+  publisher    = {Zenodo},
+  version      = {v3.0.3},
+  doi          = {10.5281/zenodo.20722991},
+  url          = {https://doi.org/10.5281/zenodo.20722991},
 }
 ```
 </details>
 
+
 <details>
 <summary>APA</summary>
-ADMIRE-Public. (2025). ADMIRE-Public/SafeInCave: SafeInCave v2.0.0 (v2.0.0). Zenodo. https://doi.org/10.5281/zenodo.17169591
+Honório, H., & Hajibeygi, H. (2026). SafeInCave v3.0.3 (v3.0.3). Zenodo. https://doi.org/10.5281/zenodo.20722991
 </details>
 
 <details>
 <summary>Harvard</summary>
-ADMIRE-Public (2025) “ADMIRE-Public/SafeInCave: SafeInCave v2.0.0”. Zenodo. doi:10.5281/zenodo.17169591.
+Honório, H. and Hajibeygi, H. (2026) “SafeInCave v3.0.3”. Zenodo. doi:10.5281/zenodo.20722991.
 </details>
 
 <details>
 <summary>MLA</summary>
-ADMIRE-Public. ADMIRE-Public/SafeInCave: SafeInCave V2.0.0. v2.0.0, Zenodo, 21 Sept. 2025, https://doi.org/10.5281/zenodo.17169591.
+Honório, H.and H. Hajibeygi. SafeInCave V3.0.3. v3.0.3, Zenodo, 16 June 2026, https://doi.org/10.5281/zenodo.20722991.
 </details>
 
 <details>
 <summary>Vancouver</summary>
-1. ADMIRE-Public. ADMIRE-Public/SafeInCave: SafeInCave v2.0.0. Zenodo; 2025.
+1. Honório H, Hajibeygi H. SafeInCave v3.0.3. Zenodo; 2026. 
 </details>
 
 <details>
 <summary>Chicago</summary>
-ADMIRE-Public. “ADMIRE-Public/SafeInCave: SafeInCave V2.0.0”. Zenodo, September 21, 2025. https://doi.org/10.5281/zenodo.17169591.
+Honório, Hermínio, and Hadi Hajibeygi. “SafeInCave V3.0.3”. Zenodo, June 16, 2026. https://doi.org/10.5281/zenodo.20722991.
 </details>
 
 <details>
 <summary>IEEE</summary>
-[1] ADMIRE-Public, “ADMIRE-Public/SafeInCave: SafeInCave v2.0.0”. Zenodo, Sep. 21, 2025. doi: 10.5281/zenodo.17169591.
+[1] H. Honório and H. Hajibeygi, “SafeInCave v3.0.3”. Zenodo, Jun. 16, 2026. doi: 10.5281/zenodo.20722991.
 </details>
