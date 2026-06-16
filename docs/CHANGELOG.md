@@ -6,7 +6,7 @@
 - Fixed relative paths inside pytest so that it is more robust to run from anywhere in the repo.
 - Fixed import standards to comply with linting.
 - Included closing of output.
-- Implemented unified output file (solution.xdmf) containing all simulation fields.
+- Implemented unified output file (solution.xdmf) containing all simulation fields
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
