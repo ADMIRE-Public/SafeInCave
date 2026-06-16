@@ -58,26 +58,6 @@ $$ -->
 
 <a id="sec-linearization-P1P1"></a>
 ## Stress linearization
-<!-- The deviatoric stress tensor relates to the deviatoric part of the elastic strain tensor through the shear modulus $G$, that is,
-
-$$
-\begin{equation}
-    \tilde{\pmb{\sigma}} - \tilde{\pmb{\sigma}}_0  = 2G \ \tilde{\pmb{\varepsilon}}_e = 2 G \left( \tilde{\pmb{\varepsilon}} - \tilde{\pmb{\varepsilon}}_{ne} \right),
-    \label{eq:tilde_sigma_0}
-\end{equation}
-$$
-
-where $\tilde{\pmb{\sigma}}_0$ is the initial deviatoric stress tensor, and $\tilde{\pmb{\varepsilon}}$ and $\tilde{\pmb{\varepsilon}}_{ne}$ respectively denote the deviatoric parts of the total strain and non-elastic strain tensors. -->
-
-The total volumetric strain and the deviatoric total strain tensor are given by
-
-$$
-\begin{align}
-    &\varepsilon_v = \mathrm{tr} (\pmb{\varepsilon}) = \nabla \cdot \mathbf{u}
-    \\
-    &\tilde{\pmb{\varepsilon}} = \pmb{\varepsilon} - \frac{1}{3}\varepsilon_v\mathbf{I} = \frac{1}{2}\left( \nabla\mathbf{u} + \nabla\mathbf{u}^T \right) - \frac{1}{3} \left( \nabla \cdot \mathbf{u} \right) \mathbf{I},\label{eq:tilde_eps}
-\end{align}
-$$
 
 The volumetric and the deviatoric parts of the non-elastic strain tensor can be respectively expressed as
 
@@ -131,45 +111,16 @@ Recalling that $\delta \pmb{\sigma} = \pmb{\sigma} - \pmb{\sigma}^k$, then
 
 $$
 \begin{equation}
-    \underbrace{\left( \frac{1}{2G} \mathbb{I} + \phi_2 \tilde{\mathbb{G}}_{ne}^k \right)}_{\tilde{\mathbb{C}}_T^{-1}} : \pmb{\sigma} = \tilde{\pmb{\varepsilon}} + \frac{1}{2G} p \mathbf{I} + \frac{1}{2G} \pmb{\sigma}_0 - \tilde{\pmb{\varepsilon}}_\text{rhs}^k
+    \left( \frac{1}{2G} \mathbb{I} + \phi_2 \tilde{\mathbb{G}}_{ne}^k \right) : \pmb{\sigma} = \tilde{\pmb{\varepsilon}} + \frac{1}{2G} p \mathbf{I} + \frac{1}{2G} \pmb{\sigma}_0 - \tilde{\pmb{\varepsilon}}_\text{rhs}^k
 \end{equation}
 $$
 
-$$
-\begin{equation}
-    \pmb{\sigma} = \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}} + \frac{1}{2G} p \mathbf{I} + \frac{1}{2G} \pmb{\sigma}_0 - \tilde{\pmb{\varepsilon}}_\text{rhs}^k \right)
-\end{equation}
-$$
+Finally, the linearized stress tensor can be expressed as
 
 $$
 \begin{equation}
-    \tilde{\pmb{\sigma}} = \tilde{\pmb{\sigma}}_0 + 2 G \left( \tilde{\pmb{\varepsilon}} - \tilde{\pmb{\varepsilon}}_\text{rhs}^k - \phi_2 \tilde{\mathbb{G}}_{ne}^k : \pmb{\sigma} \right),
-    \label{eq:tilde_sigma_1}
-\end{equation}
-$$
-
-where
-
-$$
-\begin{equation}
-    \tilde{\pmb{\varepsilon}}_\text{rhs}^k = \tilde{\pmb{\varepsilon}}_{ne}^k + \phi_2 \tilde{\mathbb{G}}_{ne}^k : \pmb{\sigma}^k + \phi_2 \tilde{\mathbf{B}}_{ne}^k
-\end{equation}
-$$
-
-Finally, substituting Eq. $\eqref{eq:tilde_sigma_1}$ into Eq. $\eqref{eq:stress_0}$ and solving for $\pmb{\sigma}$ results in the following expression for the linearized stress tensor
-
-$$
-\begin{equation}
-    \pmb{\sigma} = \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}} + \tilde{\pmb{\varepsilon}}_0 + \frac{1}{2G} p \mathbf{I} - \tilde{\pmb{\varepsilon}}_\text{rhs}^k \right)
+    \pmb{\sigma} = \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}} + \frac{1}{2G} p \mathbf{I} + \frac{1}{2G} \pmb{\sigma}_0 - \tilde{\pmb{\varepsilon}}_\text{rhs}^k \right).
     \label{eq:stress_linearized}
-\end{equation}
-$$
-
-where $\tilde{\pmb{\varepsilon}}_0 = \frac{1}{2G} \tilde{\sigma}_0$, and
-
-$$
-\begin{equation}
-    \tilde{\mathbb{C}}_T^k = \left( \frac{1}{2G} \mathbb{I} + \phi_2 \tilde{\mathbb{G}}_{ne}^k \right)^{-1}
 \end{equation}
 $$
 
@@ -180,7 +131,7 @@ $$
 The momentum balance equation is written as
 
 $$
-\nabla \cdot \pmb{\sigma} = \mathbf{b}
+\nabla \cdot \pmb{\sigma} = \mathbf{b}.
 \label{eq:mom_0}
 $$
 
@@ -191,8 +142,19 @@ $$
     \nabla \cdot \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}} + \frac{1}{2G} p \mathbf{I} \right)
     =
     \mathbf{b} + 
-    \nabla \cdot \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}}_\text{rhs}^k - \tilde{\pmb{\varepsilon}}_0 \right).
+    \nabla \cdot \tilde{\mathbb{C}}_T^k : \left( \tilde{\pmb{\varepsilon}}_\text{rhs}^k - \frac{1}{2G} \pmb{\sigma}_0 \right),
 \end{equation}
+$$
+
+where the total volumetric strain and the deviatoric total strain tensors are given by
+
+$$
+\begin{align}
+    &\varepsilon_v = \mathrm{tr} (\pmb{\varepsilon}) = \nabla \cdot \mathbf{u},
+    \\
+    &\tilde{\pmb{\varepsilon}} = \pmb{\varepsilon} - \frac{1}{3}\varepsilon_v\mathbf{I} = \frac{1}{2}\left( \nabla\mathbf{u} + \nabla\mathbf{u}^T \right) - \frac{1}{3} \left( \nabla \cdot \mathbf{u} \right) \mathbf{I}.
+    \label{eq:tilde_eps}
+\end{align}
 $$
 
 
@@ -201,17 +163,17 @@ $$
 In solid mechanics, the mass balance equation relates the mean stress $p$ to the elastic volumetric strain $\varepsilon_{e,v}$, that is,
 
 $$
-p - p_0 = K \varepsilon_{e,v} = K \left( \varepsilon_{v} - \varepsilon_{th,v} - \varepsilon_{ne,v} \right)
+p = K \varepsilon_{e,v} = K \left( \varepsilon_{v} - \varepsilon_{th,v} - \varepsilon_{ne,v} \right)
 \label{eq:eq:mean_stress_0}
 $$
 
-where $p_0$ is the initial mean stress, $K$ is the elastic bulk modulus, $\pmb{\varepsilon}_{v}$ is the total volumetric strain, and $\varepsilon_{ne,v}$ is the non-elastic volumetric strain.
+where $K$ is the elastic bulk modulus, $\pmb{\varepsilon}_{v}$ is the total volumetric strain, and $\varepsilon_{ne,v}$ is the non-elastic volumetric strain.
 
 
 Substituting Eq. $\eqref{eq:eps_nev}$ into Eq. $\eqref{eq:eq:mean_stress_0}$,
 
 $$
-p - p_0 = K \left( \varepsilon_{v} - \varepsilon_{th,v} - \varepsilon_{ne,v}^k - \phi_2 \mathbf{F}^k : \delta \pmb{\sigma} + \phi_2 B_{ne,v}^k \right)
+p = K \left( \varepsilon_{v} - \varepsilon_{th,v} - \varepsilon_{ne,v}^k - \phi_2 \mathbf{F}^k : \delta \pmb{\sigma} + \phi_2 B_{ne,v}^k \right)
 \label{eq:mean_stress_1}
 $$
 
@@ -219,7 +181,7 @@ We remind that $\delta \pmb{\sigma} = \delta \tilde{\pmb{\sigma}} + \delta p \ma
 
 $$
 \begin{equation}
-    K^{-1}p = K^{-1}p_0 + \varepsilon_{v} - \varepsilon_{th,v} - \varepsilon_{ne,v}^k - \phi_2 F_v^k \delta p + \phi_2 B_{ne,v}^k
+    K^{-1}p = \varepsilon_{v} - \varepsilon_{th,v} - \varepsilon_{ne,v}^k - \phi_2 F_v^k \delta p + \phi_2 B_{ne,v}^k
     \label{eq:mean_stress_2}
 \end{equation}
 $$
@@ -228,15 +190,15 @@ where $F_v^k = \mathbf{F}^k : \mathbf{I} = \mathrm{tr}(\mathbf{F}^k)$. Again, re
 
 $$
 \begin{equation}
-    K_T^k p - \varepsilon_{v} = K^{-1}p_0 + b_p^k - \varepsilon_{th,v}
+    K_T^k p - \varepsilon_{v} = b_p^k - \varepsilon_{ne,v}^k - \varepsilon_{th,v}
     \label{eq:mean_stress_3}
 \end{equation}
 $$
 
-where $b_p^k = \phi_2 \left(F_v^k p^k + B_{ne,v}^k\right) - \varepsilon_{ne,v}^k$ and $K_T^k = K^{-1} + \phi_2 F_v^k$.
+where $b_p^k = \phi_2 \left(F_v^k p^k + B_{ne,v}^k\right)$ and $K_T^k = K^{-1} + \phi_2 F_v^k$.
 
 
-## Weak formulation
+<!-- ## Weak formulation
 For the mixed formulation, the displacement field $\mathbf{u}$ is approximated in a first-order Sobolev space $H^1(\Omega)$, while mean stress field $p$ is sufficient to be defined in $L^2(\Omega)$. In this manner, the continuous trial function spaces are defined as
 
 $$
@@ -273,7 +235,7 @@ $$
 \tilde{\pmb{\varepsilon}} = \pmb{\varepsilon} - \frac{1}{3} \varepsilon_v \mathbf{I} = \frac{1}{2} \left( \nabla \mathbf{u} + \nabla \mathbf{u}^T \right) - \frac{1}{3} \left(\nabla \cdot \mathbf{u}\right) \mathbf{I}
 $$
 
-and the unknowns are $\mathbf{u}$ and $p$.
+and the unknowns are $\mathbf{u}$ and $p$. -->
 
 ## References
 - [1] Honório, H.T., Franceschini, A., Ferronaro, M., Hajibeygi, H. *Salt cavern simulations with a stabilized mixed finite element formulation for low-order tetrahedral elements*. Computational Methods in Applied Mechanics and Engineering, 2026.
