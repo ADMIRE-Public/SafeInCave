@@ -3,7 +3,7 @@
 
 ![](images/logo_2.png){width="70%"}
 
-[![](https://img.shields.io/badge/version-3.0.1-blue)](https://github.com/ADMIRE-Public/SafeInCave)
+[![](https://img.shields.io/badge/version-3.0.3-blue)](https://github.com/ADMIRE-Public/SafeInCave)
 [![](https://img.shields.io/badge/DOI-10.1234%2Fabcde.12345678-blue)](https://doi.org/10.5281/zenodo.17169591)
 [![](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
 [![](https://img.shields.io/badge/Dependency-FEniCSx%200.9.0-important)](https://fenicsproject.org)

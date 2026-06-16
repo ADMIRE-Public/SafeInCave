@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/ADMIRE-Public/SafeInCave/develop/assets/logo_2.png" width="500"/>
 
-[![Version](https://img.shields.io/badge/version-3.0.1-blue)](https://github.com/ADMIRE-Public/SafeInCave)
+[![Version](https://img.shields.io/badge/version-3.0.3-blue)](https://github.com/ADMIRE-Public/SafeInCave)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Windows%20(WSL)-blue)](https://ubuntu.com/wsl)  
 [![FEniCSx](https://img.shields.io/badge/Dependency-FEniCSx%200.9.0-important)](https://fenicsproject.org)
 
@@ -35,9 +35,9 @@ SafeInCave installation depends on [FEniCSx](https://fenicsproject.org/) install
 
 3) Installing [FEniCSx](https://fenicsproject.org/download/)
 
-4) Installing SafeInCave
+4) Installing [SafeInCave](https://admire-public.github.io/SafeInCave/home/installation/)
 
-See SafeInCave [documentation](https://admire-public.github.io/SafeInCave/home/) for a detailed explanation on the installation process.
+See SafeInCave [documentation](https://admire-public.github.io/SafeInCave/home/) for full documentation (under active development).
 
 
 ## Getting started
@@ -50,6 +50,7 @@ Users can build their own simulators using the *safeincave* package. The [docume
 - [Hadi Hajibeygi](https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/sections/reservoir-engineering/staff/academic-staff/profdr-h-hajibeygi)
 - [Hermínio Tasinafo Honório](https://www.linkedin.com/in/herminioth/)
 - [Lucas Landeweerd](https://www.linkedin.com/in/lucaslandeweerd/)
+- [Mathias Jose Kreutz Erdtmann](https://www.linkedin.com/in/mathias-kreutz-erdtmann/)
 
 
 ## License
