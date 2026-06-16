@@ -1009,15 +1009,7 @@ class LinearMomentum(LinearMomentumBase):
         None
         """
         self.u = self.X
-
-	# def compute_p_nodes(self) -> do.fem.Function:
-	# 	self.p_nodes = project(ufl.tr(self.sig)/3, self.CG1_1)
-
-	# def compute_p_elems(self) -> do.fem.Function:
-	# 	# self.p_elems = project(ufl.tr(self.sig)/3, self.DG0_1)
-	# 	stress_to = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
-	# 	p_to = to.einsum("kii->k", stress_to)
-	# 	self.p_elems.x.array[:] = to.flatten(p_to)
+        
 
     def compute_p_nodes(self) -> None:
         """
@@ -1031,10 +1023,12 @@ class LinearMomentum(LinearMomentumBase):
         ------------
         Writes to :attr:`p_nodes`.
         """
-        stress = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
-        I1 = stress[:, 0, 0] + stress[:, 1, 1] + stress[:, 2, 2]
-        p_to = I1 / 3
-        self.p_nodes.x.array[:] = self.grid.A_csr.dot(p_to)
+        # stress = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+        # I1 = stress[:, 0, 0] + stress[:, 1, 1] + stress[:, 2, 2]
+        # p_to = I1 / 3
+        # self.p_nodes.x.array[:] = self.grid.A_csr.dot(p_to)
+        self.p_nodes = project(ufl.tr(self.sig) / 3, self.CG1_1)
+
 
     def compute_p_elems(self) -> None:
         """
@@ -1048,11 +1042,13 @@ class LinearMomentum(LinearMomentumBase):
         ------------
         Writes to :attr:`p_elems`.
         """
-        stress_to = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
-        I1 = to.einsum("kii->k", stress_to)
-        p_to = I1 / 3
-        p_to = self.grid.smoother.dot(p_to.numpy())
-        self.p_elems.x.array[:] = p_to
+        # stress_to = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+        # I1 = to.einsum("kii->k", stress_to)
+        # p_to = I1 / 3
+        # p_to = self.grid.smoother.dot(p_to.numpy())
+        # self.p_elems.x.array[:] = p_to
+        self.p_elems = project(ufl.tr(self.sig) / 3, self.DG0_1)
+
 
     def solve(self, stress_k_to: to.Tensor, t: float, dt: float) -> None:
         """
@@ -1076,7 +1072,6 @@ class LinearMomentum(LinearMomentumBase):
         - Builds `CT` and `eps_rhs`, assembles and solves the linear system.
         - Updates :attr:`X`, calls :meth:`split_solution`, then :meth:`run_after_solve`.
         """
-
         # Compute consistent tangent matrix
         self.compute_CT(dt, stress_k_to)
 
@@ -1264,15 +1259,15 @@ class LinearMomentumMixed(LinearMomentumBase):
         self.p_nodes.x.scatter_forward()
 
         # Project mean stress to Gauss points
-        self.p_elems = project(self.p_nodes, self.DG0_1)
-        self.p_to = numpy2torch(self.p_elems.x.array)
+        p_elems = project(self.p_nodes, self.DG0_1)
+        self.p_to = numpy2torch(p_elems.x.array)
 
     def compute_p_nodes(self) -> do.fem.Function:
         return self.p_nodes
 
     def compute_p_elems(self) -> do.fem.Function:
-        # self.p_elems = project(ufl.tr(self.sig) / 3, self.DG0_1)
-        self.p_elems = project(self.p_nodes, self.DG0_1)
+        self.p_elems = project(ufl.tr(self.sig) / 3, self.DG0_1)
+        # self.p_elems = project(self.p_nodes, self.DG0_1)
         return self.p_elems
 
     def compute_moduli(self, stress_to):
