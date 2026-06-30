@@ -15,6 +15,20 @@ if TYPE_CHECKING:
     EqType = LinearMomentum | HeatDiffusion
 
 
+# Module-level shared storage for merged output files to prevent HDF5 contention.
+# When multiple SaveFields instances write to the same output folder, they share
+# a single XDMFFile object for the merged solution file instead of each creating
+# their own (which causes HDF5 file truncation conflicts).
+#
+# _shared_merged_outputs: dict[str, do.io.XDMFFile]
+#   Maps normalized output folder path → XDMFFile object for merged solution
+#
+# _shared_merged_output_refs: dict[str, int]
+#   Reference count: how many SaveFields instances are using each merged output
+_shared_merged_outputs = {}
+_shared_merged_output_refs = {}
+
+
 class SaveFields:
     """
     Manage writing FEniCSx fields to XDMF over time.
@@ -59,6 +73,7 @@ class SaveFields:
         self.fields_data = []
         self.output_fields = []
         self.merged_output = None
+        self.output_folder = None  # Set by set_output_folder()
 
     def set_output_folder(self, output_folder: str) -> None:
         """
@@ -172,14 +187,30 @@ class SaveFields:
         #    - Publication-quality visualizations
         #    - Large simulations (smaller file size per field)
         #
+        # Use shared merged output to prevent HDF5 file contention
+        # when multiple SaveFields instances write to the same output folder
         merged_path = os.path.join(self.output_folder, "solution", "solution.xdmf")
         os.makedirs(os.path.dirname(merged_path), exist_ok=True)
-        self.merged_output = do.io.XDMFFile(
-            self.eq.grid.mesh.comm,
-            merged_path,
-            "w",
-        )
-        self.merged_output.write_mesh(self.eq.grid.mesh)
+        
+        # Normalize path to handle symlinks and relative paths consistently
+        normalized_path = os.path.normpath(os.path.abspath(self.output_folder))
+        
+        if normalized_path not in _shared_merged_outputs:
+            # First SaveFields instance for this output folder: create merged file
+            merged_output_file = do.io.XDMFFile(
+                self.eq.grid.mesh.comm,
+                merged_path,
+                "w",
+            )
+            merged_output_file.write_mesh(self.eq.grid.mesh)
+            _shared_merged_outputs[normalized_path] = merged_output_file
+            _shared_merged_output_refs[normalized_path] = 1
+        else:
+            # Reuse existing merged output file and increment reference count
+            _shared_merged_output_refs[normalized_path] += 1
+        
+        # Store reference to shared merged output (may be created by this instance or reused)
+        self.merged_output = _shared_merged_outputs[normalized_path]
 
     def save_fields(self, t: float) -> None:
         """
@@ -221,6 +252,9 @@ class SaveFields:
         properly closed. This should be called at the end of a simulation to
         prevent resource leaks and ensure all data is flushed to disk.
 
+        For the merged output file, it is only closed when the last SaveFields
+        instance for that output folder closes (reference counting).
+
         Parameters
         ----------
         None
@@ -233,8 +267,23 @@ class SaveFields:
         -----
         Safe to call multiple times (subsequent calls are no-ops).
         """
+        # Close individual field output files
         for output_field in self.output_fields:
             output_field.close()
+        
+        # Close merged output file only if this is the last SaveFields instance
+        # for this output folder (reference counting)
+        if self.output_folder is not None and self.merged_output is not None:
+            normalized_path = os.path.normpath(os.path.abspath(self.output_folder))
+            if normalized_path in _shared_merged_output_refs:
+                _shared_merged_output_refs[normalized_path] -= 1
+                if _shared_merged_output_refs[normalized_path] == 0:
+                    # Last SaveFields instance for this folder: close merged output
+                    self.merged_output.close()
+                    del _shared_merged_outputs[normalized_path]
+                    del _shared_merged_output_refs[normalized_path]
+                # Clear reference to prevent accidental re-use
+                self.merged_output = None
 
     def save_mesh(self) -> None:
         """
