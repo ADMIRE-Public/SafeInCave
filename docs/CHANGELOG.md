@@ -7,6 +7,7 @@
 - Fixed import standards to comply with linting.
 - Included closing of output.
 - Implemented unified output file (solution.xdmf) containing all simulation fields
+- Fix HDF5 file contention (solution.xdmf) in multi-physics simulations
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
