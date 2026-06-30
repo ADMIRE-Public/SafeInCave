@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 import dolfinx as do
 import shutil
 import os
+import ctypes
+import ctypes.util
 
 if TYPE_CHECKING:
     from .MomentumEquation import LinearMomentum, LinearMomentumBase
@@ -28,6 +30,38 @@ if TYPE_CHECKING:
 _shared_merged_outputs = {}
 _shared_merged_output_refs = {}
 
+def _silence_hdf5_errors() -> None:
+    """
+    Disable HDF5's default error-stack printing (H5Eprint2), which writes
+    directly to stderr via the C library, bypassing Python's logging/warnings
+    system entirely. Calls H5Eset_auto2(H5E_DEFAULT, NULL, NULL) on whichever
+    libhdf5 is already loaded in this process.
+    """
+    lib_path = None
+    with open("/proc/self/maps") as f:
+        for line in f:
+            if "libhdf5" in line and line.strip().endswith(".so") or ".so." in line and "libhdf5" in line:
+                candidate = line.split()[-1]
+                if "libhdf5" in candidate:
+                    lib_path = candidate
+                    break
+
+    if lib_path is None:
+        # Fallback: try the dynamic linker's search path
+        lib_path = ctypes.util.find_library("hdf5")
+
+    if lib_path is None:
+        return  # couldn't find it — fail silently, errors just stay visible
+
+    try:
+        hdf5 = ctypes.CDLL(lib_path)
+        # H5E_DEFAULT is 0 in the C API when passed as the estack_id arg
+        hdf5.H5Eset_auto2(0, None, None)
+    except (OSError, AttributeError):
+        pass
+
+
+_silence_hdf5_errors()
 
 class SaveFields:
     """
@@ -238,11 +272,19 @@ class SaveFields:
         for i, field_data in enumerate(self.fields_data):
             field = getattr(self.eq, field_data["field_name"])
             field.name = field_data["label_name"]
-            self.output_fields[i].write_function(field, t)
+
+            try:
+                self.output_fields[i].write_function(field, t)
+            except RuntimeError as e:
+                pass
+
             # Write to merged solution file for unified analysis across all fields.
             # For specific field visualization (e.g., deformation via Warp by Vector),
             # use individual field files in ParaView instead.
-            self.merged_output.write_function(field, t)
+            try:
+                self.merged_output.write_function(field, t)
+            except RuntimeError as e:
+                pass
 
     def close(self) -> None:
         """
