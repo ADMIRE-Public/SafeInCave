@@ -275,7 +275,7 @@ class SaveFields:
 
             try:
                 self.output_fields[i].write_function(field, t)
-            except RuntimeError as e:
+            except RuntimeError:
                 pass
 
             # Write to merged solution file for unified analysis across all fields.
@@ -283,7 +283,7 @@ class SaveFields:
             # use individual field files in ParaView instead.
             try:
                 self.merged_output.write_function(field, t)
-            except RuntimeError as e:
+            except RuntimeError:
                 pass
 
     def close(self) -> None:
