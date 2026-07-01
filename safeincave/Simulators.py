@@ -82,6 +82,7 @@ class Simulator_TM(Simulator):
         outputs: list[SaveFields],
         caverns: CavernHandler | None = CavernHandler(),
         compute_elastic_response: bool = True,
+        merged_solutions: bool = False,
     ):
         self.eq_mom = eq_mom
         self.eq_heat = eq_heat
@@ -89,6 +90,10 @@ class Simulator_TM(Simulator):
         self.outputs = outputs
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
+
+        # Apply merged_solutions flag to all output handlers
+        for output in self.outputs:
+            output.merged_solutions = merged_solutions
 
         ScreenPrinter.reset_instance()
         self.screen = ScreenPrinter(
@@ -355,12 +360,17 @@ class Simulator_M(Simulator):
         outputs: list[SaveFields],
         caverns: CavernHandler | None = CavernHandler(),
         compute_elastic_response: bool = True,
+        merged_solutions: bool = False,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
         self.outputs = outputs
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
+
+        # Apply merged_solutions flag to all output handlers
+        for output in self.outputs:
+            output.merged_solutions = merged_solutions
 
         ScreenPrinter.reset_instance()
         self.screen = ScreenPrinter(
@@ -593,6 +603,7 @@ class Simulator_T(Simulator):
         t_control: TimeControllerBase,
         outputs: list[SaveFields],
         caverns: CavernHandler | None = None,
+        merged_solutions: bool = False,
     ):
         self.eq_heat = eq_heat
         self.t_control = t_control
@@ -601,6 +612,10 @@ class Simulator_T(Simulator):
 
         if caverns is None:
             self.caverns = CavernHandler()
+
+        # Apply merged_solutions flag to all output handlers
+        for output in self.outputs:
+            output.merged_solutions = merged_solutions
 
         ScreenPrinter.reset_instance()
         self.screen = ScreenPrinter(
@@ -710,11 +725,16 @@ class Simulator_Mout(Simulator):
         t_control: TimeControllerBase,
         outputs: list[SaveFields],
         compute_elastic_response: bool = True,
+        merged_solutions: bool = False,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
         self.outputs = outputs
         self.compute_elastic_response = compute_elastic_response
+
+        # Apply merged_solutions flag to all output handlers
+        for output in self.outputs:
+            output.merged_solutions = merged_solutions
 
         ScreenPrinter.reset_instance()
         self.screen = ScreenPrinter(

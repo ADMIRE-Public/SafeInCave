@@ -91,11 +91,16 @@ class SaveFields:
         ``{"field_name": str, "label_name": str}``.
     output_fields : list of dolfinx.io.XDMFFile
         Open writers, in the same order as ``fields_data``.
+    merged_solutions : bool
+        Whether to create and write a merged solution file. Set by Simulator.
     output_folder : str
         Base directory for outputs (set via :meth:`set_output_folder`).
 
     Notes
     -----
+    - The ``merged_solutions`` flag is typically set by the Simulator class
+      so that all SaveFields instances share a consistent configuration.
+    - Individual field files are always created regardless of merged_solutions setting.
     - Voigt/tensor conventions, function ranks, and meshtags are not managed
       here; this class only writes whatever :mod:`dolfinx` ``Function`` you
       provide in ``eq``.
@@ -107,6 +112,7 @@ class SaveFields:
         self.fields_data = []
         self.output_fields = []
         self.merged_output = None
+        self.merged_solutions = False  # Set by Simulator
         self.output_folder = None  # Set by set_output_folder()
 
     def set_output_folder(self, output_folder: str) -> None:
@@ -186,65 +192,67 @@ class SaveFields:
             output_field.write_mesh(self.eq.grid.mesh)
             self.output_fields.append(output_field)
 
-        # Create merged solution file containing all fields
-        # IMPORTANT: Known limitations and behaviors of this merged XDMF file:
-        #
-        # 1. VTK COMPOSITE METADATA (Artifacts)
-        #    When multiple <Attribute> elements exist in the same XDMF <Grid>,
-        #    VTK interprets this as a composite dataset and AUTOMATICALLY ADDS:
-        #    - vtkCompositeIndex: Internal tracking field (not real data)
-        #    - vtkBlockColors: Internal visualization field (not real data)
-        #    These clutter the ParaView field list but are harmless.
-        #
-        # 2. WARP BY VECTOR FILTER FAILURE (Critical Limitation)
-        #    ParaView's "Warp by Vector" filter (for mesh deformation visualization)
-        #    FAILS or BEHAVES INCORRECTLY when multiple vector fields are present.
-        #    ROOT CAUSE: Filter input selection is ambiguous with composite metadata.
-        #
-        # 3. XDMF STRUCTURE LIMITATION (DOLFINx API)
-        #    DOLFINx's XDMFFile does not support external mesh references.
-        #    Result: Mesh geometry/topology is DUPLICATED in this file.
-        #    Impact: Larger file size (minor for most simulations).
-        #    Workaround: None; inherent to DOLFINx API design.
-        #
-        # 4. USE CASES FOR MERGED vs INDIVIDUAL FILES
-        #
-        #    USE MERGED (solution.xdmf) FOR:
-        #    - Post-processing analysis across all fields simultaneously
-        #    - Correlation studies between fields
-        #    - Statistical analysis and data export
-        #    - Quick initial result verification
-        #
-        #    USE INDIVIDUAL FILES FOR:
-        #    - Mesh deformation visualization (Warp by Vector) → u/u.xdmf
-        #    - Field-specific analysis and filtering
-        #    - Publication-quality visualizations
-        #    - Large simulations (smaller file size per field)
-        #
-        # Use shared merged output to prevent HDF5 file contention
-        # when multiple SaveFields instances write to the same output folder
-        merged_path = os.path.join(self.output_folder, "solution", "solution.xdmf")
-        os.makedirs(os.path.dirname(merged_path), exist_ok=True)
-        
-        # Normalize path to handle symlinks and relative paths consistently
-        normalized_path = os.path.normpath(os.path.abspath(self.output_folder))
-        
-        if normalized_path not in _shared_merged_outputs:
-            # First SaveFields instance for this output folder: create merged file
-            merged_output_file = do.io.XDMFFile(
-                self.eq.grid.mesh.comm,
-                merged_path,
-                "w",
-            )
-            merged_output_file.write_mesh(self.eq.grid.mesh)
-            _shared_merged_outputs[normalized_path] = merged_output_file
-            _shared_merged_output_refs[normalized_path] = 1
-        else:
-            # Reuse existing merged output file and increment reference count
-            _shared_merged_output_refs[normalized_path] += 1
-        
-        # Store reference to shared merged output (may be created by this instance or reused)
-        self.merged_output = _shared_merged_outputs[normalized_path]
+        # Conditionally create merged solution file containing all fields
+        # This behavior is controlled by the merged_solutions parameter
+        if self.merged_solutions:
+            # IMPORTANT: Known limitations and behaviors of this merged XDMF file:
+            #
+            # 1. VTK COMPOSITE METADATA (Artifacts)
+            #    When multiple <Attribute> elements exist in the same XDMF <Grid>,
+            #    VTK interprets this as a composite dataset and AUTOMATICALLY ADDS:
+            #    - vtkCompositeIndex: Internal tracking field (not real data)
+            #    - vtkBlockColors: Internal visualization field (not real data)
+            #    These clutter the ParaView field list but are harmless.
+            #
+            # 2. WARP BY VECTOR FILTER FAILURE (Critical Limitation)
+            #    ParaView's "Warp by Vector" filter (for mesh deformation visualization)
+            #    FAILS or BEHAVES INCORRECTLY when multiple vector fields are present.
+            #    ROOT CAUSE: Filter input selection is ambiguous with composite metadata.
+            #
+            # 3. XDMF STRUCTURE LIMITATION (DOLFINx API)
+            #    DOLFINx's XDMFFile does not support external mesh references.
+            #    Result: Mesh geometry/topology is DUPLICATED in this file.
+            #    Impact: Larger file size (minor for most simulations).
+            #    Workaround: None; inherent to DOLFINx API design.
+            #
+            # 4. USE CASES FOR MERGED vs INDIVIDUAL FILES
+            #
+            #    USE MERGED (solution.xdmf) FOR:
+            #    - Post-processing analysis across all fields simultaneously
+            #    - Correlation studies between fields
+            #    - Statistical analysis and data export
+            #    - Quick initial result verification
+            #
+            #    USE INDIVIDUAL FILES FOR:
+            #    - Mesh deformation visualization (Warp by Vector) → u/u.xdmf
+            #    - Field-specific analysis and filtering
+            #    - Publication-quality visualizations
+            #    - Large simulations (smaller file size per field)
+            #
+            # Use shared merged output to prevent HDF5 file contention
+            # when multiple SaveFields instances write to the same output folder
+            merged_path = os.path.join(self.output_folder, "solution", "solution.xdmf")
+            os.makedirs(os.path.dirname(merged_path), exist_ok=True)
+            
+            # Normalize path to handle symlinks and relative paths consistently
+            normalized_path = os.path.normpath(os.path.abspath(self.output_folder))
+            
+            if normalized_path not in _shared_merged_outputs:
+                # First SaveFields instance for this output folder: create merged file
+                merged_output_file = do.io.XDMFFile(
+                    self.eq.grid.mesh.comm,
+                    merged_path,
+                    "w",
+                )
+                merged_output_file.write_mesh(self.eq.grid.mesh)
+                _shared_merged_outputs[normalized_path] = merged_output_file
+                _shared_merged_output_refs[normalized_path] = 1
+            else:
+                # Reuse existing merged output file and increment reference count
+                _shared_merged_output_refs[normalized_path] += 1
+            
+            # Store reference to shared merged output (may be created by this instance or reused)
+            self.merged_output = _shared_merged_outputs[normalized_path]
 
     def save_fields(self, t: float) -> None:
         """
@@ -278,13 +286,14 @@ class SaveFields:
             except RuntimeError:
                 pass
 
-            # Write to merged solution file for unified analysis across all fields.
+            # Write to merged solution file only if enabled.
             # For specific field visualization (e.g., deformation via Warp by Vector),
             # use individual field files in ParaView instead.
-            try:
-                self.merged_output.write_function(field, t)
-            except RuntimeError:
-                pass
+            if self.merged_output is not None:
+                try:
+                    self.merged_output.write_function(field, t)
+                except RuntimeError:
+                    pass
 
     def close(self) -> None:
         """
@@ -314,8 +323,8 @@ class SaveFields:
             output_field.close()
         
         # Close merged output file only if this is the last SaveFields instance
-        # for this output folder (reference counting)
-        if self.output_folder is not None and self.merged_output is not None:
+        # for this output folder (reference counting) and if merged solutions are enabled
+        if self.output_folder is not None and self.merged_output is not None and self.merged_solutions:
             normalized_path = os.path.normpath(os.path.abspath(self.output_folder))
             if normalized_path in _shared_merged_output_refs:
                 _shared_merged_output_refs[normalized_path] -= 1
