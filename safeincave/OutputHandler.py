@@ -25,8 +25,14 @@ if TYPE_CHECKING:
 #
 # _shared_merged_output_refs: dict[str, int]
 #   Reference count: how many SaveFields instances are using each merged output
+#
+# _shared_merged_output_field_names: dict[str, set[str]]
+#   Tracks field names (labels) written to each merged output to detect duplicates.
+#   Maps normalized output folder path → set of field names written.
+#   Used to automatically rename duplicate field names by appending suffixes.
 _shared_merged_outputs = {}
 _shared_merged_output_refs = {}
+_shared_merged_output_field_names = {}
 
 class SaveFields:
     """
@@ -79,6 +85,7 @@ class SaveFields:
         self.merged_output = None
         self.merged_solutions = False  # Set by Simulator
         self.output_folder = None  # Set by set_output_folder()
+        self._merged_field_name_map = {}  # Maps original label → unique name for merged output
 
     def set_output_folder(self, output_folder: str) -> None:
         """
@@ -218,6 +225,57 @@ class SaveFields:
             
             # Store reference to shared merged output (may be created by this instance or reused)
             self.merged_output = _shared_merged_outputs[normalized_path]
+            
+            # Build field name mapping to handle duplicate field names in merged output.
+            # Detect duplicates and rename them with node/element suffixes to avoid HDF5 errors.
+            if normalized_path not in _shared_merged_output_field_names:
+                # Extract all field labels and detect field types (node/element)
+                name_to_indices_and_types = {}
+                for i, field_data in enumerate(self.fields_data):
+                    label_name = field_data["label_name"]
+                    field_name = field_data["field_name"]
+                    field = getattr(self.eq, field_name)
+                    
+                    # Detect if field is element-based or node-based
+                    # Element-based: DG(0) or P(0) - degree 0
+                    # Node-based: P(1), CG(1), etc. - degree >= 1
+                    try:
+                        ufl_elem = field.function_space.ufl_element()
+                        degree = ufl_elem.degree
+                        field_type = "(element)" if degree == 0 else "(node)"
+                    except Exception:
+                        field_type = None  # Unable to determine
+                    
+                    if label_name not in name_to_indices_and_types:
+                        name_to_indices_and_types[label_name] = []
+                    name_to_indices_and_types[label_name].append((i, field_type))
+                
+                # Build mapping from field index to unique name
+                for label_name, occurrences in name_to_indices_and_types.items():
+                    if len(occurrences) == 1:
+                        # Single field with this label, use as-is
+                        field_index, _ = occurrences[0]
+                        self._merged_field_name_map[field_index] = label_name
+                    else:
+                        # Multiple fields with same label
+                        field_types = [ft for _, ft in occurrences]
+                        
+                        if len(set(field_types)) > 1:
+                            # Different field types, use field type as suffix
+                            for field_index, field_type in occurrences:
+                                if field_type:
+                                    self._merged_field_name_map[field_index] = f"{label_name} {field_type}"
+                                else:
+                                    self._merged_field_name_map[field_index] = label_name
+                        else:
+                            # Same field type, use numeric suffix as fallback
+                            for idx, (field_index, _) in enumerate(occurrences):
+                                if idx == 0:
+                                    self._merged_field_name_map[field_index] = label_name
+                                else:
+                                    self._merged_field_name_map[field_index] = f"{label_name}_{idx}"
+                
+                _shared_merged_output_field_names[normalized_path] = True  # Mark as processed
 
     def save_fields(self, t: float) -> None:
         """
@@ -241,10 +299,12 @@ class SaveFields:
         2. Sets ``field.name = label_name`` (used in visualization).
         3. Calls ``XDMFFile.write_function(field, t)`` on individual writer.
         4. Calls ``XDMFFile.write_function(field, t)`` on merged solution writer.
+           If duplicate field names exist, automatically appends suffixes to unique-ify them.
         """
         for i, field_data in enumerate(self.fields_data):
             field = getattr(self.eq, field_data["field_name"])
-            field.name = field_data["label_name"]
+            original_name = field_data["label_name"]
+            field.name = original_name
 
             self.output_fields[i].write_function(field, t)
 
@@ -252,6 +312,10 @@ class SaveFields:
             # For specific field visualization (e.g., deformation via Warp by Vector),
             # use individual field files in ParaView instead.
             if self.merged_output is not None:
+                # Use pre-computed unique name mapping to handle duplicates
+                # Map by field index to preserve duplicates (labels used as keys don't work)
+                unique_name = self._merged_field_name_map.get(i, original_name)
+                field.name = unique_name
                 self.merged_output.write_function(field, t)
 
     def close(self) -> None:
@@ -292,6 +356,7 @@ class SaveFields:
                     self.merged_output.close()
                     del _shared_merged_outputs[normalized_path]
                     del _shared_merged_output_refs[normalized_path]
+                    del _shared_merged_output_field_names[normalized_path]
                 # Clear reference to prevent accidental re-use
                 self.merged_output = None
 
