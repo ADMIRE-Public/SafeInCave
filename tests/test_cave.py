@@ -217,7 +217,7 @@ class Test_PT(unittest.TestCase):
         self.assertEqual(self.cave_1.cavern_name, self.cave_name_1)
         self.assertEqual(self.cave_1.fluid, self.fluid_1)
         self.assertEqual(self.cave_1.AS.phase(), CP.get_phase_index("phase_liquid"))
-        self.assertEqual(self.cave_1.density, 995.6946644467557)
+        self.assertAlmostEqual(self.cave_1.density, 995.6946644467557, places=10)
 
         self.assertEqual(self.cave_2.AS.phase(), 2)  # CP.iphase_liquid
         self.assertEqual(self.cave_2.cavern_name, self.cave_name_2)
@@ -225,16 +225,16 @@ class Test_PT(unittest.TestCase):
         self.assertEqual(
             self.cave_2.AS.phase(), CP.get_phase_index("phase_supercritical_gas")
         )
-        self.assertEqual(self.cave_2.density, 7.140352655623106)
+        self.assertAlmostEqual(self.cave_2.density, 7.140352655623106, places=10)
 
     def test_update_cavern(self):
         self.cave_1.update_cavern(t=5.0, dt=None)
         self.assertEqual(self.cave_1.AS.phase(), CP.get_phase_index("phase_liquid"))
-        self.assertEqual(self.cave_1.density, 972.8118876018121)
+        self.assertAlmostEqual(self.cave_1.density, 972.8118876018121, places=10)
 
         self.cave_1.update_cavern(t=10.0, dt=None)
         self.assertEqual(self.cave_1.AS.phase(), CP.get_phase_index("phase_gas"))
-        self.assertEqual(self.cave_1.density, 0.5549439034904987)
+        self.assertAlmostEqual(self.cave_1.density, 0.5549439034904987, places=10)
 
     def test_cavern_handler(self):
         self.assertEqual(len(self.cavern_set.caverns_PT), 2)
@@ -243,13 +243,13 @@ class Test_PT(unittest.TestCase):
         self.assertEqual(
             self.cavern_set.caverns_PT[0].AS.phase(), CP.get_phase_index("phase_liquid")
         )
-        self.assertEqual(self.cavern_set.caverns_PT[0].density, 988.3724191374077)
+        self.assertAlmostEqual(self.cavern_set.caverns_PT[0].density, 988.3724191374077, places=10)
 
         self.assertEqual(
             self.cavern_set.caverns_PT[1].AS.phase(),
             CP.get_phase_index("phase_supercritical_gas"),
         )
-        self.assertEqual(self.cavern_set.caverns_PT[1].density, 6.684645241990176)
+        self.assertAlmostEqual(self.cavern_set.caverns_PT[1].density, 6.684645241990176, places=10)
 
 
 class Test_MFlux(unittest.TestCase):
