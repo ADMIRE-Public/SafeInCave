@@ -206,6 +206,8 @@ class TimeControllerAdaptive(TimeControllerBase):
     Relative-iteration threshold above which convergence is considered hard.
     max_bisections : int, default=5
     Maximum retry/bisection attempts for failed steps.
+    maxiter : int | None, default=None
+    Optional nonlinear iteration cap consumed by simulator loops.
 
     Attributes
     ----------
@@ -230,6 +232,7 @@ class TimeControllerAdaptive(TimeControllerBase):
         easy_ratio_threshold: float = 0.25,
         hard_ratio_threshold: float = 0.50,
         max_bisections: int = 5,
+        maxiter: int | None = None,
     ):
         super().__init__(initial_time, final_time, time_unit)
         self.dt = initial_dt * self.time_conversion
@@ -253,6 +256,7 @@ class TimeControllerAdaptive(TimeControllerBase):
         self.easy_ratio_threshold = easy_ratio_threshold
         self.hard_ratio_threshold = hard_ratio_threshold
         self.max_bisections = max_bisections
+        self.maxiter = None if maxiter is None else int(maxiter)
 
         # Lightweight diagnostics/state for adaptive policy.
         self.last_ratio = 0.0
@@ -338,6 +342,13 @@ class TimeControllerAdaptive(TimeControllerBase):
             self.dt = self.dt / self.inflation
 
         self.dt = self._clamp_dt(self.dt)
+
+        # Clamp the last increment to land exactly on t_final.
+        remaining_time = self.t_final - self.t
+        if remaining_time <= 0.0:
+            return
+        if self.dt > remaining_time:
+            self.dt = remaining_time
 
         self.step_counter += 1
         self.t += self.dt

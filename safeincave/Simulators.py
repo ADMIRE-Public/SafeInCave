@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from abc import ABC, abstractmethod
+import copy
 from .Utils import numpy2torch
 from .HeatEquation import HeatDiffusion
 from .MomentumEquation import LinearMomentum, LinearMomentumBase
@@ -73,6 +74,141 @@ class Simulator(ABC):
         for output in self.outputs:
             output.close()
             output.save_mesh()
+
+    @staticmethod
+    def _is_array_like(value) -> bool:
+        """Return True for array-like values that expose copy/shape/dtype."""
+        return (
+            hasattr(value, "copy")
+            and hasattr(value, "shape")
+            and hasattr(value, "dtype")
+        )
+
+    @staticmethod
+    def _clone_value(value):
+        """Best-effort cloning utility for tensors/arrays/containers/scalars."""
+        if hasattr(value, "clone"):
+            try:
+                return value.clone()
+            except Exception:
+                pass
+        if hasattr(value, "copy"):
+            try:
+                return value.copy()
+            except Exception:
+                pass
+        try:
+            return copy.deepcopy(value)
+        except Exception:
+            return value
+
+    def _snapshot_function_arrays(self, obj) -> dict:
+        """Capture all dolfinx-like Function arrays found in object attributes."""
+        snapshot = {}
+        for attr_name, attr_value in getattr(obj, "__dict__", {}).items():
+            if hasattr(attr_value, "x") and hasattr(attr_value.x, "array"):
+                try:
+                    snapshot[attr_name] = attr_value.x.array.copy()
+                except Exception:
+                    continue
+        return snapshot
+
+    def _restore_function_arrays(self, obj, snapshot: dict) -> None:
+        """Restore dolfinx-like Function arrays captured by _snapshot_function_arrays."""
+        for attr_name, saved_array in snapshot.items():
+            attr_value = getattr(obj, attr_name, None)
+            if hasattr(attr_value, "x") and hasattr(attr_value.x, "array"):
+                attr_value.x.array[:] = saved_array
+
+    def _snapshot_object_state(self, obj) -> dict:
+        """Capture mutable object attributes using best-effort cloning."""
+        snapshot = {}
+        for attr_name, attr_value in getattr(obj, "__dict__", {}).items():
+            if callable(attr_value):
+                continue
+            if hasattr(attr_value, "x") and hasattr(attr_value.x, "array"):
+                continue
+            if isinstance(attr_value, (int, float, bool, str, type(None), tuple, list, dict)):
+                snapshot[attr_name] = self._clone_value(attr_value)
+            elif hasattr(attr_value, "clone") or self._is_array_like(attr_value):
+                snapshot[attr_name] = self._clone_value(attr_value)
+        return snapshot
+
+    def _restore_object_state(self, obj, snapshot: dict) -> None:
+        """Restore object attributes captured by _snapshot_object_state."""
+        for attr_name, saved_value in snapshot.items():
+            setattr(obj, attr_name, self._clone_value(saved_value))
+
+    def _snapshot_material_internal_state(self, eq_mom) -> list:
+        """Capture non-elastic internal variable state from material elements."""
+        material = getattr(eq_mom, "mat", None)
+        if material is None or not hasattr(material, "elems_ne"):
+            return []
+        return [self._snapshot_object_state(elem) for elem in material.elems_ne]
+
+    def _restore_material_internal_state(self, eq_mom, snapshot: list) -> None:
+        """Restore non-elastic internal variable state for material elements."""
+        material = getattr(eq_mom, "mat", None)
+        if material is None or not hasattr(material, "elems_ne"):
+            return
+        for elem, elem_snapshot in zip(material.elems_ne, snapshot):
+            self._restore_object_state(elem, elem_snapshot)
+
+    def _snapshot_caverns_state(self) -> dict:
+        """Capture cavern model mutable states."""
+        caverns = getattr(self, "caverns", None)
+        if caverns is None:
+            return {}
+        snapshot = {}
+        for cavern_list_name in ("caverns_T", "caverns_PT", "caverns_MFlux"):
+            cavern_list = getattr(caverns, cavern_list_name, [])
+            snapshot[cavern_list_name] = [
+                self._snapshot_object_state(cavern) for cavern in cavern_list
+            ]
+        return snapshot
+
+    def _restore_caverns_state(self, snapshot: dict) -> None:
+        """Restore cavern model mutable states."""
+        caverns = getattr(self, "caverns", None)
+        if caverns is None:
+            return
+        for cavern_list_name in ("caverns_T", "caverns_PT", "caverns_MFlux"):
+            cavern_list = getattr(caverns, cavern_list_name, [])
+            saved_list = snapshot.get(cavern_list_name, [])
+            for cavern, cavern_snapshot in zip(cavern_list, saved_list):
+                self._restore_object_state(cavern, cavern_snapshot)
+
+    def _capture_step_state(self, include_heat: bool = False, include_caverns: bool = False) -> dict:
+        """Capture state needed to rollback a failed nonlinear step attempt."""
+        state = {
+            "time": {
+                "t": self.t_control.t,
+                "dt": self.t_control.dt,
+                "step_counter": self.t_control.step_counter,
+            },
+            "eq_mom_functions": self._snapshot_function_arrays(self.eq_mom),
+            "material_state": self._snapshot_material_internal_state(self.eq_mom),
+        }
+        if include_heat and hasattr(self, "eq_heat"):
+            state["eq_heat_functions"] = self._snapshot_function_arrays(self.eq_heat)
+        if include_caverns:
+            state["caverns_state"] = self._snapshot_caverns_state()
+        return state
+
+    def _restore_step_state(self, state: dict, include_heat: bool = False, include_caverns: bool = False) -> None:
+        """Restore state captured by _capture_step_state."""
+        time_state = state["time"]
+        self.t_control.t = time_state["t"]
+        self.t_control.dt = time_state["dt"]
+        self.t_control.step_counter = time_state["step_counter"]
+
+        self._restore_function_arrays(self.eq_mom, state["eq_mom_functions"])
+        self._restore_material_internal_state(self.eq_mom, state["material_state"])
+
+        if include_heat and hasattr(self, "eq_heat") and "eq_heat_functions" in state:
+            self._restore_function_arrays(self.eq_heat, state["eq_heat_functions"])
+        if include_caverns and "caverns_state" in state:
+            self._restore_caverns_state(state["caverns_state"])
 
 
 class Simulator_TM(Simulator):
@@ -230,124 +366,154 @@ class Simulator_TM(Simulator):
 
         # Time loop
         while self.t_control.keep_looping():
+            max_bisections = int(getattr(self.t_control, "max_bisections", 5))
+            n_bisections = 0
+            step_completed = False
 
-            # Advance time. If adaptive, it need to send the iteration number
-            try:
-                self.t_control.advance_time(ite_for_advance)
-            except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
-                self.t_control.advance_time()
+            while not step_completed:
+                step_state = self._capture_step_state(include_heat=True, include_caverns=True)
+                stress_to_step_start = stress_to.clone()
 
-            t = self.t_control.t
-            dt = self.t_control.dt
+                # Advance time. If adaptive, it need to send the iteration number
+                try:
+                    self.t_control.advance_time(ite_for_advance)
+                except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
+                    self.t_control.advance_time()
 
-            # Update boundary conditions
-            self.eq_mom.bc.update_dirichlet(t)
-            self.eq_mom.bc.update_neumann(t)
-            self.eq_heat.bc.update_bcs(t)
+                t = self.t_control.t
+                dt = self.t_control.dt
 
-            # Initialize criterion at step start
-            self.convergence_handler.initialize_step(self.eq_mom, maxiter=80)
+                # Update boundary conditions
+                self.eq_mom.bc.update_dirichlet(t)
+                self.eq_mom.bc.update_neumann(t)
+                self.eq_heat.bc.update_bcs(t)
 
-            while self.convergence_handler.not_converged():
-                # Update cavern boundary conditions for heat diffusion equation
-                self.eq_heat.bc.update_cavern_bcs(self.caverns)
-
-                # Solve heat
-                self.eq_heat.solve(t, dt)
-
-                # Calculate total heat transfered through cavern walls
-                self.caverns.calculate_total_heat(dt, self.eq_heat.T, self.eq_heat.k)
-
-                # Update thermodynamic state of caverns
-                self.caverns.update_caverns(t, dt)
-
-                # Update cavern boundary conditions for momentum equation
-                self.eq_mom.bc.update_cavern_bcs(self.caverns)
-
-                # Set new temperature to momentum equation
-                T_elems = self.eq_heat.get_T_elems()
-                self.eq_mom.set_T(T_elems)
-
-                # Update stress
-                stress_k_to = stress_to.clone()
-
-                # Build bi-linear form
-                self.eq_mom.solve(stress_k_to, t, dt)
-
-                # Compute total strain
-                eps_tot_to = self.eq_mom.compute_total_strain()
-
-                # Compute stress
-                stress_to = self.eq_mom.compute_stress(eps_tot_to)
-
-                # Increment internal variables
-                self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
-
-                # Compute inelastic strain rates
-                self.eq_mom.compute_eps_ne_rate(stress_to, dt)
-
-                # Recalculate volumes of caverns
-                self.caverns.calculate_volumes(self.eq_mom.u)
-
-                # Compute error via active convergence criterion
-                self.convergence_handler.evaluate(self.eq_mom)
-
-                self.convergence_handler.increment_iteration()
-
-            ite = self.convergence_handler.ite
-
-            # Relative-iteration adaptive dt integration (Task #5/#9).
-            if hasattr(self.t_control, "get_next_dt"):
-                maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
-                convergence_ratio = ite / maxiter
-                converged = not self.convergence_handler.not_converged_error
-                self.t_control.dt = self.t_control.get_next_dt(
-                    convergence_ratio=convergence_ratio,
-                    n_bisections=0,
-                    converged=converged,
+                # Initialize criterion at step start
+                maxiter = int(getattr(self.t_control, "maxiter", 80) or 80)
+                self.convergence_handler.initialize_step(
+                    self.eq_mom,
+                    maxiter=maxiter,
                 )
-                # Avoid double-adaptation by legacy absolute-iteration path.
-                ite_for_advance = 0
-            else:
-                # Legacy controllers continue to adapt with absolute ite.
-                ite_for_advance = ite
 
-            # Calculate next cavern masses and volumes
-            self.caverns.calculate_initial_conditions()
+                while self.convergence_handler.not_converged():
+                    # Update cavern boundary conditions for heat diffusion equation
+                    self.eq_heat.bc.update_cavern_bcs(self.caverns)
 
-            # Record thermodynamic data for caverns
-            self.caverns.record_cavern_data(t)
+                    # Solve heat
+                    self.eq_heat.solve(t, dt)
 
-            # Update internal variables
-            self.eq_mom.update_internal_variables()
+                    # Calculate total heat transfered through cavern walls
+                    self.caverns.calculate_total_heat(dt, self.eq_heat.T, self.eq_heat.k)
 
-            # Update strain rates
-            self.eq_mom.update_eps_ne_rate_old()
+                    # Update thermodynamic state of caverns
+                    self.caverns.update_caverns(t, dt)
 
-            # Update strain
-            self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
+                    # Update cavern boundary conditions for momentum equation
+                    self.eq_mom.bc.update_cavern_bcs(self.caverns)
 
-            # Update old temperature field
-            self.eq_heat.update_T_old()
+                    # Set new temperature to momentum equation
+                    T_elems = self.eq_heat.get_T_elems()
+                    self.eq_mom.set_T(T_elems)
 
-            # Save fields
-            self.eq_mom.compute_p_elems()
-            self.eq_mom.compute_q_elems()
-            self.eq_mom.compute_p_nodes()
-            self.eq_mom.compute_q_nodes()
-            for output in self.outputs:
-                output.save_fields(t)
+                    # Update stress
+                    stress_k_to = stress_to.clone()
 
-            # Print stuff
-            current_time = "%.3f" % (t / self.t_control.time_conversion)
-            screen_output_row = [
-                self.t_control.step_counter,
-                self.t_control.dt / self.t_control.time_conversion,
-                f"{current_time} / {self.t_control.t_final / self.t_control.time_conversion}",
-                ite,
-                self.convergence_handler.error,
-            ]
-            self.screen.print_row(screen_output_row)
+                    # Build bi-linear form
+                    self.eq_mom.solve(stress_k_to, t, dt)
+
+                    # Compute total strain
+                    eps_tot_to = self.eq_mom.compute_total_strain()
+
+                    # Compute stress
+                    stress_to = self.eq_mom.compute_stress(eps_tot_to)
+
+                    # Increment internal variables
+                    self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
+
+                    # Compute inelastic strain rates
+                    self.eq_mom.compute_eps_ne_rate(stress_to, dt)
+
+                    # Recalculate volumes of caverns
+                    self.caverns.calculate_volumes(self.eq_mom.u)
+
+                    # Compute error via active convergence criterion
+                    self.convergence_handler.evaluate(self.eq_mom)
+
+                    self.convergence_handler.increment_iteration()
+
+                ite = self.convergence_handler.ite
+                converged = not self.convergence_handler.not_converged_error
+
+                if not converged:
+                    if n_bisections >= max_bisections:
+                        raise RuntimeError(
+                            f"Failed to converge after {max_bisections} retries "
+                            f"(ite={ite}, maxiter={self.convergence_handler.maxiter})."
+                        )
+                    self._restore_step_state(
+                        step_state,
+                        include_heat=True,
+                        include_caverns=True,
+                    )
+                    stress_to = stress_to_step_start.clone()
+                    dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
+                    self.t_control.dt = max(step_state["time"]["dt"] * 0.5, dt_floor)
+                    ite_for_advance = 0
+                    n_bisections += 1
+                    continue
+
+                # Relative-iteration adaptive dt integration (Task #5/#9).
+                if hasattr(self.t_control, "get_next_dt"):
+                    maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
+                    convergence_ratio = ite / maxiter
+                    self.t_control.dt = self.t_control.get_next_dt(
+                        convergence_ratio=convergence_ratio,
+                        n_bisections=n_bisections,
+                        converged=True,
+                    )
+                    # Avoid double-adaptation by legacy absolute-iteration path.
+                    ite_for_advance = 0
+                else:
+                    # Legacy controllers continue to adapt with absolute ite.
+                    ite_for_advance = ite
+
+                # Calculate next cavern masses and volumes
+                self.caverns.calculate_initial_conditions()
+
+                # Record thermodynamic data for caverns
+                self.caverns.record_cavern_data(t)
+
+                # Update internal variables
+                self.eq_mom.update_internal_variables()
+
+                # Update strain rates
+                self.eq_mom.update_eps_ne_rate_old()
+
+                # Update strain
+                self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
+
+                # Update old temperature field
+                self.eq_heat.update_T_old()
+
+                # Save fields
+                self.eq_mom.compute_p_elems()
+                self.eq_mom.compute_q_elems()
+                self.eq_mom.compute_p_nodes()
+                self.eq_mom.compute_q_nodes()
+                for output in self.outputs:
+                    output.save_fields(t)
+
+                # Print stuff
+                current_time = "%.3f" % (t / self.t_control.time_conversion)
+                screen_output_row = [
+                    self.t_control.step_counter,
+                    self.t_control.dt / self.t_control.time_conversion,
+                    f"{current_time} / {self.t_control.t_final / self.t_control.time_conversion}",
+                    ite,
+                    self.convergence_handler.error,
+                ]
+                self.screen.print_row(screen_output_row)
+                step_completed = True
 
         self.caverns.save_caverns_data()
 
@@ -391,6 +557,7 @@ class Simulator_M(Simulator):
         compute_elastic_response: bool = True,
         merged_solutions: bool = False,
         convergence_criterion="strain_based",
+        maxiter: int = 40,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
@@ -398,6 +565,7 @@ class Simulator_M(Simulator):
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
         self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
+        self.maxiter = int(maxiter)
 
         # Apply merged_solutions flag to all output handlers
         for output in self.outputs:
@@ -499,107 +667,140 @@ class Simulator_M(Simulator):
 
         # Time loop
         while self.t_control.keep_looping():
+            max_bisections = int(getattr(self.t_control, "max_bisections", 5))
+            n_bisections = 0
+            step_completed = False
 
-            # Advance time. If adaptive, it need to send the iteration number
-            try:
-                self.t_control.advance_time(ite_for_advance)
-            except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
-                self.t_control.advance_time()
+            while not step_completed:
+                step_state = self._capture_step_state(include_heat=False, include_caverns=True)
+                stress_to_step_start = stress_to.clone()
 
-            t = self.t_control.t
-            dt = self.t_control.dt
+                # Advance time. If adaptive, it need to send the iteration number
+                try:
+                    self.t_control.advance_time(ite_for_advance)
+                except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
+                    self.t_control.advance_time()
 
-            # Update boundary conditions
-            self.eq_mom.bc.update_dirichlet(t)
-            self.eq_mom.bc.update_neumann(t)
+                t = self.t_control.t
+                dt = self.t_control.dt
 
-            # Initialize criterion at step start
-            self.convergence_handler.initialize_step(self.eq_mom, maxiter=40)
+                # Update boundary conditions
+                self.eq_mom.bc.update_dirichlet(t)
+                self.eq_mom.bc.update_neumann(t)
 
-            while self.convergence_handler.not_converged():
-                # Update thermodynamic state of caverns
-                self.caverns.update_caverns(t, dt)
-
-                # Update cavern boundary conditions
-                self.eq_mom.bc.update_cavern_bcs(self.caverns)
-
-                # Update stress
-                stress_k_to = stress_to.clone()
-
-                # Build bi-linear form
-                self.eq_mom.solve(stress_k_to, t, dt)
-
-                # Compute total strain
-                eps_tot_to = self.eq_mom.compute_total_strain()
-
-                # Compute stress
-                stress_to = self.eq_mom.compute_stress(eps_tot_to)
-
-                # Increment internal variables
-                self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
-
-                # Compute inelastic strain rates
-                self.eq_mom.compute_eps_ne_rate(stress_to, dt)
-
-                # Recalculate volumes of caverns
-                self.caverns.calculate_volumes(self.eq_mom.u)
-
-                # Compute error via active convergence criterion
-                self.convergence_handler.evaluate(self.eq_mom)
-
-                self.convergence_handler.increment_iteration()
-
-            ite = self.convergence_handler.ite
-
-            # Relative-iteration adaptive dt integration (Task #5/#9).
-            if hasattr(self.t_control, "get_next_dt"):
-                maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
-                convergence_ratio = ite / maxiter
-                converged = not self.convergence_handler.not_converged_error
-                self.t_control.dt = self.t_control.get_next_dt(
-                    convergence_ratio=convergence_ratio,
-                    n_bisections=0,
-                    converged=converged,
+                # Initialize criterion at step start
+                maxiter = int(
+                    getattr(self.t_control, "maxiter", self.maxiter)
+                    or self.maxiter
                 )
-                # Avoid double-adaptation by legacy absolute-iteration path.
-                ite_for_advance = 0
-            else:
-                # Legacy controllers continue to adapt with absolute ite.
-                ite_for_advance = ite
+                self.convergence_handler.initialize_step(
+                    self.eq_mom,
+                    maxiter=maxiter,
+                )
 
-            # Calculate next cavern masses and volumes
-            self.caverns.calculate_initial_conditions()
+                while self.convergence_handler.not_converged():
+                    # Update thermodynamic state of caverns
+                    self.caverns.update_caverns(t, dt)
 
-            # Record thermodynamic data for caverns
-            self.caverns.record_cavern_data(t)
+                    # Update cavern boundary conditions
+                    self.eq_mom.bc.update_cavern_bcs(self.caverns)
 
-            # Update internal variables
-            self.eq_mom.update_internal_variables()
+                    # Update stress
+                    stress_k_to = stress_to.clone()
 
-            # Update strain rates
-            self.eq_mom.update_eps_ne_rate_old()
+                    # Build bi-linear form
+                    self.eq_mom.solve(stress_k_to, t, dt)
 
-            # Update strain
-            self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
+                    # Compute total strain
+                    eps_tot_to = self.eq_mom.compute_total_strain()
 
-            # Save fields
-            self.eq_mom.compute_p_nodes()
-            self.eq_mom.compute_p_elems()
-            self.eq_mom.compute_q_elems()
-            self.eq_mom.compute_q_nodes()
-            for output in self.outputs:
-                output.save_fields(t)
+                    # Compute stress
+                    stress_to = self.eq_mom.compute_stress(eps_tot_to)
 
-            # Print stuff
-            current_time = "%.3f" % (t / self.t_control.time_conversion)
-            screen_output_row = [
-                self.t_control.step_counter,
-                self.t_control.dt / self.t_control.time_conversion,
-                f"{current_time} / {self.t_control.t_final / self.t_control.time_conversion}",
-                ite,
-                self.convergence_handler.error,
-            ]
-            self.screen.print_row(screen_output_row)
+                    # Increment internal variables
+                    self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
+
+                    # Compute inelastic strain rates
+                    self.eq_mom.compute_eps_ne_rate(stress_to, dt)
+
+                    # Recalculate volumes of caverns
+                    self.caverns.calculate_volumes(self.eq_mom.u)
+
+                    # Compute error via active convergence criterion
+                    self.convergence_handler.evaluate(self.eq_mom)
+
+                    self.convergence_handler.increment_iteration()
+
+                ite = self.convergence_handler.ite
+                converged = not self.convergence_handler.not_converged_error
+
+                if not converged:
+                    if n_bisections >= max_bisections:
+                        raise RuntimeError(
+                            f"Failed to converge after {max_bisections} retries "
+                            f"(ite={ite}, maxiter={self.convergence_handler.maxiter})."
+                        )
+                    self._restore_step_state(
+                        step_state,
+                        include_heat=False,
+                        include_caverns=True,
+                    )
+                    stress_to = stress_to_step_start.clone()
+                    dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
+                    self.t_control.dt = max(step_state["time"]["dt"] * 0.5, dt_floor)
+                    ite_for_advance = 0
+                    n_bisections += 1
+                    continue
+
+                # Relative-iteration adaptive dt integration (Task #5/#9).
+                if hasattr(self.t_control, "get_next_dt"):
+                    maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
+                    convergence_ratio = ite / maxiter
+                    self.t_control.dt = self.t_control.get_next_dt(
+                        convergence_ratio=convergence_ratio,
+                        n_bisections=n_bisections,
+                        converged=True,
+                    )
+                    # Avoid double-adaptation by legacy absolute-iteration path.
+                    ite_for_advance = 0
+                else:
+                    # Legacy controllers continue to adapt with absolute ite.
+                    ite_for_advance = ite
+
+                # Calculate next cavern masses and volumes
+                self.caverns.calculate_initial_conditions()
+
+                # Record thermodynamic data for caverns
+                self.caverns.record_cavern_data(t)
+
+                # Update internal variables
+                self.eq_mom.update_internal_variables()
+
+                # Update strain rates
+                self.eq_mom.update_eps_ne_rate_old()
+
+                # Update strain
+                self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
+
+                # Save fields
+                self.eq_mom.compute_p_nodes()
+                self.eq_mom.compute_p_elems()
+                self.eq_mom.compute_q_elems()
+                self.eq_mom.compute_q_nodes()
+                for output in self.outputs:
+                    output.save_fields(t)
+
+                # Print stuff
+                current_time = "%.3f" % (t / self.t_control.time_conversion)
+                screen_output_row = [
+                    self.t_control.step_counter,
+                    self.t_control.dt / self.t_control.time_conversion,
+                    f"{current_time} / {self.t_control.t_final / self.t_control.time_conversion}",
+                    ite,
+                    self.convergence_handler.error,
+                ]
+                self.screen.print_row(screen_output_row)
+                step_completed = True
 
         self.caverns.save_caverns_data()
 
@@ -857,91 +1058,121 @@ class Simulator_Mout(Simulator):
 
         # Time loop
         while self.t_control.keep_looping():
+            max_bisections = int(getattr(self.t_control, "max_bisections", 5))
+            n_bisections = 0
+            step_completed = False
 
-            # Advance time. If adaptive, it need to send the iteration number
-            try:
-                self.t_control.advance_time(ite_for_advance)
-            except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
-                self.t_control.advance_time()
+            while not step_completed:
+                step_state = self._capture_step_state(include_heat=False, include_caverns=False)
+                stress_to_step_start = stress_to.clone()
 
-            t = self.t_control.t
-            dt = self.t_control.dt
+                # Advance time. If adaptive, it need to send the iteration number
+                try:
+                    self.t_control.advance_time(ite_for_advance)
+                except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
+                    self.t_control.advance_time()
 
-            # Update boundary conditions
-            self.eq_mom.bc.update_dirichlet(t)
-            self.eq_mom.bc.update_neumann(t)
+                t = self.t_control.t
+                dt = self.t_control.dt
 
-            # Initialize criterion at step start
-            self.convergence_handler.initialize_step(self.eq_mom, maxiter=40)
+                # Update boundary conditions
+                self.eq_mom.bc.update_dirichlet(t)
+                self.eq_mom.bc.update_neumann(t)
 
-            while self.convergence_handler.not_converged():
-                # Update stress
-                stress_k_to = stress_to.clone()
-
-                # Build bi-linear form
-                self.eq_mom.solve(stress_k_to, t, dt)
-
-                # Compute total strain
-                eps_tot_to = self.eq_mom.compute_total_strain()
-
-                # Compute stress
-                stress_to = self.eq_mom.compute_stress(eps_tot_to)
-
-                # Increment internal variables
-                self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
-
-                # Compute inelastic strain rates
-                self.eq_mom.compute_eps_ne_rate(stress_to, dt)
-
-                # Compute error via active convergence criterion
-                self.convergence_handler.evaluate(self.eq_mom)
-
-                self.convergence_handler.increment_iteration()
-
-            ite = self.convergence_handler.ite
-
-            # Relative-iteration adaptive dt integration (Task #5/#9).
-            if hasattr(self.t_control, "get_next_dt"):
-                maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
-                convergence_ratio = ite / maxiter
-                converged = not self.convergence_handler.not_converged_error
-                self.t_control.dt = self.t_control.get_next_dt(
-                    convergence_ratio=convergence_ratio,
-                    n_bisections=0,
-                    converged=converged,
+                # Initialize criterion at step start
+                maxiter = int(getattr(self.t_control, "maxiter", 40) or 40)
+                self.convergence_handler.initialize_step(
+                    self.eq_mom,
+                    maxiter=maxiter,
                 )
-                # Avoid double-adaptation by legacy absolute-iteration path.
-                ite_for_advance = 0
-            else:
-                # Legacy controllers continue to adapt with absolute ite.
-                ite_for_advance = ite
 
-            # Update internal variables
-            self.eq_mom.update_internal_variables()
+                while self.convergence_handler.not_converged():
+                    # Update stress
+                    stress_k_to = stress_to.clone()
 
-            # Update strain rates
-            self.eq_mom.update_eps_ne_rate_old()
+                    # Build bi-linear form
+                    self.eq_mom.solve(stress_k_to, t, dt)
 
-            # Update strain
-            self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
+                    # Compute total strain
+                    eps_tot_to = self.eq_mom.compute_total_strain()
 
-            # Save fields
-            self.eq_mom.compute_p_elems()
-            self.eq_mom.compute_q_elems()
-            self.eq_mom.compute_p_nodes()
-            self.eq_mom.compute_q_nodes()
-            for output in self.outputs:
-                output.save_fields(t)
+                    # Compute stress
+                    stress_to = self.eq_mom.compute_stress(eps_tot_to)
 
-            # Print stuff
-            screen_output_row = [
-                self.t_control.step_counter,
-                self.t_control.dt / self.t_control.time_conversion,
-                f"{t / self.t_control.time_conversion} / {self.t_control.t_final / self.t_control.time_conversion}",
-                ite,
-                self.convergence_handler.error,
-            ]
-            self.screen.print_row(screen_output_row)
+                    # Increment internal variables
+                    self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
+
+                    # Compute inelastic strain rates
+                    self.eq_mom.compute_eps_ne_rate(stress_to, dt)
+
+                    # Compute error via active convergence criterion
+                    self.convergence_handler.evaluate(self.eq_mom)
+
+                    self.convergence_handler.increment_iteration()
+
+                ite = self.convergence_handler.ite
+                converged = not self.convergence_handler.not_converged_error
+
+                if not converged:
+                    if n_bisections >= max_bisections:
+                        raise RuntimeError(
+                            f"Failed to converge after {max_bisections} retries "
+                            f"(ite={ite}, maxiter={self.convergence_handler.maxiter})."
+                        )
+                    self._restore_step_state(
+                        step_state,
+                        include_heat=False,
+                        include_caverns=False,
+                    )
+                    stress_to = stress_to_step_start.clone()
+                    dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
+                    self.t_control.dt = max(step_state["time"]["dt"] * 0.5, dt_floor)
+                    ite_for_advance = 0
+                    n_bisections += 1
+                    continue
+
+                # Relative-iteration adaptive dt integration (Task #5/#9).
+                if hasattr(self.t_control, "get_next_dt"):
+                    maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
+                    convergence_ratio = ite / maxiter
+                    self.t_control.dt = self.t_control.get_next_dt(
+                        convergence_ratio=convergence_ratio,
+                        n_bisections=n_bisections,
+                        converged=True,
+                    )
+                    # Avoid double-adaptation by legacy absolute-iteration path.
+                    ite_for_advance = 0
+                else:
+                    # Legacy controllers continue to adapt with absolute ite.
+                    ite_for_advance = ite
+
+                # Update internal variables
+                self.eq_mom.update_internal_variables()
+
+                # Update strain rates
+                self.eq_mom.update_eps_ne_rate_old()
+
+                # Update strain
+                self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
+
+                # Save fields
+                self.eq_mom.compute_p_elems()
+                self.eq_mom.compute_q_elems()
+                self.eq_mom.compute_p_nodes()
+                self.eq_mom.compute_q_nodes()
+                for output in self.outputs:
+                    output.save_fields(t)
+
+                # Print stuff
+                screen_output_row = [
+                    self.t_control.step_counter,
+                    self.t_control.dt / self.t_control.time_conversion,
+                    f"{t / self.t_control.time_conversion} / {self.t_control.t_final / self.t_control.time_conversion}",
+                    ite,
+                    self.convergence_handler.error,
+                ]
+                self.screen.print_row(screen_output_row)
+                step_completed = True
 
             # if self.eq_mom.grid.mesh.comm.rank == 0:
             # 	print(t/self.t_control.time_unit, ite, error)

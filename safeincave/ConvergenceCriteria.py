@@ -48,6 +48,7 @@ converged = criterion.is_converged(error)
 from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, Dict, Any
 from abc import ABC, abstractmethod
+import math
 import torch as to
 import numpy as np
 from mpi4py import MPI
@@ -304,7 +305,7 @@ def _initialize_step_displacement(momentum_eq: LinearMomentumBase) -> to.Tensor:
 
 
 def resolve_convergence_criterion(
-    convergence_criterion: str = "strain_based",
+    convergence_criterion: str | "ConvergenceCriterion" = "strain_based",
 ) -> "ConvergenceCriterion":
     """
     Resolve convergence criterion selector into concrete strategy.
@@ -325,7 +326,12 @@ def resolve_convergence_criterion(
     ConvergenceCriterion
         Concrete criterion strategy instance.
     """
-    criterion_key = convergence_criterion.strip().lower()
+    if hasattr(convergence_criterion, "compute_error") and hasattr(
+        convergence_criterion, "is_converged"
+    ):
+        return convergence_criterion
+
+    criterion_key = str(convergence_criterion).strip().lower()
 
     if criterion_key == "strain_based":
         return StrainBasedCriterion()
@@ -391,13 +397,19 @@ class ConvergenceErrorHandler:
     simulator drivers only need one import from this module.
     """
 
-    def __init__(self, convergence_criterion: str = "strain_based", tol: float = 1e-8):
+    def __init__(
+        self,
+        convergence_criterion: str | "ConvergenceCriterion" = "strain_based",
+        tol: Optional[float] = None,
+    ):
         self.criterion = resolve_convergence_criterion(convergence_criterion)
         self.error: float = 0.0
         self.not_converged_error: bool = True
         self.below_max_iterations: bool = True
         self.last_raw_error: float = 0.0
-        self.tol: float = tol
+        # If tol is None, convergence is evaluated with criterion.is_converged(error).
+        # If tol is provided, it overrides criterion tolerance for loop control.
+        self.tol: Optional[float] = tol
         self.ite: int = 0
         self.maxiter: Optional[int] = None
 
@@ -438,7 +450,13 @@ class ConvergenceErrorHandler:
 
     def update_not_converged_error(self) -> bool:
         """Update and return the current convergence-state boolean."""
-        self.not_converged_error = self.error > self.tol
+        if not math.isfinite(self.error):
+            # NaN/Inf means the nonlinear iteration is unstable and must continue/retry.
+            self.not_converged_error = True
+        elif self.tol is None:
+            self.not_converged_error = not self.criterion.is_converged(self.error)
+        else:
+            self.not_converged_error = self.error > self.tol
         return self.not_converged_error
 
     def update_below_max_iterations(
@@ -471,6 +489,8 @@ class ConvergenceErrorHandler:
 
     def get_tolerance(self) -> float:
         """Return active criterion tolerance used for convergence checks."""
+        if self.tol is not None:
+            return float(self.tol)
         return float(self.criterion.tolerance)
 
     def get_last_raw_error(self) -> float:
