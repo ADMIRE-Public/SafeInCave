@@ -226,13 +226,14 @@ class Simulator_TM(Simulator):
 
         # First step has no previous nonlinear iteration count.
         ite = 0
+        ite_for_advance = 0
 
         # Time loop
         while self.t_control.keep_looping():
 
             # Advance time. If adaptive, it need to send the iteration number
             try:
-                self.t_control.advance_time(ite)
+                self.t_control.advance_time(ite_for_advance)
             except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
                 self.t_control.advance_time()
 
@@ -294,6 +295,22 @@ class Simulator_TM(Simulator):
                 self.convergence_handler.increment_iteration()
 
             ite = self.convergence_handler.ite
+
+            # Relative-iteration adaptive dt integration (Task #5/#9).
+            if hasattr(self.t_control, "get_next_dt"):
+                maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
+                convergence_ratio = ite / maxiter
+                converged = not self.convergence_handler.not_converged_error
+                self.t_control.dt = self.t_control.get_next_dt(
+                    convergence_ratio=convergence_ratio,
+                    n_bisections=0,
+                    converged=converged,
+                )
+                # Avoid double-adaptation by legacy absolute-iteration path.
+                ite_for_advance = 0
+            else:
+                # Legacy controllers continue to adapt with absolute ite.
+                ite_for_advance = ite
 
             # Calculate next cavern masses and volumes
             self.caverns.calculate_initial_conditions()
@@ -478,13 +495,14 @@ class Simulator_M(Simulator):
 
         # First step has no previous nonlinear iteration count.
         ite = 0
+        ite_for_advance = 0
 
         # Time loop
         while self.t_control.keep_looping():
 
             # Advance time. If adaptive, it need to send the iteration number
             try:
-                self.t_control.advance_time(ite)
+                self.t_control.advance_time(ite_for_advance)
             except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
                 self.t_control.advance_time()
 
@@ -532,6 +550,22 @@ class Simulator_M(Simulator):
                 self.convergence_handler.increment_iteration()
 
             ite = self.convergence_handler.ite
+
+            # Relative-iteration adaptive dt integration (Task #5/#9).
+            if hasattr(self.t_control, "get_next_dt"):
+                maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
+                convergence_ratio = ite / maxiter
+                converged = not self.convergence_handler.not_converged_error
+                self.t_control.dt = self.t_control.get_next_dt(
+                    convergence_ratio=convergence_ratio,
+                    n_bisections=0,
+                    converged=converged,
+                )
+                # Avoid double-adaptation by legacy absolute-iteration path.
+                ite_for_advance = 0
+            else:
+                # Legacy controllers continue to adapt with absolute ite.
+                ite_for_advance = ite
 
             # Calculate next cavern masses and volumes
             self.caverns.calculate_initial_conditions()
@@ -819,13 +853,14 @@ class Simulator_Mout(Simulator):
 
         # First step has no previous nonlinear iteration count.
         ite = 0
+        ite_for_advance = 0
 
         # Time loop
         while self.t_control.keep_looping():
 
             # Advance time. If adaptive, it need to send the iteration number
             try:
-                self.t_control.advance_time(ite)
+                self.t_control.advance_time(ite_for_advance)
             except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
                 self.t_control.advance_time()
 
@@ -864,6 +899,22 @@ class Simulator_Mout(Simulator):
                 self.convergence_handler.increment_iteration()
 
             ite = self.convergence_handler.ite
+
+            # Relative-iteration adaptive dt integration (Task #5/#9).
+            if hasattr(self.t_control, "get_next_dt"):
+                maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
+                convergence_ratio = ite / maxiter
+                converged = not self.convergence_handler.not_converged_error
+                self.t_control.dt = self.t_control.get_next_dt(
+                    convergence_ratio=convergence_ratio,
+                    n_bisections=0,
+                    converged=converged,
+                )
+                # Avoid double-adaptation by legacy absolute-iteration path.
+                ite_for_advance = 0
+            else:
+                # Legacy controllers continue to adapt with absolute ite.
+                ite_for_advance = ite
 
             # Update internal variables
             self.eq_mom.update_internal_variables()
