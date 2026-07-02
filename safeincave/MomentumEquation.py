@@ -526,6 +526,185 @@ class LinearMomentumBase(ABC):
         """
         pass
 
+    def get_external_load_norm(self) -> float:
+        """
+        Compute the norm of external loads for residual normalization.
+
+        Assembles and computes the norm of all external loads (body forces,
+        Neumann BCs, and cavern loads) to use as a reference for residual
+        error computation in convergence checks.
+
+        Returns
+        -------
+        float
+            L2 norm of the external load vector. Protected against zero by
+            floor of 1e-16 to avoid division by zero in error metrics.
+
+        Notes
+        -----
+        Collects contributions from:
+        - Body forces: ∫ ρ g · u_ dx
+        - Neumann boundary conditions: natural tractions
+        - Cavern-specific loads
+
+        This method must be MPI-safe (uses collective norm operations if needed).
+        """
+        # Build the external load vector
+        linear_form = do.fem.form(
+            self.b_body + sum(self.bc.neumann_bcs) + sum(self.bc.cavern_bcs)
+        )
+        f_ext = fem_petsc.assemble_vector(linear_form)
+        
+        # Apply lifting for Dirichlet BCs (project to null space of essential BCs)
+        fem_petsc.apply_lifting(f_ext, [do.fem.form(ufl.inner(ufl.grad(self.du), ufl.grad(self.u_)) * self.dx)], 
+                                 [self.bc.dirichlet_bcs])
+        f_ext.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        
+        # Compute norm
+        norm = f_ext.norm()
+        
+        # Protect against zero norm
+        norm = max(norm, 1e-16)
+        
+        return norm
+
+    def get_internal_force_vector(self, stress: to.Tensor) -> to.Tensor:
+        """
+        Compute the internal force vector from stress field.
+
+        Assembles the internal force vector q_int = ∫ σ · ∇u_ dx by
+        computing the divergence of stress and integrating over the domain.
+
+        Parameters
+        ----------
+        stress : torch.Tensor
+            Stress tensor per element, shape ``(n_elems, 3, 3)``.
+
+        Returns
+        -------
+        torch.Tensor
+            Internal force vector, same shape/structure as displacement DoFs.
+
+        Notes
+        -----
+        Uses the current stiffness matrix assembly pattern without time stepping:
+        q_int = ∫ σ : ∇u_ dx
+
+        For efficiency, stores stress in the DG0 stress field (self.sig) before
+        assembly to ensure consistent integration.
+        """
+        # Update stress field for assembly
+        self.sig.x.array[:] = to.flatten(stress)
+        
+        # Build internal force form: ∫ σ : ∇u_ dx
+        # This represents the internal force contribution from current stress state
+        internal_form = ufl.inner(self.sig, epsilon(self.u_)) * self.dx
+        
+        # Assemble as a vector (right-hand side)
+        linear_form = do.fem.form(internal_form)
+        q_int = fem_petsc.assemble_vector(linear_form)
+        q_int.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        
+        # Convert to torch tensor for consistency with other methods
+        q_int_to = to.from_numpy(q_int.array.copy()).double()
+        
+        return q_int_to
+
+    def compute_residual(self, stress: to.Tensor, u: to.Tensor = None) -> to.Tensor:
+        """
+        Compute the residual vector R = P_ext - q_int for convergence checking.
+
+        Computes the mechanical residual as the difference between applied
+        external loads and internal forces derived from the stress state.
+        This residual is used in conjunction with strain error to determine
+        convergence of the nonlinear iteration.
+
+        Parameters
+        ----------
+        stress : torch.Tensor
+            Current stress state, shape ``(n_elems, 3, 3)``.
+        u : torch.Tensor, optional
+            Displacement field (not currently used, reserved for future extensions
+            like energy norm computation). Default is None.
+
+        Returns
+        -------
+        torch.Tensor
+            Residual vector R = P_ext - q_int, same shape as displacement DoFs.
+
+        Notes
+        -----
+        Residual computation:
+        - P_ext: assembled from external loads (body forces, Neumann BCs, cavern loads)
+        - q_int: internal forces computed from divergence of stress
+        - R = P_ext - q_int (small R indicates equilibrium)
+
+        For a converged solution, both R should be small (residual criterion)
+        and the displacement increment should be small (strain criterion).
+        """
+        # Assemble external load vector
+        linear_form = do.fem.form(
+            self.b_body + sum(self.bc.neumann_bcs) + sum(self.bc.cavern_bcs)
+        )
+        P_ext = fem_petsc.assemble_vector(linear_form)
+        
+        # Apply lifting for Dirichlet BCs
+        fem_petsc.apply_lifting(P_ext, [do.fem.form(ufl.inner(ufl.grad(self.du), ufl.grad(self.u_)) * self.dx)],
+                                [self.bc.dirichlet_bcs])
+        P_ext.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        
+        # Get internal force vector
+        q_int_to = self.get_internal_force_vector(stress)
+        
+        # Convert P_ext to torch for residual computation
+        P_ext_to = to.from_numpy(P_ext.array.copy()).double()
+        
+        # Compute residual: R = P_ext - q_int
+        residual = P_ext_to - q_int_to
+        
+        return residual
+
+    def compute_displacement_norm(self, u: to.Tensor) -> float:
+        """
+        Compute the normalized L2 norm of displacement vector.
+
+        Computes ||u|| / (||u_old|| + ε) to obtain a dimensionless measure
+        of displacement magnitude for relative error computation in convergence
+        checks. Used in conjunction with strain error to assess convergence.
+
+        Parameters
+        ----------
+        u : torch.Tensor
+            Displacement vector (full DOF vector or per-element representation).
+
+        Returns
+        -------
+        float
+            L2 norm of displacement vector. Protected against zero by floor
+            of 1e-16 to enable safe relative error computation.
+
+        Notes
+        -----
+        This norm is used in the convergence criterion:
+        error_strain = ||u_new - u_old|| / ||u_old||
+
+        The return value is typically compared against a strain tolerance
+        (e.g., tol_strain = 1e-7) to determine convergence.
+
+        For torch tensors, computes torch.norm(u).item() and converts to float.
+        """
+        if isinstance(u, to.Tensor):
+            norm = to.norm(u).item()
+        else:
+            # Handle numpy arrays if needed
+            import numpy as np
+            norm = np.linalg.norm(u)
+        
+        # Protect against zero norm
+        norm = max(norm, 1e-16)
+        
+        return float(norm)
+
     @abstractmethod
     def compute_CT(self, dt: float, stress_k: to.Tensor):
         """
