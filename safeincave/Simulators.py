@@ -224,6 +224,9 @@ class Simulator_TM(Simulator):
         for output in self.outputs:
             output.save_fields(0)
 
+        # First step has no previous nonlinear iteration count.
+        ite = 0
+
         # Time loop
         while self.t_control.keep_looping():
 
@@ -241,15 +244,10 @@ class Simulator_TM(Simulator):
             self.eq_mom.bc.update_neumann(t)
             self.eq_heat.bc.update_bcs(t)
 
-            # Iterative loop settings
-            ite = 0
-            maxiter = 80
-
             # Initialize criterion at step start
-            self._initialize_convergence_criterion()
-            self.convergence_handler.not_converged_error = True
+            self.convergence_handler.initialize_step(self.eq_mom, maxiter=80)
 
-            while self.convergence_handler.not_converged_error and ite < maxiter:
+            while self.convergence_handler.not_converged():
                 # Update cavern boundary conditions for heat diffusion equation
                 self.eq_heat.bc.update_cavern_bcs(self.caverns)
 
@@ -293,7 +291,9 @@ class Simulator_TM(Simulator):
                 # Compute error via active convergence criterion
                 self.convergence_handler.evaluate(self.eq_mom)
 
-                ite += 1
+                self.convergence_handler.increment_iteration()
+
+            ite = self.convergence_handler.ite
 
             # Calculate next cavern masses and volumes
             self.caverns.calculate_initial_conditions()
@@ -476,6 +476,9 @@ class Simulator_M(Simulator):
         for output in self.outputs:
             output.save_fields(0)
 
+        # First step has no previous nonlinear iteration count.
+        ite = 0
+
         # Time loop
         while self.t_control.keep_looping():
 
@@ -492,15 +495,10 @@ class Simulator_M(Simulator):
             self.eq_mom.bc.update_dirichlet(t)
             self.eq_mom.bc.update_neumann(t)
 
-            # Iterative loop settings
-            ite = 0
-            maxiter = 40
-
             # Initialize criterion at step start
-            self._initialize_convergence_criterion()
-            self.convergence_handler.not_converged_error = True
+            self.convergence_handler.initialize_step(self.eq_mom, maxiter=40)
 
-            while self.convergence_handler.not_converged_error and ite < maxiter:
+            while self.convergence_handler.not_converged():
                 # Update thermodynamic state of caverns
                 self.caverns.update_caverns(t, dt)
 
@@ -531,7 +529,9 @@ class Simulator_M(Simulator):
                 # Compute error via active convergence criterion
                 self.convergence_handler.evaluate(self.eq_mom)
 
-                ite += 1
+                self.convergence_handler.increment_iteration()
+
+            ite = self.convergence_handler.ite
 
             # Calculate next cavern masses and volumes
             self.caverns.calculate_initial_conditions()
@@ -654,6 +654,9 @@ class Simulator_T(Simulator):
 
         # Save fields
         output.save_fields(0)
+
+        # Thermal-only solver has no nonlinear mechanical iterations.
+        ite = 0
 
         # Time loop
         while self.t_control.keep_looping():
@@ -814,6 +817,9 @@ class Simulator_Mout(Simulator):
         self.eq_mom.compute_q_nodes()
         output.save_fields(0)
 
+        # First step has no previous nonlinear iteration count.
+        ite = 0
+
         # Time loop
         while self.t_control.keep_looping():
 
@@ -830,15 +836,10 @@ class Simulator_Mout(Simulator):
             self.eq_mom.bc.update_dirichlet(t)
             self.eq_mom.bc.update_neumann(t)
 
-            # Iterative loop settings
-            ite = 0
-            maxiter = 40
-
             # Initialize criterion at step start
-            self._initialize_convergence_criterion()
-            self.convergence_handler.not_converged_error = True
+            self.convergence_handler.initialize_step(self.eq_mom, maxiter=40)
 
-            while self.convergence_handler.not_converged_error and ite < maxiter:
+            while self.convergence_handler.not_converged():
                 # Update stress
                 stress_k_to = stress_to.clone()
 
@@ -860,7 +861,9 @@ class Simulator_Mout(Simulator):
                 # Compute error via active convergence criterion
                 self.convergence_handler.evaluate(self.eq_mom)
 
-                ite += 1
+                self.convergence_handler.increment_iteration()
+
+            ite = self.convergence_handler.ite
 
             # Update internal variables
             self.eq_mom.update_internal_variables()

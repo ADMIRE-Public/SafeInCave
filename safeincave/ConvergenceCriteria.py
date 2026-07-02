@@ -395,16 +395,23 @@ class ConvergenceErrorHandler:
         self.criterion = resolve_convergence_criterion(convergence_criterion)
         self.error: float = 0.0
         self.not_converged_error: bool = True
+        self.below_max_iterations: bool = True
         self.last_raw_error: float = 0.0
         self.tol: float = tol
+        self.ite: int = 0
+        self.maxiter: Optional[int] = None
 
     def initialize_step(
         self,
         momentum_eq: LinearMomentumBase,
+        maxiter: Optional[int] = None,
     ) -> None:
         """Initialize criterion state at the start of a time step."""
         self.error = 0.0
         self.not_converged_error = True
+        self.ite = 0
+        self.maxiter = maxiter
+        self.below_max_iterations = True if maxiter is None else (self.ite < maxiter)
         initialize_convergence_state(
             momentum_eq,
             self.criterion,
@@ -417,15 +424,50 @@ class ConvergenceErrorHandler:
         self.last_raw_error = self.error
         return self.error
 
-    def evaluate(self, momentum_eq: LinearMomentumBase) -> bool:
+    def evaluate(
+        self,
+        momentum_eq: LinearMomentumBase,
+        ite: Optional[int] = None,
+        maxiter: Optional[int] = None,
+    ) -> bool:
         """Compute error and refresh the convergence-state boolean."""
         self.compute_error(momentum_eq)
+        if ite is not None or maxiter is not None:
+            self.update_below_max_iterations(ite=ite, maxiter=maxiter)
         return self.update_not_converged_error()
 
     def update_not_converged_error(self) -> bool:
         """Update and return the current convergence-state boolean."""
         self.not_converged_error = self.error > self.tol
         return self.not_converged_error
+
+    def update_below_max_iterations(
+        self,
+        ite: Optional[int] = None,
+        maxiter: Optional[int] = None,
+    ) -> bool:
+        """Update and return whether the current iteration is below max iterations."""
+        if maxiter is not None:
+            self.maxiter = maxiter
+        if ite is not None:
+            self.ite = ite
+
+        if self.maxiter is None:
+            self.below_max_iterations = True
+        else:
+            self.below_max_iterations = self.ite < self.maxiter
+
+        return self.below_max_iterations
+
+    def increment_iteration(self) -> int:
+        """Increment iteration counter and refresh max-iteration state."""
+        self.ite += 1
+        self.update_below_max_iterations(ite=self.ite)
+        return self.ite
+
+    def not_converged(self) -> bool:
+        """Return unified nonlinear-loop continuation condition."""
+        return self.not_converged_error and self.below_max_iterations
 
     def get_tolerance(self) -> float:
         """Return active criterion tolerance used for convergence checks."""
