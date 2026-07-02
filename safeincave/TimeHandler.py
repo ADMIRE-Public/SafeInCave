@@ -173,8 +173,11 @@ class TimeControllerAdaptive(TimeControllerBase):
     """
     Adaptive-step time controller.
 
-    Advances the current time by a step `dt` expressed in the chosen
-    unit. dt is increased if the number of iterations are small enough or decreased if too much
+    Supports two adaptation interfaces:
+    1) Legacy absolute-iteration adaptation via `advance_time(numberIterations)`.
+    2) Relative-iteration adaptation via `get_next_dt(convergence_ratio, ...)`.
+
+    Legacy behavior is preserved for backward compatibility.
 
     Parameters
     ----------
@@ -189,10 +192,25 @@ class TimeControllerAdaptive(TimeControllerBase):
     time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
     Unit used to interpret `dt`, `initial_time`, and `final_time`.
 
+    dt_min : float, optional
+    Minimum time-step size expressed in the units given by `time_unit`.
+    dt_max : float, optional
+    Alias for `max_dt` to support a clearer API.
+    growth_factor : float, default=1.5
+    Multiplicative factor for dt growth in easy-convergence regions.
+    shrink_factor : float, default=0.5
+    Multiplicative factor for dt shrinking in hard-convergence regions.
+    easy_ratio_threshold : float, default=0.25
+    Relative-iteration threshold below which convergence is considered easy.
+    hard_ratio_threshold : float, default=0.50
+    Relative-iteration threshold above which convergence is considered hard.
+    max_bisections : int, default=5
+    Maximum retry/bisection attempts for failed steps.
+
     Attributes
     ----------
     dt : float
-    Fixed time-step size in **seconds**.
+        Current time-step size in **seconds**.
     """
 
     def __init__(
@@ -205,14 +223,100 @@ class TimeControllerAdaptive(TimeControllerBase):
         iterations_min: int = 5,
         iterations_max: int = 10,
         inflation: float = 2.0,
+        dt_min: float | None = None,
+        dt_max: float | None = None,
+        growth_factor: float = 1.5,
+        shrink_factor: float = 0.5,
+        easy_ratio_threshold: float = 0.25,
+        hard_ratio_threshold: float = 0.50,
+        max_bisections: int = 5,
     ):
         super().__init__(initial_time, final_time, time_unit)
         self.dt = initial_dt * self.time_conversion
-        self.max_dt = max_dt * self.time_conversion
+        resolved_dt_max = max_dt if dt_max is None else dt_max
+        self.max_dt = resolved_dt_max * self.time_conversion
+        self.dt_max = self.max_dt
+        self.dt_min = (
+            0.0 if dt_min is None else dt_min * self.time_conversion
+        )
+
         self.flag_functionOfIteration = True
+
+        # Legacy absolute-iteration controls.
         self.iterations_min = iterations_min
         self.iterations_max = iterations_max
         self.inflation = inflation
+
+        # Relative-iteration controls.
+        self.growth_factor = growth_factor
+        self.shrink_factor = shrink_factor
+        self.easy_ratio_threshold = easy_ratio_threshold
+        self.hard_ratio_threshold = hard_ratio_threshold
+        self.max_bisections = max_bisections
+
+        # Lightweight diagnostics/state for adaptive policy.
+        self.last_ratio = 0.0
+        self.last_dt_reason = "initialize"
+        self.last_converged = True
+        self.last_n_bisections = 0
+
+    def _clamp_dt(self, dt_value: float) -> float:
+        """Clamp time step to configured [dt_min, dt_max] bounds."""
+        return min(max(dt_value, self.dt_min), self.dt_max)
+
+    def get_next_dt(
+        self,
+        convergence_ratio: float | None,
+        n_bisections: int = 0,
+        converged: bool = True,
+    ) -> float:
+        """
+        Suggest next dt from relative convergence effort.
+
+        Parameters
+        ----------
+        convergence_ratio : float | None
+            Relative convergence effort r = ite / maxiter.
+        n_bisections : int, default=0
+            Number of retries already used in the current step.
+        converged : bool, default=True
+            Whether the last nonlinear step converged.
+
+        Returns
+        -------
+        float
+            Suggested next time step (seconds), bounded by dt_min and dt_max.
+        """
+        self.last_converged = converged
+        self.last_n_bisections = max(0, int(n_bisections))
+
+        if convergence_ratio is None:
+            ratio = 0.0
+        else:
+            ratio = max(0.0, float(convergence_ratio))
+        self.last_ratio = ratio
+
+        if not converged:
+            # Failed step: default recovery policy is half step.
+            dt_candidate = self.dt * self.shrink_factor
+            reason = "failed_step_shrink"
+        elif ratio < self.easy_ratio_threshold:
+            dt_candidate = self.dt * self.growth_factor
+            reason = "easy_grow"
+        elif ratio > self.hard_ratio_threshold:
+            dt_candidate = self.dt * self.shrink_factor
+            reason = "hard_shrink"
+        else:
+            dt_candidate = self.dt
+            reason = "moderate_keep"
+
+        if self.last_n_bisections > 0:
+            dt_candidate *= self.shrink_factor ** self.last_n_bisections
+            reason = f"{reason}_bisect"
+
+        dt_next = self._clamp_dt(dt_candidate)
+        self.last_dt_reason = reason
+        return dt_next
 
     def advance_time(self, numberIterations: int = 0) -> None:
         """
@@ -226,12 +330,14 @@ class TimeControllerAdaptive(TimeControllerBase):
         # this numberIterations == 0 is here to make timeAdaptive controller work whenever it is called as a regular non-adaptive timecontroller
         if self.step_counter == 0 or numberIterations == 0:
             pass
-        elif numberIterations<=self.iterations_min:
-            self.dt=self.dt*self.inflation
-            if(self.dt>self.max_dt):
+        elif numberIterations <= self.iterations_min:
+            self.dt = self.dt * self.inflation
+            if self.dt > self.max_dt:
                 self.dt = self.max_dt
-        elif numberIterations>=self.iterations_max:
-            self.dt=self.dt/self.inflation
+        elif numberIterations >= self.iterations_max:
+            self.dt = self.dt / self.inflation
+
+        self.dt = self._clamp_dt(self.dt)
 
         self.step_counter += 1
         self.t += self.dt
