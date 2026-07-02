@@ -50,6 +50,7 @@ from typing import TYPE_CHECKING, Tuple, List, Optional, Dict, Any
 from abc import ABC, abstractmethod
 import torch as to
 import numpy as np
+from mpi4py import MPI
 from petsc4py import PETSc
 import ufl
 from dolfinx import fem as do_fem
@@ -304,6 +305,71 @@ def _initialize_step_displacement(momentum_eq: LinearMomentumBase) -> to.Tensor:
     displacement_step_start = momentum_eq.u.x.array.copy()
     momentum_eq.u_step_start = displacement_step_start
     return displacement_step_start
+
+
+# ============================================================================
+# LEGACY WRAPPER FUNCTIONS - Backward-Compatible Hardcoded Logic
+# ============================================================================
+# These functions encapsulate the exact hardcoded convergence logic currently
+# used in Simulators.py to enable refactoring without functional changes.
+# These are for backward compatibility only and replicate exact behavior.
+
+
+def compute_strain_error_legacy(
+    momentum_eq: LinearMomentumBase,
+    strain_previous: to.Tensor,
+    strain_current: to.Tensor
+) -> float:
+    """
+    Compute strain-based error using legacy hardcoded logic.
+    
+    Exactly replicates the convergence check from Simulators.py.
+    Returns 0 if explicit time integration or no inelastic elements.
+    Uses MPI collective to synchronize across ranks.
+    
+    Parameters
+    ----------
+    momentum_eq : LinearMomentumBase
+        Momentum equation solver instance.
+    strain_previous : torch.Tensor
+        Total strain from previous iteration, shape (n_elems, 3, 3).
+    strain_current : torch.Tensor
+        Total strain from current iteration, shape (n_elems, 3, 3).
+    
+    Returns
+    -------
+    float
+        Relative strain error across all MPI ranks (uses MPI.SUM).
+    
+    Notes
+    -----
+    This function is provided for backward compatibility during refactoring.
+    The hardcoded logic it replaces:
+    - Returns 0 if theta=1.0 (explicit time integration)
+    - Returns 0 if no inelastic elements
+    - Otherwise computes ||ε_k - ε|| / ||ε|| with MPI synchronization
+    """
+    # Early exit for explicit time integration
+    if momentum_eq.theta == 1.0:
+        return 0.0
+    
+    # Early exit for purely elastic material
+    if len(momentum_eq.mat.elems_ne) == 0:
+        return 0.0
+    
+    # Compute local error
+    eps_tot_k_flat = to.flatten(strain_previous)
+    eps_tot_flat = to.flatten(strain_current)
+    local_error = np.linalg.norm(
+        eps_tot_k_flat - eps_tot_flat
+    ) / np.linalg.norm(eps_tot_flat)
+    
+    # Synchronize across MPI ranks (uses SUM to match original behavior)
+    error = momentum_eq.grid.mesh.comm.allreduce(
+        local_error, op=MPI.SUM
+    )
+    
+    return float(error)
 
 
 class ConvergenceCriterion(ABC):

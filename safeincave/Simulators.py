@@ -13,6 +13,7 @@ from .TimeHandler import TimeControllerBase
 from .OutputHandler import SaveFields
 from .ScreenOutput import ScreenPrinter
 from .CavernBC import CavernHandler
+from .ConvergenceCriteria import compute_strain_error_legacy
 
 
 class Simulator(ABC):
@@ -266,20 +267,8 @@ class Simulator_TM(Simulator):
                 # Recalculate volumes of caverns
                 self.caverns.calculate_volumes(self.eq_mom.u)
 
-                # Compute error
-                if self.eq_mom.theta == 1.0:
-                    error = 0.0
-                elif len(self.eq_mom.mat.elems_ne) == 0:
-                    error = 0.0
-                else:
-                    eps_tot_k_flat = to.flatten(eps_tot_k_to)
-                    eps_tot_flat = to.flatten(eps_tot_to)
-                    local_error = np.linalg.norm(
-                        eps_tot_k_flat - eps_tot_flat
-                    ) / np.linalg.norm(eps_tot_flat)
-                    error = self.eq_mom.grid.mesh.comm.allreduce(
-                        local_error, op=MPI.SUM
-                    )
+                # Compute error (using legacy wrapper for backward compatibility)
+                error = compute_strain_error_legacy(self.eq_mom, eps_tot_k_to, eps_tot_to)
 
                 ite += 1
 
@@ -515,20 +504,8 @@ class Simulator_M(Simulator):
                 # Recalculate volumes of caverns
                 self.caverns.calculate_volumes(self.eq_mom.u)
 
-                # Compute error
-                if self.eq_mom.theta == 1.0:
-                    error = 0.0
-                elif len(self.eq_mom.mat.elems_ne) == 0:
-                    error = 0.0
-                else:
-                    eps_tot_k_flat = to.flatten(eps_tot_k_to)
-                    eps_tot_flat = to.flatten(eps_tot_to)
-                    local_error = np.linalg.norm(
-                        eps_tot_k_flat - eps_tot_flat
-                    ) / np.linalg.norm(eps_tot_flat)
-                    error = self.eq_mom.grid.mesh.comm.allreduce(
-                        local_error, op=MPI.SUM
-                    )
+                # Compute error (using legacy wrapper for backward compatibility)
+                error = compute_strain_error_legacy(self.eq_mom, eps_tot_k_to, eps_tot_to)
 
                 ite += 1
 
@@ -855,20 +832,8 @@ class Simulator_Mout(Simulator):
                 # Compute inelastic strain rates
                 self.eq_mom.compute_eps_ne_rate(stress_to, dt)
 
-                # Compute error
-                if self.eq_mom.theta == 1.0:
-                    error = 0.0
-                elif len(self.eq_mom.mat.elems_ne) == 0:
-                    error = 0.0
-                else:
-                    eps_tot_k_flat = to.flatten(eps_tot_k_to)
-                    eps_tot_flat = to.flatten(eps_tot_to)
-                    local_error = np.linalg.norm(
-                        eps_tot_k_flat - eps_tot_flat
-                    ) / np.linalg.norm(eps_tot_flat)
-                    error = self.eq_mom.grid.mesh.comm.allreduce(
-                        local_error, op=MPI.SUM
-                    )
+                # Compute error (using legacy wrapper for backward compatibility)
+                error = compute_strain_error_legacy(self.eq_mom, eps_tot_k_to, eps_tot_to)
 
                 ite += 1
 
