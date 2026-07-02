@@ -391,15 +391,20 @@ class ConvergenceErrorHandler:
     simulator drivers only need one import from this module.
     """
 
-    def __init__(self, convergence_criterion: str = "strain_based"):
+    def __init__(self, convergence_criterion: str = "strain_based", tol: float = 1e-8):
         self.criterion = resolve_convergence_criterion(convergence_criterion)
+        self.error: float = 0.0
+        self.not_converged_error: bool = True
         self.last_raw_error: float = 0.0
+        self.tol: float = tol
 
     def initialize_step(
         self,
         momentum_eq: LinearMomentumBase,
     ) -> None:
         """Initialize criterion state at the start of a time step."""
+        self.error = 0.0
+        self.not_converged_error = True
         initialize_convergence_state(
             momentum_eq,
             self.criterion,
@@ -408,8 +413,19 @@ class ConvergenceErrorHandler:
     def compute_error(self, momentum_eq: LinearMomentumBase) -> float:
         """Compute raw criterion error and store for diagnostics."""
         raw_error = compute_error_from_criterion(momentum_eq, self.criterion)
-        self.last_raw_error = float(raw_error)
-        return self.last_raw_error
+        self.error = float(raw_error)
+        self.last_raw_error = self.error
+        return self.error
+
+    def evaluate(self, momentum_eq: LinearMomentumBase) -> bool:
+        """Compute error and refresh the convergence-state boolean."""
+        self.compute_error(momentum_eq)
+        return self.update_not_converged_error()
+
+    def update_not_converged_error(self) -> bool:
+        """Update and return the current convergence-state boolean."""
+        self.not_converged_error = self.error > self.tol
+        return self.not_converged_error
 
     def get_tolerance(self) -> float:
         """Return active criterion tolerance used for convergence checks."""

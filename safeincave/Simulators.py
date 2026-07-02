@@ -114,7 +114,7 @@ class Simulator_TM(Simulator):
         self.outputs = outputs
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
-        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
+        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion, tol=1e-7)
 
         # Apply merged_solutions flag to all output handlers
         for output in self.outputs:
@@ -242,15 +242,14 @@ class Simulator_TM(Simulator):
             self.eq_heat.bc.update_bcs(t)
 
             # Iterative loop settings
-            tol = 1e-7
-            error = 2 * tol
             ite = 0
             maxiter = 80
 
             # Initialize criterion at step start
             self._initialize_convergence_criterion()
+            self.convergence_handler.not_converged_error = True
 
-            while error > tol and ite < maxiter:
+            while self.convergence_handler.not_converged_error and ite < maxiter:
                 # Update cavern boundary conditions for heat diffusion equation
                 self.eq_heat.bc.update_cavern_bcs(self.caverns)
 
@@ -292,7 +291,7 @@ class Simulator_TM(Simulator):
                 self.caverns.calculate_volumes(self.eq_mom.u)
 
                 # Compute error via active convergence criterion
-                error = self._compute_error()
+                self.convergence_handler.evaluate(self.eq_mom)
 
                 ite += 1
 
@@ -329,7 +328,7 @@ class Simulator_TM(Simulator):
                 self.t_control.dt / self.t_control.time_conversion,
                 f"{current_time} / {self.t_control.t_final / self.t_control.time_conversion}",
                 ite,
-                error,
+                self.convergence_handler.error,
             ]
             self.screen.print_row(screen_output_row)
 
@@ -494,15 +493,14 @@ class Simulator_M(Simulator):
             self.eq_mom.bc.update_neumann(t)
 
             # Iterative loop settings
-            tol = 1e-8
-            error = 2 * tol
             ite = 0
             maxiter = 40
 
             # Initialize criterion at step start
             self._initialize_convergence_criterion()
+            self.convergence_handler.not_converged_error = True
 
-            while error > tol and ite < maxiter:
+            while self.convergence_handler.not_converged_error and ite < maxiter:
                 # Update thermodynamic state of caverns
                 self.caverns.update_caverns(t, dt)
 
@@ -531,7 +529,7 @@ class Simulator_M(Simulator):
                 self.caverns.calculate_volumes(self.eq_mom.u)
 
                 # Compute error via active convergence criterion
-                error = self._compute_error()
+                self.convergence_handler.evaluate(self.eq_mom)
 
                 ite += 1
 
@@ -565,7 +563,7 @@ class Simulator_M(Simulator):
                 self.t_control.dt / self.t_control.time_conversion,
                 f"{current_time} / {self.t_control.t_final / self.t_control.time_conversion}",
                 ite,
-                error,
+                self.convergence_handler.error,
             ]
             self.screen.print_row(screen_output_row)
 
@@ -833,15 +831,14 @@ class Simulator_Mout(Simulator):
             self.eq_mom.bc.update_neumann(t)
 
             # Iterative loop settings
-            tol = 1e-8
-            error = 2 * tol
             ite = 0
             maxiter = 40
 
             # Initialize criterion at step start
             self._initialize_convergence_criterion()
+            self.convergence_handler.not_converged_error = True
 
-            while error > tol and ite < maxiter:
+            while self.convergence_handler.not_converged_error and ite < maxiter:
                 # Update stress
                 stress_k_to = stress_to.clone()
 
@@ -861,7 +858,7 @@ class Simulator_Mout(Simulator):
                 self.eq_mom.compute_eps_ne_rate(stress_to, dt)
 
                 # Compute error via active convergence criterion
-                error = self._compute_error()
+                self.convergence_handler.evaluate(self.eq_mom)
 
                 ite += 1
 
@@ -888,7 +885,7 @@ class Simulator_Mout(Simulator):
                 self.t_control.dt / self.t_control.time_conversion,
                 f"{t / self.t_control.time_conversion} / {self.t_control.t_final / self.t_control.time_conversion}",
                 ite,
-                error,
+                self.convergence_handler.error,
             ]
             self.screen.print_row(screen_output_row)
 
