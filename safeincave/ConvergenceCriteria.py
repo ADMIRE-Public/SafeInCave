@@ -14,39 +14,39 @@ composed flexibly:
 - Use strain-based for elastic/viscous problems
 - Add residual criterion for nonlinear equilibrium checking
 - Add displacement correction for robust implicit iteration
-- Combine multiple criteria with AND/OR logic via CompositeCriterion
+- Use ForceDisplacementCriterion for robust dual checks
 
 **Criteria Available**:
 - `StrainBasedCriterion`: Relative strain error (classical FEM approach)
 - `ForceResidualCriterion`: Force residual normalized by external loads
 - `DisplacementIncrementCriterion`: Newton step size relative to total increment
-- `CompositeCriterion`: Combines multiple criteria with AND/OR logic
+- `ForceDisplacementCriterion`: Combined force residual + displacement increment criterion
 
 **Example Usage**:
 ```python
 from safeincave.ConvergenceCriteria import (
-    ForceResidualCriterion, DisplacementIncrementCriterion, CompositeCriterion
+    ForceResidualCriterion, DisplacementIncrementCriterion, ForceDisplacementCriterion
 )
 
 # Compose robust implicit criterion from modular components
 residual_check = ForceResidualCriterion(tolerance=1e-3)
 displacement_check = DisplacementIncrementCriterion(tolerance=1e-2)
 
-criterion = CompositeCriterion(
-    [residual_check, displacement_check],
-    combine_logic='AND'  # Both must converge
+criterion = ForceDisplacementCriterion(
+    force_tolerance=1e-3,
+    displacement_tolerance=1e-2,
 )
 
 criterion.initialize(momentum_eq)
 
 # In iteration loop:
-errors = criterion.compute_error(momentum_eq, stress, u_new, u_old)
-converged = criterion.is_converged(*errors)
+error = criterion.compute_error(momentum_eq)
+converged = criterion.is_converged(error)
 ```
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Tuple, List, Optional, Dict, Any
+from typing import TYPE_CHECKING, List, Optional, Dict, Any
 from abc import ABC, abstractmethod
 import torch as to
 import numpy as np
@@ -173,7 +173,7 @@ def _compute_internal_force_vector(
 
 
 def _compute_force_residual(
-    momentum_eq: LinearMomentumBase, stress_field: to.Tensor, displacement: to.Tensor = None
+    momentum_eq: LinearMomentumBase, stress_field: to.Tensor
 ) -> to.Tensor:
     """
     Compute mechanical force residual vector R = P_ext - q_int.
@@ -188,10 +188,6 @@ def _compute_force_residual(
         Momentum equation solver instance.
     stress_field : torch.Tensor
         Current stress state, shape ``(n_elems, 3, 3)``.
-    displacement : torch.Tensor, optional
-        Displacement field (reserved for future extensions like energy norm).
-        Default is None.
-
     Returns
     -------
     torch.Tensor
@@ -307,69 +303,130 @@ def _initialize_step_displacement(momentum_eq: LinearMomentumBase) -> to.Tensor:
     return displacement_step_start
 
 
-# ============================================================================
-# LEGACY WRAPPER FUNCTIONS - Backward-Compatible Hardcoded Logic
-# ============================================================================
-# These functions encapsulate the exact hardcoded convergence logic currently
-# used in Simulators.py to enable refactoring without functional changes.
-# These are for backward compatibility only and replicate exact behavior.
-
-
-def compute_strain_error_legacy(
-    momentum_eq: LinearMomentumBase,
-    strain_previous: to.Tensor,
-    strain_current: to.Tensor
-) -> float:
+def resolve_convergence_criterion(
+    convergence_criterion: str = "strain_based",
+) -> "ConvergenceCriterion":
     """
-    Compute strain-based error using legacy hardcoded logic.
-    
-    Exactly replicates the convergence check from Simulators.py.
-    Returns 0 if explicit time integration or no inelastic elements.
-    Uses MPI collective to synchronize across ranks.
-    
+    Resolve convergence criterion selector into concrete strategy.
+
+    Supported names:
+    - "strain_based"
+    - "force_residual"
+    - "displacement_increment"
+    - "force_displacement" (combined force residual + displacement increment)
+
+    Parameters
+    ----------
+    convergence_criterion : str
+        Selector name.
+
+    Returns
+    -------
+    ConvergenceCriterion
+        Concrete criterion strategy instance.
+    """
+    criterion_key = convergence_criterion.strip().lower()
+
+    if criterion_key == "strain_based":
+        return StrainBasedCriterion()
+    if criterion_key == "force_residual":
+        return ForceResidualCriterion()
+    if criterion_key == "displacement_increment":
+        return DisplacementIncrementCriterion()
+    if criterion_key == "force_displacement":
+        return ForceDisplacementCriterion()
+
+    raise ValueError(
+        "Unknown convergence_criterion. Supported values: "
+        "'strain_based', 'force_residual', "
+        "'displacement_increment', 'force_displacement'."
+    )
+
+
+def initialize_convergence_state(
+    momentum_eq: LinearMomentumBase,
+    convergence_criterion: "ConvergenceCriterion",
+) -> None:
+    """
+    Initialize criterion state at time-step start.
+
     Parameters
     ----------
     momentum_eq : LinearMomentumBase
         Momentum equation solver instance.
-    strain_previous : torch.Tensor
-        Total strain from previous iteration, shape (n_elems, 3, 3).
-    strain_current : torch.Tensor
-        Total strain from current iteration, shape (n_elems, 3, 3).
-    
+    convergence_criterion : Any
+        Resolved criterion strategy.
+    """
+    convergence_criterion.initialize(momentum_eq)
+
+
+def compute_error_from_criterion(
+    momentum_eq: LinearMomentumBase,
+    convergence_criterion: "ConvergenceCriterion",
+) -> float:
+    """
+    Compute convergence error from the selected criterion strategy.
+
+    Parameters
+    ----------
+    momentum_eq : LinearMomentumBase
+        Momentum equation solver instance.
+    convergence_criterion : Any
+        Resolved criterion strategy.
+
     Returns
     -------
     float
-        Relative strain error across all MPI ranks (uses MPI.SUM).
-    
-    Notes
-    -----
-    This function is provided for backward compatibility during refactoring.
-    The hardcoded logic it replaces:
-    - Returns 0 if theta=1.0 (explicit time integration)
-    - Returns 0 if no inelastic elements
-    - Otherwise computes ||ε_k - ε|| / ||ε|| with MPI synchronization
+        Raw criterion error value.
     """
-    # Early exit for explicit time integration
-    if momentum_eq.theta == 1.0:
-        return 0.0
-    
-    # Early exit for purely elastic material
-    if len(momentum_eq.mat.elems_ne) == 0:
-        return 0.0
-    
-    # Compute local error
-    eps_tot_k_flat = to.flatten(strain_previous)
-    eps_tot_flat = to.flatten(strain_current)
-    local_error = np.linalg.norm(
-        eps_tot_k_flat - eps_tot_flat
-    ) / np.linalg.norm(eps_tot_flat)
-    
-    # Synchronize across MPI ranks (uses SUM to match original behavior)
-    error = momentum_eq.grid.mesh.comm.allreduce(
-        local_error, op=MPI.SUM
-    )
-    
-    return float(error)
+    scalar_error = float(convergence_criterion.compute_error(momentum_eq))
+    return scalar_error
+
+
+class ConvergenceErrorHandler:
+    """
+    Facade for convergence strategy selection and error evaluation.
+
+    This class centralizes all convergence-related selection/dispatch logic so
+    simulator drivers only need one import from this module.
+    """
+
+    def __init__(self, convergence_criterion: str = "strain_based"):
+        self.criterion = resolve_convergence_criterion(convergence_criterion)
+        self.last_raw_error: float = 0.0
+
+    def initialize_step(
+        self,
+        momentum_eq: LinearMomentumBase,
+    ) -> None:
+        """Initialize criterion state at the start of a time step."""
+        initialize_convergence_state(
+            momentum_eq,
+            self.criterion,
+        )
+
+    def compute_error(self, momentum_eq: LinearMomentumBase) -> float:
+        """Compute raw criterion error and store for diagnostics."""
+        raw_error = compute_error_from_criterion(momentum_eq, self.criterion)
+        self.last_raw_error = float(raw_error)
+        return self.last_raw_error
+
+    def get_tolerance(self) -> float:
+        """Return active criterion tolerance used for convergence checks."""
+        return float(self.criterion.tolerance)
+
+    def get_last_raw_error(self) -> float:
+        """Return most recent raw criterion value (not zeroed by convergence logic)."""
+        return self.last_raw_error
+
+    def set_criterion(self, convergence_criterion: str) -> None:
+        """Swap convergence strategy at runtime."""
+        self.criterion = resolve_convergence_criterion(convergence_criterion)
+
+
+def _is_momentum_solver_instance(obj: Any) -> bool:
+    """Return True if object provides the momentum solver interface used here."""
+    return hasattr(obj, "compute_total_strain") and hasattr(obj, "u") and hasattr(obj, "mat")
 
 
 class ConvergenceCriterion(ABC):
@@ -377,8 +434,7 @@ class ConvergenceCriterion(ABC):
     Abstract base class for convergence criteria.
 
     Each criterion computes a single error metric that can be checked against
-    a tolerance. Criteria can be composed together via CompositeCriterion
-    to create flexible convergence strategies.
+    a tolerance to create flexible convergence strategies.
 
     Parameters
     ----------
@@ -464,24 +520,13 @@ class ConvergenceCriterion(ABC):
 
 class StrainBasedCriterion(ConvergenceCriterion):
     """
-    Classical strain-based convergence criterion.
+    Strain-based convergence criterion.
 
     Error metric:
     $$\\text{error} = \\frac{\\|\\varepsilon_\\text{new} - \\varepsilon_\\text{old}\\|}{\\|\\varepsilon_\\text{new}\\|}$$
 
-    **Advantages**:
-    - Simple, interpretable (% change in strain)
-    - Fast (no residual assembly)
-    - Works for elastic and viscous problems
-
-    **Disadvantages**:
-    - Doesn't check equilibrium (residual)
-    - Scale-dependent (strain magnitude affects convergence)
-
-    **When to use**:
-    - Elastic-only simulations
-    - Viscous material response
-    - Coupled with residual criterion for robustness
+    This implementation preserves prior behavior,
+    including MPI SUM reduction and momentum-equation-tracked previous strain.
 
     Parameters
     ----------
@@ -489,40 +534,54 @@ class StrainBasedCriterion(ConvergenceCriterion):
         Strain error tolerance. Default: 1e-7.
     """
 
-    def __init__(self, tolerance: float = 1e-7):
-        super().__init__(tolerance=tolerance, name="StrainBased")
-        self.theta: float = 1.0  # Time integration parameter (0=implicit, 1=explicit)
-        self.inelastic_element_count: int = 0  # Number of inelastic elements
+    def __init__(self, tolerance: float = 1e-7, name: Optional[str] = None):
+        super().__init__(tolerance=tolerance, name=name or "strain_based")
 
     def initialize(self, momentum_eq: LinearMomentumBase) -> None:
-        """Initialize strain criterion from momentum equation state."""
-        self.theta = momentum_eq.theta
-        self.inelastic_element_count = len(momentum_eq.mat.elems_ne)
+        """Initialize tracked strain state at step start."""
+        momentum_eq._strain_previous = momentum_eq.compute_total_strain().clone()
         self.reset_history()
 
-    def compute_error(
-        self, strain_previous: to.Tensor, strain_current: to.Tensor
-    ) -> float:
+    def compute_error(self, *args, **kwargs) -> float:
         """
         Compute strain-based error: ||Δε|| / ||ε_current||.
 
-        Computes the relative change in total strain between consecutive iterations.
-        Returns 0 if explicit time integration or purely elastic problem (no iteration).
-
         Parameters
         ----------
-        strain_previous : torch.Tensor
-            Total strain from previous iteration k, shape (n_elems, 3, 3).
-        strain_current : torch.Tensor
-            Total strain from current iteration k+1, shape (n_elems, 3, 3).
+        Supports call styles:
+        1) compute_error(momentum_eq)
+        2) compute_error(momentum_eq, strain_previous, strain_current)
 
         Returns
         -------
         float
             Relative strain change error. Returns 0 if not applicable.
         """
-        # Skip criterion if explicit time integration or purely elastic material
-        if self.theta == 1.0 or self.inelastic_element_count == 0:
+        if len(args) == 1 and _is_momentum_solver_instance(args[0]):
+            momentum_eq = args[0]
+            strain_current = momentum_eq.compute_total_strain()
+            if hasattr(momentum_eq, "_strain_previous"):
+                strain_previous = momentum_eq._strain_previous
+            else:
+                strain_previous = strain_current
+        elif len(args) == 3 and _is_momentum_solver_instance(args[0]):
+            momentum_eq = args[0]
+            strain_previous = args[1]
+            strain_current = args[2]
+        else:
+            raise ValueError(
+                "StrainBasedCriterion.compute_error expects (momentum_eq) or "
+                "(momentum_eq, strain_previous, strain_current)."
+            )
+
+        # Early exit for explicit time integration
+        if momentum_eq.theta == 1.0:
+            error_value = 0.0
+            self.history.append(error_value)
+            return error_value
+
+        # Early exit for purely elastic material
+        if len(momentum_eq.mat.elems_ne) == 0:
             error_value = 0.0
             self.history.append(error_value)
             return error_value
@@ -530,10 +589,14 @@ class StrainBasedCriterion(ConvergenceCriterion):
         strain_previous_flat = to.flatten(strain_previous)
         strain_current_flat = to.flatten(strain_current)
 
-        strain_change_norm = to.norm(strain_current_flat - strain_previous_flat).item()
-        strain_current_norm = max(to.norm(strain_current_flat).item(), 1e-16)
+        denom = max(np.linalg.norm(strain_current_flat), 1e-16)
+        local_error = np.linalg.norm(strain_previous_flat - strain_current_flat) / denom
+        error = momentum_eq.grid.mesh.comm.allreduce(local_error, op=MPI.SUM)
 
-        error_value = strain_change_norm / strain_current_norm
+        # Update tracked state for next call.
+        momentum_eq._strain_previous = strain_current.clone()
+
+        error_value = float(error)
         self.history.append(error_value)
         return float(error_value)
 
@@ -580,24 +643,35 @@ class ForceResidualCriterion(ConvergenceCriterion):
         """Initialize residual criterion."""
         self.reset_history()
 
-    def compute_error(
-        self, momentum_eq: LinearMomentumBase, stress: to.Tensor
-    ) -> float:
+    def compute_error(self, *args, **kwargs) -> float:
         """
         Compute residual-based error: ||R|| / ||P_ext||.
 
         Parameters
         ----------
-        momentum_eq : LinearMomentumBase
-            Momentum equation solver (for assembly).
-        stress : torch.Tensor
-            Current stress field, shape (n_elems, 3, 3).
+        Supports two call styles:
+        1) compute_error(momentum_eq, stress)
+        2) compute_error(momentum_eq)  # stress inferred from momentum_eq.sig
 
         Returns
         -------
         float
             Residual error. Dimensionless, typically in [0, ∞).
         """
+        if len(args) == 2 and _is_momentum_solver_instance(args[0]):
+            momentum_eq = args[0]
+            stress = args[1]
+        elif len(args) == 1 and _is_momentum_solver_instance(args[0]):
+            momentum_eq = args[0]
+            stress = to.as_tensor(
+                momentum_eq.sig.x.array.reshape((momentum_eq.n_elems, 3, 3))
+            )
+        else:
+            raise ValueError(
+                "ForceResidualCriterion.compute_error expects (momentum_eq) or "
+                "(momentum_eq, stress)."
+            )
+
         # Compute residual R = P_ext - q_int
         residual_vector = _compute_force_residual(momentum_eq, stress)
         residual_norm = _compute_vector_norm(residual_vector)
@@ -652,6 +726,7 @@ class DisplacementIncrementCriterion(ConvergenceCriterion):
     def __init__(self, tolerance: float = 1e-2):
         super().__init__(tolerance=tolerance, name="DisplacementIncrement")
         self.u_step_start: Optional[to.Tensor] = None
+        self.u_previous: Optional[to.Tensor] = None
 
     def initialize(self, momentum_eq: LinearMomentumBase) -> None:
         """
@@ -674,28 +749,43 @@ class DisplacementIncrementCriterion(ConvergenceCriterion):
         Stores initial displacement via _initialize_step_displacement().
         """
         self.u_step_start = _initialize_step_displacement(momentum_eq)
+        self.u_previous = to.as_tensor(momentum_eq.u.x.array.copy())
         self.reset_history()
 
-    def compute_error(
-        self, momentum_eq: LinearMomentumBase, u_new: to.Tensor, u_old: to.Tensor
-    ) -> float:
+    def compute_error(self, *args, **kwargs) -> float:
         """
         Compute displacement correction error.
 
         Parameters
         ----------
-        momentum_eq : LinearMomentumBase
-            Momentum equation solver (for norm computation).
-        u_new : torch.Tensor
-            Displacement at iteration k+1, shape (n_dofs,).
-        u_old : torch.Tensor
-            Displacement at iteration k, shape (n_dofs,).
+        Supports two call styles:
+        1) compute_error(momentum_eq, u_new, u_old)
+        2) compute_error(momentum_eq)  # u_old tracked internally
 
         Returns
         -------
         float
             Displacement correction error. Dimensionless, in [0, ∞).
         """
+        if len(args) == 3 and _is_momentum_solver_instance(args[0]):
+            momentum_eq = args[0]
+            u_new = args[1]
+            u_old = args[2]
+            self.u_previous = u_new.clone()
+        elif len(args) == 1 and _is_momentum_solver_instance(args[0]):
+            momentum_eq = args[0]
+            u_new = to.as_tensor(momentum_eq.u.x.array.copy())
+            if self.u_previous is None:
+                u_old = u_new
+            else:
+                u_old = self.u_previous
+            self.u_previous = u_new.clone()
+        else:
+            raise ValueError(
+                "DisplacementIncrementCriterion.compute_error expects "
+                "(momentum_eq) or (momentum_eq, u_new, u_old)."
+            )
+
         # Compute Newton iteration correction (single step)
         displacement_correction = u_new - u_old
         correction_norm = _compute_vector_norm(displacement_correction)
@@ -716,92 +806,44 @@ class DisplacementIncrementCriterion(ConvergenceCriterion):
         return error <= self.tolerance
 
 
-class CompositeCriterion(ConvergenceCriterion):
+class ForceDisplacementCriterion(ConvergenceCriterion):
     """
-    Composite criterion that combines multiple criteria with AND/OR logic.
+    Explicit combined criterion: force residual + displacement increment.
 
-    Allows flexible composition of independent criteria based on physics
-    and requirements. Users specify:
-    1. Which criteria to use
-    2. How to combine them (AND = all must converge, OR = any can converge)
+    The combined scalar error is defined as:
+    max(error_force / tol_force, error_displacement / tol_displacement)
 
-    **Use Cases**:
-
-    1. **Robust implicit (AND)**:
-       - Both residual AND displacement must converge
-       - For nonlinear, large-deformation problems
-       ```python
-       CompositeCriterion(
-           [ForceResidualCriterion(1e-3), DisplacementIncrementCriterion(1e-2)],
-           combine_logic='AND'
-       )
-       ```
-
-    2. **Elastic with equilibrium check (AND)**:
-       - Both strain AND residual converge
-       - For elastic with complex BC
-       ```python
-       CompositeCriterion(
-           [StrainBasedCriterion(1e-7), ForceResidualCriterion(1e-3)],
-           combine_logic='AND'
-       )
-       ```
-
-    3. **Progressive convergence (OR)**:
-       - Any criterion can trigger exit (flexible for research)
-       ```python
-       CompositeCriterion(
-           [StrainBasedCriterion(1e-5), ForceResidualCriterion(1e-4)],
-           combine_logic='OR'
-       )
-       ```
+    Convergence is achieved when the combined error is <= 1.0, which is
+    equivalent to satisfying both component tolerances.
 
     Parameters
     ----------
-    criteria : list of ConvergenceCriterion
-        List of criteria to combine.
-    combine_logic : {'AND', 'OR'}, optional
-        - 'AND': All criteria must be converged (default)
-        - 'OR': Any criterion can be converged
+    force_tolerance : float, optional
+        Tolerance for force residual criterion. Default: 1e-3.
+    displacement_tolerance : float, optional
+        Tolerance for displacement increment criterion. Default: 1e-2.
     name : str, optional
-        Descriptive name. Default: auto-generated from criteria.
+        Name for diagnostics. Default: "force_displacement".
     """
 
     def __init__(
         self,
-        criteria: List[ConvergenceCriterion],
-        combine_logic: str = "AND",
+        force_tolerance: float = 1e-3,
+        displacement_tolerance: float = 1e-2,
         name: Optional[str] = None,
     ):
-        assert (
-            combine_logic.upper() in ["AND", "OR"]
-        ), "combine_logic must be 'AND' or 'OR'"
-        assert len(criteria) > 0, "Must provide at least one criterion"
-        
-        # Prevent nesting of CompositeCriterion for clarity
-        for i, crit in enumerate(criteria):
-            assert not isinstance(crit, CompositeCriterion), (
-                f"Nested CompositeCriterion at index {i} not supported. "
-                "Use flat composition with all criteria at the same level. "
-                "Example: CompositeCriterion([Residual(), Displacement()], 'AND')"
-            )
-
-        self.criteria = criteria
-        self.combine_logic = combine_logic.upper()
-
-        # Auto-generate name if not provided
-        if name is None:
-            crit_names = "+".join(c.name for c in criteria)
-            op = "·" if self.combine_logic == "AND" else "∪"
-            name = f"({crit_names})[{op}]"
-
-        # Use max tolerance for display
-        max_tol = max(c.tolerance for c in criteria)
-        super().__init__(tolerance=max_tol, name=name)
+        criterion_name = name or "force_displacement"
+        # tolerance=1 means both criteria satisfy their own tolerances
+        super().__init__(tolerance=1.0, name=criterion_name)
+        self.force_criterion = ForceResidualCriterion(tolerance=force_tolerance)
+        self.displacement_criterion = DisplacementIncrementCriterion(
+            tolerance=displacement_tolerance
+        )
+        self.component_history: List[Dict[str, float]] = []
 
     def initialize(self, momentum_eq: LinearMomentumBase) -> None:
         """
-        Initialize all child criteria.
+        Initialize component criteria.
 
         Parameters
         ----------
@@ -812,111 +854,60 @@ class CompositeCriterion(ConvergenceCriterion):
         -------
         None
         """
-        for criterion in self.criteria:
-            criterion.initialize(momentum_eq)
+        self.force_criterion.initialize(momentum_eq)
+        self.displacement_criterion.initialize(momentum_eq)
         self.reset_history()
+        self.component_history = []
 
-    def compute_error(
-        self,
-        momentum_eq: LinearMomentumBase,
-        stress: to.Tensor,
-        displacement_new: to.Tensor,
-        displacement_old: to.Tensor,
-    ) -> Tuple[float, ...]:
+    def compute_error(self, momentum_eq: LinearMomentumBase) -> float:
         """
-        Compute error metrics from all child criteria.
-
-        Evaluates each criterion in sequence and returns tuple of error values.
-        Handles cases where strain data may not be available (e.g., residual-only).
+        Compute combined normalized error from both component criteria.
 
         Parameters
         ----------
         momentum_eq : LinearMomentumBase
             Momentum equation solver.
-        stress : torch.Tensor
-            Current stress field, shape (n_elems, 3, 3).
-        displacement_new : torch.Tensor
-            Displacement at iteration k+1, shape (n_dofs,).
-        displacement_old : torch.Tensor
-            Displacement at iteration k, shape (n_dofs,).
 
         Returns
         -------
-        tuple of float
-            Error values from each child criterion (in order).
+        float
+            Combined normalized error.
         """
-        error_values = []
+        force_error = self.force_criterion.compute_error(momentum_eq)
+        displacement_error = self.displacement_criterion.compute_error(momentum_eq)
 
-        for criterion in self.criteria:
-            if isinstance(criterion, StrainBasedCriterion):
-                # Strain criterion needs strain fields from momentum_eq
-                strain_prev = getattr(momentum_eq, "_eps_tot_k", None)
-                strain_curr = getattr(momentum_eq, "_eps_tot", None)
-                if strain_prev is not None and strain_curr is not None:
-                    error_val = criterion.compute_error(strain_prev, strain_curr)
-                else:
-                    # Graceful degradation: skip if strains unavailable
-                    error_val = 0.0
+        force_ratio = force_error / max(self.force_criterion.tolerance, 1e-16)
+        displacement_ratio = displacement_error / max(
+            self.displacement_criterion.tolerance, 1e-16
+        )
+        combined_error = max(force_ratio, displacement_ratio)
 
-            elif isinstance(criterion, ForceResidualCriterion):
-                error_val = criterion.compute_error(momentum_eq, stress)
-
-            elif isinstance(criterion, DisplacementIncrementCriterion):
-                error_val = criterion.compute_error(
-                    momentum_eq, displacement_new, displacement_old
-                )
-
-            else:
-                # Unknown criterion type (shouldn't reach here)
-                error_val = 0.0
-
-            error_values.append(error_val)
-
-        # Store composite error snapshot with metadata
-        self.history.append(
+        self.component_history.append(
             {
-                "criterion_names": [c.name for c in self.criteria],
-                "errors": error_values,
+                "force_error": float(force_error),
+                "displacement_error": float(displacement_error),
+                "force_ratio": float(force_ratio),
+                "displacement_ratio": float(displacement_ratio),
             }
         )
+        self.history.append(float(combined_error))
+        return float(combined_error)
 
-        return tuple(error_values)
-
-    def is_converged(self, *errors: float) -> bool:
+    def is_converged(self, error: float) -> bool:
         """
         Check composite convergence based on logical combination rule.
 
         Parameters
         ----------
-        *errors : float
-            Error values from compute_error() (one per child criterion).
+        error : float
+            Combined normalized error.
 
         Returns
         -------
         bool
-            - AND logic: All errors ≤ respective tolerances
-            - OR logic: Any error ≤ respective tolerance
-
-        Raises
-        ------
-        ValueError
-            If number of errors doesn't match number of criteria.
+            True when error <= 1.0.
         """
-        if len(errors) != len(self.criteria):
-            raise ValueError(
-                f"Expected {len(self.criteria)} error values, "
-                f"got {len(errors)}"
-            )
-
-        convergence_flags = [
-            errors[i] <= self.criteria[i].tolerance
-            for i in range(len(self.criteria))
-        ]
-
-        if self.combine_logic == "AND":
-            return all(convergence_flags)  # All criteria converged
-        else:  # OR
-            return any(convergence_flags)  # At least one converged
+        return error <= self.tolerance
 
     def get_convergence_info(self) -> Dict[str, Any]:
         """
@@ -929,15 +920,11 @@ class CompositeCriterion(ConvergenceCriterion):
         """
         return {
             "n_iterations": len(self.history),
-            "combine_logic": self.combine_logic,
-            "criteria": [
-                {
-                    "name": c.name,
-                    "tolerance": c.tolerance,
-                    "history": c.get_history(),
-                }
-                for c in self.criteria
-            ],
-            "composite_history": self.history,
+            "criterion": self.name,
+            "combined_tolerance": self.tolerance,
+            "force_tolerance": self.force_criterion.tolerance,
+            "displacement_tolerance": self.displacement_criterion.tolerance,
+            "combined_history": self.history,
+            "component_history": self.component_history,
         }
 

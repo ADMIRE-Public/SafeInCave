@@ -10,7 +10,7 @@ from .TimeHandler import TimeControllerBase
 from .OutputHandler import SaveFields
 from .ScreenOutput import ScreenPrinter
 from .CavernBC import CavernHandler
-from .ConvergenceCriteria import compute_strain_error_legacy
+from .ConvergenceCriteria import ConvergenceErrorHandler
 
 
 class Simulator(ABC):
@@ -32,6 +32,31 @@ class Simulator(ABC):
         None
         """
         pass
+
+    def _compute_error(self) -> float:
+        """
+        Compute current raw convergence error.
+
+        Criterion is responsible for fetching required state from momentum_eq.
+        Enables any error metric (strain, residual, displacement, composite)
+        without loop coupling to specific implementations.
+
+        Returns
+        -------
+        float
+            Raw criterion error value for convergence checks and reporting.
+        """
+        return self.convergence_handler.compute_error(self.eq_mom)
+
+    def _initialize_convergence_criterion(self) -> None:
+        """
+        Initialize active convergence strategy at time-step start.
+
+        Parameters
+        ----------
+        None
+        """
+        self.convergence_handler.initialize_step(self.eq_mom)
 
     def _finalize_outputs(self) -> None:
         """
@@ -81,6 +106,7 @@ class Simulator_TM(Simulator):
         caverns: CavernHandler | None = CavernHandler(),
         compute_elastic_response: bool = True,
         merged_solutions: bool = False,
+        convergence_criterion="strain_based",
     ):
         self.eq_mom = eq_mom
         self.eq_heat = eq_heat
@@ -88,6 +114,7 @@ class Simulator_TM(Simulator):
         self.outputs = outputs
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
+        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
 
         # Apply merged_solutions flag to all output handlers
         for output in self.outputs:
@@ -220,6 +247,9 @@ class Simulator_TM(Simulator):
             ite = 0
             maxiter = 80
 
+            # Initialize criterion at step start
+            self._initialize_convergence_criterion()
+
             while error > tol and ite < maxiter:
                 # Update cavern boundary conditions for heat diffusion equation
                 self.eq_heat.bc.update_cavern_bcs(self.caverns)
@@ -239,9 +269,6 @@ class Simulator_TM(Simulator):
                 # Set new temperature to momentum equation
                 T_elems = self.eq_heat.get_T_elems()
                 self.eq_mom.set_T(T_elems)
-
-                # Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-                eps_tot_k_to = eps_tot_to.clone()
 
                 # Update stress
                 stress_k_to = stress_to.clone()
@@ -264,8 +291,8 @@ class Simulator_TM(Simulator):
                 # Recalculate volumes of caverns
                 self.caverns.calculate_volumes(self.eq_mom.u)
 
-                # Compute error (using legacy wrapper for backward compatibility)
-                error = compute_strain_error_legacy(self.eq_mom, eps_tot_k_to, eps_tot_to)
+                # Compute error via active convergence criterion
+                error = self._compute_error()
 
                 ite += 1
 
@@ -347,12 +374,14 @@ class Simulator_M(Simulator):
         caverns: CavernHandler | None = CavernHandler(),
         compute_elastic_response: bool = True,
         merged_solutions: bool = False,
+        convergence_criterion="strain_based",
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
         self.outputs = outputs
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
+        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
 
         # Apply merged_solutions flag to all output handlers
         for output in self.outputs:
@@ -470,15 +499,15 @@ class Simulator_M(Simulator):
             ite = 0
             maxiter = 40
 
+            # Initialize criterion at step start
+            self._initialize_convergence_criterion()
+
             while error > tol and ite < maxiter:
                 # Update thermodynamic state of caverns
                 self.caverns.update_caverns(t, dt)
 
                 # Update cavern boundary conditions
                 self.eq_mom.bc.update_cavern_bcs(self.caverns)
-
-                # Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-                eps_tot_k_to = eps_tot_to.clone()
 
                 # Update stress
                 stress_k_to = stress_to.clone()
@@ -501,8 +530,8 @@ class Simulator_M(Simulator):
                 # Recalculate volumes of caverns
                 self.caverns.calculate_volumes(self.eq_mom.u)
 
-                # Compute error (using legacy wrapper for backward compatibility)
-                error = compute_strain_error_legacy(self.eq_mom, eps_tot_k_to, eps_tot_to)
+                # Compute error via active convergence criterion
+                error = self._compute_error()
 
                 ite += 1
 
@@ -700,11 +729,13 @@ class Simulator_Mout(Simulator):
         outputs: list[SaveFields],
         compute_elastic_response: bool = True,
         merged_solutions: bool = False,
+        convergence_criterion="strain_based",
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
         self.outputs = outputs
         self.compute_elastic_response = compute_elastic_response
+        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
 
         # Apply merged_solutions flag to all output handlers
         for output in self.outputs:
@@ -807,10 +838,10 @@ class Simulator_Mout(Simulator):
             ite = 0
             maxiter = 40
 
-            while error > tol and ite < maxiter:
-                # Update total strain of previous iteration (eps_tot_k <-- eps_tot)
-                eps_tot_k_to = eps_tot_to.clone()
+            # Initialize criterion at step start
+            self._initialize_convergence_criterion()
 
+            while error > tol and ite < maxiter:
                 # Update stress
                 stress_k_to = stress_to.clone()
 
@@ -829,8 +860,8 @@ class Simulator_Mout(Simulator):
                 # Compute inelastic strain rates
                 self.eq_mom.compute_eps_ne_rate(stress_to, dt)
 
-                # Compute error (using legacy wrapper for backward compatibility)
-                error = compute_strain_error_legacy(self.eq_mom, eps_tot_k_to, eps_tot_to)
+                # Compute error via active convergence criterion
+                error = self._compute_error()
 
                 ite += 1
 

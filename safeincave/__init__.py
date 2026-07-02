@@ -27,7 +27,7 @@ from .ConvergenceCriteria import (
     StrainBasedCriterion,
     ForceResidualCriterion,
     DisplacementIncrementCriterion,
-    CompositeCriterion,
+    ForceDisplacementCriterion,
 )
 from . import CavernBC
 from .Simulators import (
@@ -74,7 +74,7 @@ __all__ = [
     "StrainBasedCriterion",
     "ForceResidualCriterion",
     "DisplacementIncrementCriterion",
-    "CompositeCriterion",
+    "ForceDisplacementCriterion",
 ] + _CONSTITUTIVE_ALL
 
 __author__ = "Hermínio T. Honório"
