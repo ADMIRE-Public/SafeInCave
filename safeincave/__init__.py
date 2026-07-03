@@ -22,6 +22,13 @@ from .ConstitutiveModels import *  # noqa: F403, F405
 from .ConstitutiveModels import __all__ as _CONSTITUTIVE_ALL
 from .OutputHandler import SaveFields
 from .Thermodynamics import CavernThermodynamics
+from .ConvergenceCriteria import (
+    ConvergenceCriterion,
+    StrainBasedCriterion,
+    ForceResidualCriterion,
+    DisplacementIncrementCriterion,
+    ForceDisplacementCriterion,
+)
 from . import CavernBC
 from .Simulators import (
     Simulator_TM,
@@ -63,6 +70,11 @@ __all__ = [
     "CavernThermodynamics",
     "PostProcessingTools",
     "Utils",
+    "ConvergenceCriterion",
+    "StrainBasedCriterion",
+    "ForceResidualCriterion",
+    "DisplacementIncrementCriterion",
+    "ForceDisplacementCriterion",
 ] + _CONSTITUTIVE_ALL
 
 __author__ = "Hermínio T. Honório"
