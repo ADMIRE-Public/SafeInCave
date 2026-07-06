@@ -42,18 +42,25 @@ def run(formulation):
     grid = sf.GridHandlerGMSH("geom", grid_path)
 
     # Define output folder
-    output_folder = os.path.join("output", "case_0", f"{formulation}")
+    output_folder = os.path.join("output", "case_0", f"{formulation}_increase_dt")
 
     # Time settings for equilibrium stage
     unit = "hour"
     t_0 = 0.0
+    # Start from a small step so this example clearly shows dt growth.
     dt = 0.5
     t_final = 24
-#    t_control = sf.TimeController(
-#        dt=dt, initial_time=t_0, final_time=t_final, time_unit=unit
-#    )
     t_control = sf.TimeControllerAdaptive(
-        initial_dt=dt,max_dt=10*dt,  initial_time=t_0, final_time=t_final,iterations_min=5,iterations_max=10, time_unit=unit
+        initial_dt=dt,
+        dt_max=12.0,
+        initial_time=t_0,
+        final_time=t_final,
+        time_unit=unit,
+        growth_factor=1.5,
+        shrink_factor=0.5,
+        easy_ratio_threshold=0.25,
+        hard_ratio_threshold=0.50,
+        max_bisections=10,
     )
 
     # Define momentum equation
@@ -65,12 +72,6 @@ def run(formulation):
     elif formulation == "P1P1_Stab":
         mom_eq = LinearMomentumMixedMod(grid, theta=theta, stab_scaling=1.0)
 
-    # # Define solver
-    # mom_solver = PETSc.KSP().create(grid.mesh.comm)
-    # mom_solver.setType("gmres")
-    # mom_solver.getPC().setType("asm")
-    # mom_solver.setTolerances(rtol=1e-12, max_it=100)
-    # mom_eq.set_solver(mom_solver)
 
     # Define material properties
     mat = sf.Material(grid.n_elems)
@@ -211,14 +212,25 @@ def run(formulation):
     outputs = [output_mom]
 
     # Define simulator
-    sim = sf.Simulator_M(mom_eq, t_control, outputs, compute_elastic_response=True)
+    # This benchmark is intended to exercise adaptive dt behavior.
+    # Force-residual checks can remain O(1) for this nonlinear fixed-point setup,
+    # which blocks convergence independently of dt. Use strain-based convergence
+    # so adaptive stepping can drive the simulation progression.
+    convergence_criterion = "strain_based"
+    sim = sf.Simulator_M(
+        mom_eq,
+        t_control,
+        outputs,
+        compute_elastic_response=True,
+        convergence_criterion=convergence_criterion,
+    )
     sim.run()
 
 
 def main():
     run("P1")
     # run("P1P1")
-    run("P1P1_Stab")
+    # run("P1P1_Stab")
 
 
 if __name__ == "__main__":

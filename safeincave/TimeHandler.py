@@ -57,6 +57,7 @@ class TimeControllerBase(ABC):
         self.t_initial = initial_time * self.time_conversion
         self.t = initial_time * self.time_conversion
         self.dt = 0.0
+        self.dt_used = 0.0
         self.step_counter = 0
         self.flag_functionOfIteration = False
 
@@ -156,6 +157,7 @@ class TimeController(TimeControllerBase):
         time_unit: str = "second",
     ):
         super().__init__(initial_time, final_time, time_unit)
+        self.dt_used = dt * self.time_conversion
         self.dt = dt * self.time_conversion
 
     def advance_time(self) -> None:
@@ -168,6 +170,7 @@ class TimeController(TimeControllerBase):
         """
         self.step_counter += 1
         self.t += self.dt
+        self.dt_used = self.dt
 
 class TimeControllerAdaptive(TimeControllerBase):
     """
@@ -217,16 +220,15 @@ class TimeControllerAdaptive(TimeControllerBase):
 
     def __init__(
         self,
-        initial_dt: float,
-        max_dt: float,
         initial_time: float,
+        initial_dt: float,
         final_time: float,
-        time_unit: str = "second",
+        time_unit: str = "hour",
         iterations_min: int = 5,
         iterations_max: int = 10,
         inflation: float = 2.0,
-        dt_min: float | None = None,
-        dt_max: float | None = None,
+        dt_max: float = 1,
+        dt_min: float = 0.001,
         growth_factor: float = 1.5,
         shrink_factor: float = 0.5,
         easy_ratio_threshold: float = 0.25,
@@ -235,22 +237,21 @@ class TimeControllerAdaptive(TimeControllerBase):
         maxiter: int | None = None,
     ):
         super().__init__(initial_time, final_time, time_unit)
+
+        # Time state (stored in seconds)
+        self.dt_used = initial_dt * self.time_conversion
         self.dt = initial_dt * self.time_conversion
-        resolved_dt_max = max_dt if dt_max is None else dt_max
-        self.max_dt = resolved_dt_max * self.time_conversion
-        self.dt_max = self.max_dt
-        self.dt_min = (
-            0.0 if dt_min is None else dt_min * self.time_conversion
-        )
+        self.dt_min = dt_min * self.time_conversion
+        self.dt_max = dt_max * self.time_conversion
 
         self.flag_functionOfIteration = True
 
-        # Legacy absolute-iteration controls.
+        # Legacy absolute-iteration controls
         self.iterations_min = iterations_min
         self.iterations_max = iterations_max
         self.inflation = inflation
 
-        # Relative-iteration controls.
+        # Relative-iteration controls
         self.growth_factor = growth_factor
         self.shrink_factor = shrink_factor
         self.easy_ratio_threshold = easy_ratio_threshold
@@ -258,15 +259,15 @@ class TimeControllerAdaptive(TimeControllerBase):
         self.max_bisections = max_bisections
         self.maxiter = None if maxiter is None else int(maxiter)
 
-        # Lightweight diagnostics/state for adaptive policy.
+        # Diagnostics
         self.last_ratio = 0.0
         self.last_dt_reason = "initialize"
         self.last_converged = True
         self.last_n_bisections = 0
 
     def _clamp_dt(self, dt_value: float) -> float:
-        """Clamp time step to configured [dt_min, dt_max] bounds."""
-        return min(max(dt_value, self.dt_min), self.dt_max)
+        """Clamp dt to [dt_min, dt_max]."""
+        return max(self.dt_min, min(dt_value, self.dt_max))
 
     def get_next_dt(
         self,
@@ -294,33 +295,33 @@ class TimeControllerAdaptive(TimeControllerBase):
         self.last_converged = converged
         self.last_n_bisections = max(0, int(n_bisections))
 
-        if convergence_ratio is None:
-            ratio = 0.0
-        else:
-            ratio = max(0.0, float(convergence_ratio))
+        ratio = 0.0 if convergence_ratio is None else max(0.0, float(convergence_ratio))
         self.last_ratio = ratio
 
+        # Decide base candidate
         if not converged:
-            # Failed step: default recovery policy is half step.
             dt_candidate = self.dt * self.shrink_factor
             reason = "failed_step_shrink"
+
         elif ratio < self.easy_ratio_threshold:
             dt_candidate = self.dt * self.growth_factor
             reason = "easy_grow"
+
         elif ratio > self.hard_ratio_threshold:
             dt_candidate = self.dt * self.shrink_factor
             reason = "hard_shrink"
+
         else:
             dt_candidate = self.dt
             reason = "moderate_keep"
 
-        if self.last_n_bisections > 0:
+        # Apply bisection penalty
+        if self.last_n_bisections:
             dt_candidate *= self.shrink_factor ** self.last_n_bisections
-            reason = f"{reason}_bisect"
+            reason += "_bisect"
 
-        dt_next = self._clamp_dt(dt_candidate)
         self.last_dt_reason = reason
-        return dt_next
+        return self._clamp_dt(dt_candidate)
 
     def advance_time(self, numberIterations: int = 0) -> None:
         """
@@ -331,27 +332,23 @@ class TimeControllerAdaptive(TimeControllerBase):
         None
         """
 
-        # this numberIterations == 0 is here to make timeAdaptive controller work whenever it is called as a regular non-adaptive timecontroller
-        if self.step_counter == 0 or numberIterations == 0:
-            pass
-        elif numberIterations <= self.iterations_min:
-            self.dt = self.dt * self.inflation
-            if self.dt > self.max_dt:
-                self.dt = self.max_dt
-        elif numberIterations >= self.iterations_max:
-            self.dt = self.dt / self.inflation
+        if self.step_counter != 0 and numberIterations != 0:
+            if numberIterations <= self.iterations_min:
+                self.dt *= self.inflation
+            elif numberIterations >= self.iterations_max:
+                self.dt /= self.inflation
 
         self.dt = self._clamp_dt(self.dt)
 
-        # Clamp the last increment to land exactly on t_final.
         remaining_time = self.t_final - self.t
         if remaining_time <= 0.0:
             return
-        if self.dt > remaining_time:
-            self.dt = remaining_time
+
+        self.dt = min(self.dt, remaining_time)
 
         self.step_counter += 1
         self.t += self.dt
+        self.dt_used = self.dt
 
 
 class TimeControllerParabolic(TimeControllerBase):
@@ -398,6 +395,7 @@ class TimeControllerParabolic(TimeControllerBase):
         self.n_time_steps = n_time_steps
         self.time_list = self.calculate_varying_times(self.fun_parabolic)
         self.dt = self.time_list[1] - self.time_list[0]
+        self.dt_used = self.dt
         self.step_counter = 0
 
     def fun_parabolic(self, t_array: np.ndarray) -> np.ndarray:
@@ -467,3 +465,4 @@ class TimeControllerParabolic(TimeControllerBase):
         self.dt = (
             self.time_list[self.step_counter] - self.time_list[self.step_counter - 1]
         )
+        self.dt_used = self.dt

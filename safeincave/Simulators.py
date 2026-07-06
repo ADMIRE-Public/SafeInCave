@@ -507,7 +507,7 @@ class Simulator_TM(Simulator):
                 current_time = "%.3f" % (t / self.t_control.time_conversion)
                 screen_output_row = [
                     self.t_control.step_counter,
-                    self.t_control.dt / self.t_control.time_conversion,
+                    self.t_control.dt_used / self.t_control.time_conversion,
                     f"{current_time} / {self.t_control.t_final / self.t_control.time_conversion}",
                     ite,
                     self.convergence_handler.error,
@@ -794,7 +794,7 @@ class Simulator_M(Simulator):
                 current_time = "%.3f" % (t / self.t_control.time_conversion)
                 screen_output_row = [
                     self.t_control.step_counter,
-                    self.t_control.dt / self.t_control.time_conversion,
+                    self.t_control.dt_used / self.t_control.time_conversion,
                     f"{current_time} / {self.t_control.t_final / self.t_control.time_conversion}",
                     ite,
                     self.convergence_handler.error,
@@ -920,7 +920,7 @@ class Simulator_T(Simulator):
             current_time = "%.3f" % (t / self.t_control.time_conversion)
             screen_output_row = [
                 self.t_control.step_counter,
-                self.t_control.dt / self.t_control.time_conversion,
+                self.t_control.dt_used / self.t_control.time_conversion,
                 f"{current_time} / {self.t_control.t_final / self.t_control.time_conversion}",
                 0,
                 0,
@@ -1166,7 +1166,7 @@ class Simulator_Mout(Simulator):
                 # Print stuff
                 screen_output_row = [
                     self.t_control.step_counter,
-                    self.t_control.dt / self.t_control.time_conversion,
+                    self.t_control.dt_used / self.t_control.time_conversion,
                     f"{t / self.t_control.time_conversion} / {self.t_control.t_final / self.t_control.time_conversion}",
                     ite,
                     self.convergence_handler.error,
