@@ -11,7 +11,7 @@ extension without modifying the core logger.
 
 import torch as to
 import numpy as np
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional
 
 
 # ============================================================================
@@ -314,7 +314,7 @@ class SimulationLogging:
         try:
             from mpi4py import MPI
             rank = MPI.COMM_WORLD.rank
-        except:
+        except Exception:
             rank = 0
         
         if rank != 0:
@@ -401,7 +401,7 @@ class SimulationLogging:
                 try:
                     value = extractor(elem_id, stress=stress, strain=strain, **kwargs)
                     row.append(value)
-                except Exception as e:
+                except Exception:
                     # If extraction fails, log 0.0 and continue
                     row.append(0.0)
             
@@ -409,7 +409,7 @@ class SimulationLogging:
             try:
                 from mpi4py import MPI
                 rank = MPI.COMM_WORLD.rank
-            except:
+            except Exception:
                 rank = 0
             
             if rank == 0:
