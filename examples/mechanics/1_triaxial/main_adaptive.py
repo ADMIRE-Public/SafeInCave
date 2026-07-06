@@ -42,7 +42,7 @@ def run(formulation):
     grid = sf.GridHandlerGMSH("geom", grid_path)
 
     # Define output folder
-    output_folder = os.path.join("output", "case_0", f"{formulation}_increase_dt")
+    output_folder = os.path.join("output", "case_0", f"{formulation}")
 
     # Time settings for equilibrium stage
     unit = "hour"
@@ -211,6 +211,12 @@ def run(formulation):
     output_mom.add_output_field("Fvp", "Yield function (-)")
     outputs = [output_mom]
 
+    # Set up element-level logging for loading step
+    logger = sf.SimulationLogging(
+        target_point=[0.0, 0.0, 1.0], 
+        variables_to_track=['sxx', 'syy', 'szz', 'exx', 'eyy', 'ezz']
+    )
+
     # Define simulator
     # This benchmark is intended to exercise adaptive dt behavior.
     # Force-residual checks can remain O(1) for this nonlinear fixed-point setup,
@@ -223,6 +229,7 @@ def run(formulation):
         outputs,
         compute_elastic_response=True,
         convergence_criterion=convergence_criterion,
+        simulation_logger=logger,
     )
     sim.run()
 

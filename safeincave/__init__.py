@@ -21,6 +21,12 @@ from .MaterialProps import Material
 from .ConstitutiveModels import *  # noqa: F403, F405
 from .ConstitutiveModels import __all__ as _CONSTITUTIVE_ALL
 from .OutputHandler import SaveFields
+from .SimulationLogging import (
+    SimulationLogging,
+    register_variable,
+    get_variable,
+    list_registered_variables,
+)
 from .Thermodynamics import CavernThermodynamics
 from .ConvergenceCriteria import (
     ConvergenceCriterion,
@@ -56,6 +62,10 @@ __all__ = [
     "LinearMomentumMixed",
     "Material",
     "SaveFields",
+    "SimulationLogging",
+    "register_variable",
+    "get_variable",
+    "list_registered_variables",
     "Simulator_TM",
     "Simulator_T",
     "Simulator_M",

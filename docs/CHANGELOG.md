@@ -10,6 +10,7 @@
 - Fix HDF5 file contention (solution.xdmf) in multi-physics simulations.
 - Encapsulated convergence criteria into a separate file.
 - Fixed dt display during simulations.
+- Implemented results logging at a specific point.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
