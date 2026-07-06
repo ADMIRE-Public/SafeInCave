@@ -9,6 +9,7 @@ from .HeatEquation import HeatDiffusion
 from .MomentumEquation import LinearMomentum, LinearMomentumBase
 from .TimeHandler import TimeControllerBase
 from .OutputHandler import SaveFields
+from .SimulationLogging import SimulationLogging
 from .ScreenOutput import ScreenPrinter
 from .CavernBC import CavernHandler
 from .ConvergenceCriteria import ConvergenceErrorHandler
@@ -242,7 +243,7 @@ class Simulator_TM(Simulator):
         caverns: CavernHandler | None = CavernHandler(),
         compute_elastic_response: bool = True,
         merged_solutions: bool = False,
-        convergence_criterion="strain_based",
+        simulation_logger: SimulationLogging | None = None,
     ):
         self.eq_mom = eq_mom
         self.eq_heat = eq_heat
@@ -250,11 +251,17 @@ class Simulator_TM(Simulator):
         self.outputs = outputs
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
-        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion, tol=1e-7)
+        self.simulation_logger = simulation_logger
 
         # Apply merged_solutions flag to all output handlers
         for output in self.outputs:
             output.merged_solutions = merged_solutions
+
+        # Auto-configure simulation logger if provided
+        if self.simulation_logger is not None:
+            SimulationLogging.auto_configure_from_simulator(
+                self.simulation_logger, self, self.outputs
+            )
 
         ScreenPrinter.reset_instance()
         self.screen = ScreenPrinter(
@@ -503,6 +510,19 @@ class Simulator_TM(Simulator):
                 for output in self.outputs:
                     output.save_fields(t)
 
+                # Log simulation state
+                if self.simulation_logger is not None:
+                    self.simulation_logger.log_step(
+                        step=self.t_control.step_counter,
+                        stress=stress_to,
+                        iteration=ite,
+                        nonlinear_error=self.convergence_handler.error,
+                        time=t,
+                        time_step=dt,
+                        time_final=self.t_control.t_final,
+                        strain=eps_tot_to,
+                    )
+
                 # Print stuff
                 current_time = "%.3f" % (t / self.t_control.time_conversion)
                 screen_output_row = [
@@ -555,9 +575,10 @@ class Simulator_M(Simulator):
         outputs: list[SaveFields],
         caverns: CavernHandler | None = CavernHandler(),
         compute_elastic_response: bool = True,
-        merged_solutions: bool = False,
-        convergence_criterion="strain_based",
+        convergence_criterion: str = "strain_based",
         maxiter: int = 40,
+        simulation_logger: SimulationLogging | None = None,
+        merged_solutions: bool = False,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
@@ -566,10 +587,17 @@ class Simulator_M(Simulator):
         self.compute_elastic_response = compute_elastic_response
         self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
         self.maxiter = int(maxiter)
+        self.simulation_logger = simulation_logger
 
         # Apply merged_solutions flag to all output handlers
         for output in self.outputs:
             output.merged_solutions = merged_solutions
+
+        # Auto-configure simulation logger if provided
+        if self.simulation_logger is not None:
+            SimulationLogging.auto_configure_from_simulator(
+                self.simulation_logger, self, self.outputs
+            )
 
         ScreenPrinter.reset_instance()
         self.screen = ScreenPrinter(
@@ -579,6 +607,7 @@ class Simulator_M(Simulator):
             self.outputs,
             t_control.time_unit,
         )
+    
 
     def run(self) -> None:
         """
@@ -787,6 +816,24 @@ class Simulator_M(Simulator):
                 self.eq_mom.compute_p_elems()
                 self.eq_mom.compute_q_elems()
                 self.eq_mom.compute_q_nodes()
+
+                # Persist simulation log row at each converged time step.
+                if self.simulation_logger is not None:
+                    # Extract yield variables if material has non-elastic elements
+                    log_kwargs = SimulationLogging.extract_yield_variables(self.eq_mom.mat)
+                    
+                    self.simulation_logger.log_step(
+                        step=self.t_control.step_counter,
+                        stress=stress_to,
+                        iteration=ite,
+                        nonlinear_error=self.convergence_handler.error,
+                        time=t,
+                        time_step=dt,
+                        time_final=self.t_control.t_final,
+                        strain=eps_tot_to,
+                        **log_kwargs
+                    )
+
                 for output in self.outputs:
                     output.save_fields(t)
 
@@ -840,11 +887,13 @@ class Simulator_T(Simulator):
         outputs: list[SaveFields],
         caverns: CavernHandler | None = None,
         merged_solutions: bool = False,
+        simulation_logger: SimulationLogging | None = None,
     ):
         self.eq_heat = eq_heat
         self.t_control = t_control
         self.outputs = outputs
         self.caverns = caverns
+        self.simulation_logger = simulation_logger
 
         if caverns is None:
             self.caverns = CavernHandler()
@@ -852,6 +901,12 @@ class Simulator_T(Simulator):
         # Apply merged_solutions flag to all output handlers
         for output in self.outputs:
             output.merged_solutions = merged_solutions
+
+        # Auto-configure simulation logger if provided
+        if self.simulation_logger is not None:
+            SimulationLogging.auto_configure_from_simulator(
+                self.simulation_logger, self, self.outputs
+            )
 
         ScreenPrinter.reset_instance()
         self.screen = ScreenPrinter(
@@ -916,6 +971,17 @@ class Simulator_T(Simulator):
             for output in self.outputs:
                 output.save_fields(t)
 
+            # Log simulation state
+            if self.simulation_logger is not None:
+                self.simulation_logger.log_step(
+                    step=self.t_control.step_counter,
+                    iteration=0,
+                    nonlinear_error=0.0,
+                    time=t,
+                    time_step=dt,
+                    time_final=self.t_control.t_final,
+                )
+
             # Print stuff
             current_time = "%.3f" % (t / self.t_control.time_conversion)
             screen_output_row = [
@@ -964,18 +1030,26 @@ class Simulator_Mout(Simulator):
         t_control: TimeControllerBase,
         outputs: list[SaveFields],
         compute_elastic_response: bool = True,
+        convergence_criterion: str = "strain_based",
         merged_solutions: bool = False,
-        convergence_criterion="strain_based",
+        simulation_logger: SimulationLogging | None = None,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
         self.outputs = outputs
         self.compute_elastic_response = compute_elastic_response
         self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
+        self.simulation_logger = simulation_logger
 
         # Apply merged_solutions flag to all output handlers
         for output in self.outputs:
             output.merged_solutions = merged_solutions
+
+        # Auto-configure simulation logger if provided
+        if self.simulation_logger is not None:
+            SimulationLogging.auto_configure_from_simulator(
+                self.simulation_logger, self, self.outputs
+            )
 
         ScreenPrinter.reset_instance()
         self.screen = ScreenPrinter(
@@ -1162,6 +1236,19 @@ class Simulator_Mout(Simulator):
                 self.eq_mom.compute_q_nodes()
                 for output in self.outputs:
                     output.save_fields(t)
+
+                # Log simulation state
+                if self.simulation_logger is not None:
+                    self.simulation_logger.log_step(
+                        step=self.t_control.step_counter,
+                        stress=stress_to,
+                        iteration=ite,
+                        nonlinear_error=self.convergence_handler.error,
+                        time=t,
+                        time_step=dt,
+                        time_final=self.t_control.t_final,
+                        strain=eps_tot_to,
+                    )
 
                 # Print stuff
                 screen_output_row = [
