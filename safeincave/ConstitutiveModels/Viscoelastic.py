@@ -33,7 +33,7 @@ class Viscoelastic(NonElasticElement):
 
     def __init__(
         self, eta: to.Tensor, E: to.Tensor, nu: to.Tensor, name: str = "kelvin_voigt"
-    ):
+    ) -> None:
         super().__init__(E.shape[0])
         self.eta = eta
         self.E = E
@@ -59,7 +59,7 @@ class Viscoelastic(NonElasticElement):
         phi1: float,
         Temp: to.Tensor,
         return_eps_ne: bool = False,
-    ):
+    ) -> None:
         """
         Compute viscoelastic strain rate (Kelvin–Voigt form).
 

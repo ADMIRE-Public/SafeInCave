@@ -33,7 +33,7 @@ class NonElasticElement(ABC):
         Tangent-like operator (N, 6, 6) assembled in `compute_G_B`.
     """
 
-    def __init__(self, n_elems):
+    def __init__(self, n_elems: int) -> None:
         self.n_elems = n_elems
         self.eps_ne_rate = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
         self.eps_ne_rate_old = to.zeros((self.n_elems, 3, 3), dtype=to.float64)

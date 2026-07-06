@@ -69,7 +69,7 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         eta_v: to.Tensor,
         n_rate: to.Tensor,
         name: str = "cam_clay",
-    ):
+    ) -> None:
         super().__init__(M.shape[0])
         self.name = name
 
@@ -227,9 +227,9 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         stress: to.Tensor,
         phi1: float,
         Temp: to.Tensor,
-        pc: to.Tensor = None,
+        pc: to.Tensor | None = None,
         return_eps_ne: bool = False,
-    ):
+    ) -> None:
         """
         Viscoplastic strain rate at (sigma, p_c).
 
@@ -262,7 +262,7 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
 
     def compute_B_and_H_over_h(
         self, stress: to.Tensor, dt: float, theta_t: float, Temp: to.Tensor
-    ):
+    ) -> tuple[to.Tensor, to.Tensor]:
         """
         FD-based ISV-coupled consistent-tangent terms (mirrors
         :meth:`MunsonDawsonCreep.compute_B_and_H_over_h`):

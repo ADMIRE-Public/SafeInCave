@@ -64,7 +64,7 @@ class MunsonDawsonCreep(NonElasticElement):
         delta: to.Tensor,
         mu: to.Tensor,
         name: str = "creep_munson_dawson",
-    ):
+    ) -> None:
         super().__init__(A.shape[0])
         self.name = name
 
@@ -136,7 +136,7 @@ class MunsonDawsonCreep(NonElasticElement):
 
     def _compute_md_fields(
         self, stress_vec: to.Tensor, Temp: to.Tensor, zeta: to.Tensor
-    ):
+    ) -> tuple:
         """
         Compute all Munson-Dawson intermediate quantities for a given
         (stress, zeta) state.
@@ -227,9 +227,9 @@ class MunsonDawsonCreep(NonElasticElement):
         stress_vec: to.Tensor,
         phi1: float,
         Temp: to.Tensor,
-        zeta: to.Tensor = None,
+        zeta: to.Tensor | None = None,
         return_eps_ne: bool = False,
-    ):
+    ) -> None:
         """
         Munson-Dawson creep strain rate at (sigma, zeta).
 
@@ -273,7 +273,7 @@ class MunsonDawsonCreep(NonElasticElement):
 
     def compute_B_and_H_over_h(
         self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor
-    ):
+    ) -> tuple[to.Tensor, to.Tensor]:
         """
         Build the ISV-coupled consistent-tangent terms by finite differences
         (following ViscoplasticDesai.compute_B_and_H_over_h).

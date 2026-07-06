@@ -48,7 +48,7 @@ class ViscoplasticDesai(NonElasticElement):
         sigma_t: to.Tensor,
         alpha_0: to.Tensor,
         name: str = "desai",
-    ):
+    ) -> None:
         super().__init__(mu_1.shape[0])
         self.name = name
         self.mu_1 = mu_1
@@ -212,7 +212,7 @@ class ViscoplasticDesai(NonElasticElement):
         s_yz = stress_vec[:, 1, 2] / MPa
         return s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
 
-    def compute_Fvp(self, alpha, I1, J2, Sr):
+    def compute_Fvp(self, alpha: to.Tensor, I1: to.Tensor, J2: to.Tensor, Sr: to.Tensor) -> to.Tensor:
         """
         Compute the Desai viscoplastic yield function value `Fvp`.
 
@@ -237,7 +237,7 @@ class ViscoplasticDesai(NonElasticElement):
         Fvp = J2 + F1 * F2**self.m
         return Fvp
 
-    def compute_initial_hardening(self, stress: to.Tensor, Fvp_0=0.0) -> None:
+    def compute_initial_hardening(self, stress: to.Tensor, Fvp_0: float = 0.0) -> None:
         """
         Initialize `alpha` from a target `Fvp_0` and the current stress state.
 
@@ -278,9 +278,9 @@ class ViscoplasticDesai(NonElasticElement):
         stress: to.Tensor,
         phi1: float,
         Temp: to.Tensor,
-        alpha=None,
-        return_eps_ne=False,
-    ):
+        alpha: to.Tensor | None = None,
+        return_eps_ne: bool = False,
+    ) -> None:
         """
         Compute viscoplastic strain rate and optionally return it.
 
