@@ -32,14 +32,14 @@ class Thermoelastic:
         Element name.
     """
 
-    def __init__(self, alpha, name="thermoelastic"):
+    def __init__(self, alpha: to.Tensor, name: str = "thermoelastic") -> None:
         self.alpha = alpha
         self.name = name
         self.n_elems = self.alpha.shape[0]
         self.eps_th = to.zeros((self.n_elems, 3, 3))
         self.I = to.eye(3, dtype=to.float64).unsqueeze(0).repeat(self.n_elems, 1, 1)
 
-    def compute_eps_th(self, dT_DG_vec):
+    def compute_eps_th(self, dT_DG_vec: to.Tensor) -> None:
         """
         Compute thermal strain from a temperature increment.
 

@@ -38,14 +38,14 @@ class Spring:
         Element name.
     """
 
-    def __init__(self, E, nu, name="spring"):
+    def __init__(self, E: to.Tensor, nu: to.Tensor, name: str = "spring") -> None:
         self.E = E
         self.nu = nu
         self.name = name
         self.n_elems = self.E.shape[0]
-        self.eps_e = to.tensor((self.n_elems, 3, 3), dtype=to.float64)
+        self.eps_e = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
 
-    def initialize(self):
+    def initialize(self) -> None:
         """
         Build stiffness operators and bulk modulus.
 
@@ -63,7 +63,7 @@ class Spring:
         self.C_tilde_inv = self.__compute_C_tilde_inv(self.n_elems, self.nu, self.E)
         self.K = self.E / (3 * (1 - 2 * self.nu))
 
-    def compute_eps_e(self, stress):
+    def compute_eps_e(self, stress: to.Tensor) -> None:
         """
         Compute elastic strain from stress using `C_inv`.
 
@@ -82,7 +82,7 @@ class Spring:
         """
         self.eps_e = dotdot_torch(self.C_inv, stress)
 
-    def __compute_C(self, n_elems, nu, E):
+    def __compute_C(self, n_elems: int, nu: to.Tensor, E: to.Tensor) -> to.Tensor:
         """
         Construct isotropic stiffness in tensorial Voigt form.
 
@@ -114,7 +114,7 @@ class Spring:
         )
         return C
 
-    def __compute_C_inv(self, C):
+    def __compute_C_inv(self, C: to.Tensor) -> to.Tensor:
         """
         Invert the stiffness matrix per element.
 
@@ -130,7 +130,7 @@ class Spring:
         """
         return to.linalg.inv(self.C)
 
-    def __compute_C_tilde(self, n_elems, nu, E):
+    def __compute_C_tilde(self, n_elems: int, nu: to.Tensor, E: to.Tensor) -> to.Tensor:
         """
         Construct deviatoric stiffness (2G on all six Voigt diagonals).
 
@@ -155,7 +155,7 @@ class Spring:
         C_tilde[:, 5, 5] = 2 * G
         return C_tilde
 
-    def __compute_C_tilde_inv(self, n_elems, nu, E):
+    def __compute_C_tilde_inv(self, n_elems: int, nu: to.Tensor, E: to.Tensor) -> to.Tensor:
         G = E / (2 * (1 + nu))
         C_tilde_inv = to.zeros((n_elems, 6, 6), dtype=to.float64)
         C_tilde_inv[:, 0, 0] = 1 / (2 * G)

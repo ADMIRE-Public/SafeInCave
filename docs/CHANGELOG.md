@@ -11,6 +11,7 @@
 - Encapsulated convergence criteria into a separate file.
 - Fixed dt display during simulations.
 - Implemented results logging at a specific point.
+- Fixed type hints in constitutive models.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation

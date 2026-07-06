@@ -31,7 +31,7 @@ class DislocationCreep(NonElasticElement):
         Material parameters, shape (N,).
     """
 
-    def __init__(self, A: to.Tensor, Q: to.Tensor, n: to.Tensor, name: str = "creep"):
+    def __init__(self, A: to.Tensor, Q: to.Tensor, n: to.Tensor, name: str = "creep") -> None:
         super().__init__(A.shape[0])
         self.R = 8.32
         self.Q = Q
@@ -45,7 +45,7 @@ class DislocationCreep(NonElasticElement):
         phi1: float,
         Temp: to.Tensor,
         return_eps_ne: bool = False,
-    ):
+    ) -> None:
         """
         Compute creep strain rate from current stress.
 

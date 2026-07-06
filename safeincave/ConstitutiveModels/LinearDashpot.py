@@ -19,7 +19,7 @@ class LinearDashpot(NonElasticElement):
         Element name, by default "dashpot".
     """
 
-    def __init__(self, A: to.Tensor, name: str = "dashpot"):
+    def __init__(self, A: to.Tensor, name: str = "dashpot") -> None:
         super().__init__(A.shape[0])
         self.A = A
         self.name = name
@@ -30,7 +30,7 @@ class LinearDashpot(NonElasticElement):
         phi1: float,
         Temp: to.Tensor,
         return_eps_ne: bool = False,
-    ):
+    ) -> None:
         """
         Compute linear viscous strain rate.
 
