@@ -973,9 +973,6 @@ class Simulator_T(Simulator):
             self.t_control.time_conversion,
         )
 
-        # Thermal-only solver has no nonlinear mechanical iterations.
-        ite = 0
-
         # Time loop
         while self.t_control.keep_looping():
 
