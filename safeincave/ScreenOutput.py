@@ -488,6 +488,28 @@ class ScreenPrinter:
             self.widths.append(len(header_column))
         self.divider = self.make_divider(self.widths, "+")
 
+    def print_initial_state(self, t: float, t_final: float, time_conversion: float) -> None:
+        """
+        Print the initial state row (step 0) to the progress table.
+
+        Parameters
+        ----------
+        t : float
+            Current time in seconds.
+        t_final : float
+            Final time in seconds.
+        time_conversion : float
+            Conversion factor from seconds to display unit.
+        """
+        current_time = "%.3f" % (t / time_conversion)
+        self.print_row([
+            0,
+            0.0,
+            f"{current_time} / {t_final / time_conversion}",
+            0,
+            0.0,
+        ])
+
     def print_header(self) -> None:
         """
         Print the top divider, a formatted header row, and a divider below.

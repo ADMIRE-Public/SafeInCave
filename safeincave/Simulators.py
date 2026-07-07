@@ -367,9 +367,24 @@ class Simulator_TM(Simulator):
         for output in self.outputs:
             output.save_fields(0)
 
+        # Log initial state (step 0) to simulation logger
+        if self.simulation_logger is not None:
+            self.simulation_logger.log_initial_state(
+                time=self.t_control.t,
+                time_final=self.t_control.t_final,
+                stress=stress_to,
+                strain=eps_tot_to,
+            )
+
+        # Print initial state header row
+        self.screen.print_initial_state(
+            self.t_control.t,
+            self.t_control.t_final,
+            self.t_control.time_conversion,
+        )
+
         # First step has no previous nonlinear iteration count.
         ite = 0
-        ite_for_advance = 0
 
         # Time loop
         while self.t_control.keep_looping():
@@ -381,11 +396,8 @@ class Simulator_TM(Simulator):
                 step_state = self._capture_step_state(include_heat=True, include_caverns=True)
                 stress_to_step_start = stress_to.clone()
 
-                # Advance time. If adaptive, it need to send the iteration number
-                try:
-                    self.t_control.advance_time(ite_for_advance)
-                except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
-                    self.t_control.advance_time()
+                # Advance time
+                self.t_control.advance_time()
 
                 t = self.t_control.t
                 dt = self.t_control.dt
@@ -469,7 +481,7 @@ class Simulator_TM(Simulator):
                     n_bisections += 1
                     continue
 
-                # Relative-iteration adaptive dt integration (Task #5/#9).
+                # Adaptive dt integration via relative convergence ratio.
                 if hasattr(self.t_control, "get_next_dt"):
                     maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
                     convergence_ratio = ite / maxiter
@@ -478,11 +490,6 @@ class Simulator_TM(Simulator):
                         n_bisections=n_bisections,
                         converged=True,
                     )
-                    # Avoid double-adaptation by legacy absolute-iteration path.
-                    ite_for_advance = 0
-                else:
-                    # Legacy controllers continue to adapt with absolute ite.
-                    ite_for_advance = ite
 
                 # Calculate next cavern masses and volumes
                 self.caverns.calculate_initial_conditions()
@@ -690,9 +697,26 @@ class Simulator_M(Simulator):
         for output in self.outputs:
             output.save_fields(0)
 
+        # Log initial state (step 0) to simulation logger
+        if self.simulation_logger is not None:
+            log_kwargs = SimulationLogging.extract_yield_variables(self.eq_mom.mat)
+            self.simulation_logger.log_initial_state(
+                time=self.t_control.t,
+                time_final=self.t_control.t_final,
+                stress=stress_to,
+                strain=eps_tot_to,
+                **log_kwargs
+            )
+
+        # Print initial state header row
+        self.screen.print_initial_state(
+            self.t_control.t,
+            self.t_control.t_final,
+            self.t_control.time_conversion,
+        )
+
         # First step has no previous nonlinear iteration count.
         ite = 0
-        ite_for_advance = 0
 
         # Time loop
         while self.t_control.keep_looping():
@@ -704,11 +728,8 @@ class Simulator_M(Simulator):
                 step_state = self._capture_step_state(include_heat=False, include_caverns=True)
                 stress_to_step_start = stress_to.clone()
 
-                # Advance time. If adaptive, it need to send the iteration number
-                try:
-                    self.t_control.advance_time(ite_for_advance)
-                except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
-                    self.t_control.advance_time()
+                # Advance time
+                self.t_control.advance_time()
 
                 t = self.t_control.t
                 dt = self.t_control.dt
@@ -777,11 +798,10 @@ class Simulator_M(Simulator):
                     stress_to = stress_to_step_start.clone()
                     dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
                     self.t_control.dt = max(step_state["time"]["dt"] * 0.5, dt_floor)
-                    ite_for_advance = 0
                     n_bisections += 1
                     continue
 
-                # Relative-iteration adaptive dt integration (Task #5/#9).
+                # Adaptive dt integration via relative convergence ratio.
                 if hasattr(self.t_control, "get_next_dt"):
                     maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
                     convergence_ratio = ite / maxiter
@@ -790,11 +810,6 @@ class Simulator_M(Simulator):
                         n_bisections=n_bisections,
                         converged=True,
                     )
-                    # Avoid double-adaptation by legacy absolute-iteration path.
-                    ite_for_advance = 0
-                else:
-                    # Legacy controllers continue to adapt with absolute ite.
-                    ite_for_advance = ite
 
                 # Calculate next cavern masses and volumes
                 self.caverns.calculate_initial_conditions()
@@ -945,17 +960,28 @@ class Simulator_T(Simulator):
         # Save fields
         output.save_fields(0)
 
+        # Log initial state (step 0) to simulation logger
+        if self.simulation_logger is not None:
+            self.simulation_logger.log_initial_state(
+                time=self.t_control.t,
+                time_final=self.t_control.t_final,
+            )
+
+        # Print initial state header row
+        self.screen.print_initial_state(
+            self.t_control.t,
+            self.t_control.t_final,
+            self.t_control.time_conversion,
+        )
+
         # Thermal-only solver has no nonlinear mechanical iterations.
         ite = 0
 
         # Time loop
         while self.t_control.keep_looping():
 
-            # Advance time. If adaptive, it need to send the iteration number
-            try:
-                self.t_control.advance_time(ite)
-            except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
-                self.t_control.advance_time()
+            # Advance time
+            self.t_control.advance_time()
 
             t = self.t_control.t
             dt = self.t_control.dt
@@ -1126,9 +1152,24 @@ class Simulator_Mout(Simulator):
         self.eq_mom.compute_q_nodes()
         output.save_fields(0)
 
+        # Log initial state (step 0) to simulation logger
+        if self.simulation_logger is not None:
+            self.simulation_logger.log_initial_state(
+                time=self.t_control.t,
+                time_final=self.t_control.t_final,
+                stress=stress_to,
+                strain=eps_tot_to,
+            )
+
+        # Print initial state header row
+        self.screen.print_initial_state(
+            self.t_control.t,
+            self.t_control.t_final,
+            self.t_control.time_conversion,
+        )
+
         # First step has no previous nonlinear iteration count.
         ite = 0
-        ite_for_advance = 0
 
         # Time loop
         while self.t_control.keep_looping():
@@ -1140,11 +1181,8 @@ class Simulator_Mout(Simulator):
                 step_state = self._capture_step_state(include_heat=False, include_caverns=False)
                 stress_to_step_start = stress_to.clone()
 
-                # Advance time. If adaptive, it need to send the iteration number
-                try:
-                    self.t_control.advance_time(ite_for_advance)
-                except (NameError, TypeError):      ##NameError = first iteration, ite not defined. TypeError: time control not a function of ite
-                    self.t_control.advance_time()
+                # Advance time
+                self.t_control.advance_time()
 
                 t = self.t_control.t
                 dt = self.t_control.dt
@@ -1201,11 +1239,10 @@ class Simulator_Mout(Simulator):
                     stress_to = stress_to_step_start.clone()
                     dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
                     self.t_control.dt = max(step_state["time"]["dt"] * 0.5, dt_floor)
-                    ite_for_advance = 0
                     n_bisections += 1
                     continue
 
-                # Relative-iteration adaptive dt integration (Task #5/#9).
+                # Adaptive dt integration via relative convergence ratio.
                 if hasattr(self.t_control, "get_next_dt"):
                     maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
                     convergence_ratio = ite / maxiter
@@ -1214,11 +1251,6 @@ class Simulator_Mout(Simulator):
                         n_bisections=n_bisections,
                         converged=True,
                     )
-                    # Avoid double-adaptation by legacy absolute-iteration path.
-                    ite_for_advance = 0
-                else:
-                    # Legacy controllers continue to adapt with absolute ite.
-                    ite_for_advance = ite
 
                 # Update internal variables
                 self.eq_mom.update_internal_variables()
