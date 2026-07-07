@@ -477,7 +477,6 @@ class Simulator_TM(Simulator):
                     stress_to = stress_to_step_start.clone()
                     dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
                     self.t_control.dt = max(step_state["time"]["dt"] * 0.5, dt_floor)
-                    ite_for_advance = 0
                     n_bisections += 1
                     continue
 
