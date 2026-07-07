@@ -341,6 +341,42 @@ class SimulationLogging:
             import sys
             print(f"ERROR initializing log file {self._log_file}: {e}", file=sys.stderr)
     
+    def log_initial_state(
+        self,
+        time: float = 0.0,
+        time_final: float = 1.0,
+        stress: Optional[to.Tensor] = None,
+        strain: Optional[to.Tensor] = None,
+        **kwargs
+    ) -> None:
+        """
+        Log the initial state (step 0) with zero dt and zero iterations.
+
+        Parameters
+        ----------
+        time : float, optional
+            Initial time (raw, SI seconds). Default 0.0.
+        time_final : float, optional
+            Final time endpoint. Default 1.0.
+        stress : torch.Tensor, optional
+            Full stress tensor, shape (N, 3, 3).
+        strain : torch.Tensor, optional
+            Total strain tensor, shape (N, 3, 3).
+        **kwargs : dict
+            Additional variables for extractors.
+        """
+        self.log_step(
+            step=0,
+            time=time,
+            time_step=0.0,
+            time_final=time_final,
+            iteration=-1,          # displays as Iters=0
+            nonlinear_error=0.0,
+            stress=stress,
+            strain=strain,
+            **kwargs
+        )
+
     def log_step(
         self,
         step: int,

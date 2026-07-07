@@ -176,29 +176,24 @@ class TimeControllerAdaptive(TimeControllerBase):
     """
     Adaptive-step time controller.
 
-    Supports two adaptation interfaces:
-    1) Legacy absolute-iteration adaptation via `advance_time(numberIterations)`.
-    2) Relative-iteration adaptation via `get_next_dt(convergence_ratio, ...)`.
-
-    Legacy behavior is preserved for backward compatibility.
+    Uses the relative-convergence interface via `get_next_dt(convergence_ratio, ...)`
+    to decide dt growth or shrinkage based on the ratio of solver iterations
+    to the maximum allowed iterations.
 
     Parameters
     ----------
-    initial_dt : float
-    Initial time-step size expressed in the units given by `time_unit`.
-    max_dt : float
-    Maximum time-step size expressed in the units given by `time_unit`.
     initial_time : float
     Start time expressed in the units given by `time_unit`.
+    initial_dt : float
+    Initial time-step size expressed in the units given by `time_unit`.
     final_time : float
     Final time expressed in the units given by `time_unit`.
-    time_unit : {"second", "minute", "hour", "day", "year"}, default="second"
-    Unit used to interpret `dt`, `initial_time`, and `final_time`.
-
-    dt_min : float, optional
+    time_unit : {"second", "minute", "hour", "day", "year"}, default="hour"
+    Unit used to interpret all time-related parameters.
+    dt_min : float, default=0.001
     Minimum time-step size expressed in the units given by `time_unit`.
-    dt_max : float, optional
-    Alias for `max_dt` to support a clearer API.
+    dt_max : float, default=1
+    Maximum time-step size expressed in the units given by `time_unit`.
     growth_factor : float, default=1.5
     Multiplicative factor for dt growth in easy-convergence regions.
     shrink_factor : float, default=0.5
@@ -224,13 +219,10 @@ class TimeControllerAdaptive(TimeControllerBase):
         initial_dt: float,
         final_time: float,
         time_unit: str = "hour",
-        iterations_min: int = 5,
-        iterations_max: int = 10,
-        inflation: float = 2.0,
-        dt_max: float = 1,
         dt_min: float = 0.001,
-        growth_factor: float = 1.5,
+        dt_max: float = 1,
         shrink_factor: float = 0.5,
+        growth_factor: float = 1.5,
         easy_ratio_threshold: float = 0.25,
         hard_ratio_threshold: float = 0.50,
         max_bisections: int = 5,
@@ -245,11 +237,6 @@ class TimeControllerAdaptive(TimeControllerBase):
         self.dt_max = dt_max * self.time_conversion
 
         self.flag_functionOfIteration = True
-
-        # Legacy absolute-iteration controls
-        self.iterations_min = iterations_min
-        self.iterations_max = iterations_max
-        self.inflation = inflation
 
         # Relative-iteration controls
         self.growth_factor = growth_factor
@@ -323,22 +310,14 @@ class TimeControllerAdaptive(TimeControllerBase):
         self.last_dt_reason = reason
         return self._clamp_dt(dt_candidate)
 
-    def advance_time(self, numberIterations: int = 0) -> None:
+    def advance_time(self) -> None:
         """
-        Increment the current time by a `dt` that changes as a function of the number of iterations.
+        Increment the current time by `dt`.
 
         Returns
         -------
         None
         """
-
-        if self.step_counter != 0 and numberIterations != 0:
-            if numberIterations <= self.iterations_min:
-                self.dt *= self.inflation
-            elif numberIterations >= self.iterations_max:
-                self.dt /= self.inflation
-
-        self.dt = self._clamp_dt(self.dt)
 
         remaining_time = self.t_final - self.t
         if remaining_time <= 0.0:
