@@ -362,6 +362,7 @@ class Simulator_TM(Simulator):
         self.eq_mom.compute_q_elems()
         self.eq_mom.compute_p_nodes()
         self.eq_mom.compute_q_nodes()
+        self.eq_mom.compute_principal_stresses()
 
         # Save initial fields
         for output in self.outputs:
@@ -513,6 +514,7 @@ class Simulator_TM(Simulator):
                 self.eq_mom.compute_q_elems()
                 self.eq_mom.compute_p_nodes()
                 self.eq_mom.compute_q_nodes()
+                self.eq_mom.compute_principal_stresses()
                 for output in self.outputs:
                     output.save_fields(t)
 
@@ -691,6 +693,7 @@ class Simulator_M(Simulator):
         self.eq_mom.compute_q_elems()
         self.eq_mom.compute_p_nodes()
         self.eq_mom.compute_q_nodes()
+        self.eq_mom.compute_principal_stresses()
 
         # Save initial fields
         for output in self.outputs:
@@ -830,6 +833,7 @@ class Simulator_M(Simulator):
                 self.eq_mom.compute_p_elems()
                 self.eq_mom.compute_q_elems()
                 self.eq_mom.compute_q_nodes()
+                self.eq_mom.compute_principal_stresses()
 
                 # Persist simulation log row at each converged time step.
                 if self.simulation_logger is not None:
@@ -1146,6 +1150,7 @@ class Simulator_Mout(Simulator):
         self.eq_mom.compute_q_elems()
         self.eq_mom.compute_p_nodes()
         self.eq_mom.compute_q_nodes()
+        self.eq_mom.compute_principal_stresses()
         output.save_fields(0)
 
         # Log initial state (step 0) to simulation logger
@@ -1262,6 +1267,7 @@ class Simulator_Mout(Simulator):
                 self.eq_mom.compute_q_elems()
                 self.eq_mom.compute_p_nodes()
                 self.eq_mom.compute_q_nodes()
+                self.eq_mom.compute_principal_stresses()
                 for output in self.outputs:
                     output.save_fields(t)
 

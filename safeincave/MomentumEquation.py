@@ -136,6 +136,8 @@ class LinearMomentumBase(ABC):
         self.q_nodes = do.fem.Function(self.CG1_1)
         self.p_elems = do.fem.Function(self.DG0_1)
         self.p_nodes = do.fem.Function(self.CG1_1)
+        self.principal_stresses = do.fem.Function(self.DG0_3x1)
+        self.principal_directions = do.fem.Function(self.DG0_3x3)
 
     def set_material(self, material: Material) -> None:
         """
@@ -242,6 +244,7 @@ class LinearMomentumBase(ABC):
         )
         self.DG0_1 = do.fem.functionspace(self.grid.mesh, ("DG", 0))
         self.CG1_1 = do.fem.functionspace(self.grid.mesh, ("Lagrange", 1))
+        self.DG0_3x1 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (3,)))
         self.DG0_3x3 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (3, 3)))
         self.DG0_6x6 = do.fem.functionspace(self.grid.mesh, ("DG", 0, (6, 6)))
 
@@ -365,6 +368,111 @@ class LinearMomentumBase(ABC):
         J2 = (1 / 3) * I1**2 - I2
         q_to = to.sqrt(3 * J2)
         self.q_elems.x.array[:] = self.grid.smoother.dot(q_to.numpy())
+
+    def compute_principal_stresses(self) -> None:
+        """
+        Compute principal stress magnitudes and directions from the full
+        Cauchy stress tensor using closed-form eigenvalue decomposition
+        (robust for repeated eigenvalues, e.g. isotropic stress states).
+
+        Principal stresses are sorted descending: σ₁ ≥ σ₂ ≥ σ₃
+        (most tensile / least compressive first).
+
+        Principal directions are stored as a 3×3 tensor where each column
+        is the eigenvector corresponding to (σ₁, σ₂, σ₃).
+
+        Returns
+        -------
+        None
+
+        Side Effects
+        ------------
+        Sets :attr:`principal_stresses` (DG0_3x1) and
+        :attr:`principal_directions` (DG0_3x3).
+        """
+        stress = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
+
+        # Closed-form eigenvalues and eigenvectors for symmetric 3x3 tensors.
+        # Uses the trigonometric (Cardano) formula for eigenvalues, then
+        # solves (A - λI) v = 0 via cross-product of two non-parallel rows.
+        # This is both faster and more robust than iterative methods for
+        # large batches of small matrices.
+
+        # --- Step 1: Eigenvalues via trigonometric formula ---
+        q = to.diagonal(stress, dim1=-2, dim2=-1).sum(-1) / 3.0  # trace/3
+        p1 = stress[:, 0, 1] ** 2 + stress[:, 0, 2] ** 2 + stress[:, 1, 2] ** 2
+        d0 = stress[:, 0, 0] - q
+        d1 = stress[:, 1, 1] - q
+        d2 = stress[:, 2, 2] - q
+        p2 = d0**2 + d1**2 + d2**2 + 2.0 * p1
+        p = to.sqrt(to.clamp(p2 / 6.0, min=0.0))
+        p_safe = to.clamp(p, min=1e-30)
+
+        # det(B) with B = (A - qI) / p, via explicit cofactor expansion
+        detB = (
+            d0 * (d1 * d2 - stress[:, 1, 2] ** 2)
+            - stress[:, 0, 1] * (stress[:, 0, 1] * d2 - stress[:, 1, 2] * stress[:, 0, 2])
+            + stress[:, 0, 2] * (stress[:, 0, 1] * stress[:, 1, 2] - d1 * stress[:, 0, 2])
+        ) / p_safe**3
+        r = to.clamp(detB / 2.0, min=-1.0, max=1.0)
+        phi = to.acos(r) / 3.0
+
+        eig_hi = q + 2.0 * p * to.cos(phi)               # σ₁ (largest)
+        eig_lo = q + 2.0 * p * to.cos(phi + 2.0 * to.pi / 3.0)  # σ₃ (smallest)
+        eig_mid = 3.0 * q - eig_hi - eig_lo               # σ₂ (middle)
+
+        # Stack descending: σ₁ ≥ σ₂ ≥ σ₃
+        eigenvalues = to.stack([eig_hi, eig_mid, eig_lo], dim=1)  # (n_elems, 3)
+
+        # --- Step 2: Eigenvectors ---
+        # For each eigenvalue λ, solve (A - λI) v = 0.
+        # Use the cross-product of two non-parallel rows of (A - λI).
+        # This avoids singular matrix issues and is robust for repeated roots.
+        n_elems = self.n_elems
+        eye_3 = to.eye(3, device=stress.device, dtype=stress.dtype)
+        eigenvectors = to.zeros((n_elems, 3, 3), dtype=stress.dtype)
+
+        for i in range(3):
+            lam = eigenvalues[:, i]  # (n_elems,)
+            # (A - λI)
+            A_shifted = stress - lam[:, None, None] * eye_3[None, :, :]  # (n_elems, 3, 3)
+
+            # Find two non-parallel rows by taking cross products
+            # Row0 × Row1, Row1 × Row2, Row2 × Row0 — pick the one with largest norm
+            r0 = A_shifted[:, 0, :]  # (n_elems, 3)
+            r1 = A_shifted[:, 1, :]  # (n_elems, 3)
+            r2 = A_shifted[:, 2, :]  # (n_elems, 3)
+
+            c01 = to.linalg.cross(r0, r1)  # (n_elems, 3)
+            c12 = to.linalg.cross(r1, r2)  # (n_elems, 3)
+            c20 = to.linalg.cross(r2, r0)  # (n_elems, 3)
+
+            norms01 = to.linalg.vector_norm(c01, dim=1)
+            norms12 = to.linalg.vector_norm(c12, dim=1)
+            norms20 = to.linalg.vector_norm(c20, dim=1)
+
+            # Stack and pick the cross product with largest norm per element
+            candidates = to.stack([c01, c12, c20], dim=1)  # (n_elems, 3, 3)
+            candidate_norms = to.stack([norms01, norms12, norms20], dim=1)  # (n_elems, 3)
+            best_idx = to.argmax(candidate_norms, dim=1)  # (n_elems,)
+
+            # Gather the best candidate per element
+            batch_indices = to.arange(n_elems, device=stress.device)
+            vec = candidates[batch_indices, best_idx]  # (n_elems, 3)
+
+            # Normalize
+            vec_norm = to.linalg.vector_norm(vec, dim=1, keepdim=True)
+            vec_norm_safe = to.clamp(vec_norm, min=1e-30)
+            vec = vec / vec_norm_safe
+
+            eigenvectors[:, :, i] = vec
+
+        # --- Step 3: Store to FE fields ---
+        # Principal stress magnitudes as a 3-component vector (σ₁, σ₂, σ₃)
+        self.principal_stresses.x.array[:] = to.flatten(eigenvalues)
+
+        # Principal directions as a 3x3 tensor (columns = eigenvectors)
+        self.principal_directions.x.array[:] = to.flatten(eigenvectors)
 
     def compute_total_strain(self) -> to.Tensor:
         """
