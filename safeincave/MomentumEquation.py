@@ -352,7 +352,7 @@ class LinearMomentumBase(ABC):
         Side Effects
         ------------
         Sets :attr:`principal_stresses` (DG0_3x1) and
-        :attr:`principal_directions` (DG0_3x3).
+        :attr:`principal_stress_directions` (DG0_3x3).
         """
         stress = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
 
@@ -435,8 +435,112 @@ class LinearMomentumBase(ABC):
         # Principal stress magnitudes as a 3-component vector (σ₁, σ₂, σ₃)
         self.principal_stresses.x.array[:] = to.flatten(eigenvalues)
 
+        # Principal stress directions as a 3x3 tensor (columns = eigenvectors)
+        self.principal_stress_directions.x.array[:] = to.flatten(eigenvectors)
+
+    def compute_principal_strains(self) -> None:
+        """
+        Compute principal strain magnitudes and directions from the full
+        small-strain tensor using closed-form eigenvalue decomposition
+        (robust for repeated eigenvalues, e.g. isotropic strain states).
+
+        Principal strains are sorted descending: ε₁ ≥ ε₂ ≥ ε₃.
+
+        Principal directions are stored as a 3×3 tensor where each column
+        is the eigenvector corresponding to (ε₁, ε₂, ε₃).
+
+        Returns
+        -------
+        None
+
+        Side Effects
+        ------------
+        Sets :attr:`principal_strains` (DG0_3x1) and
+        :attr:`principal_strain_directions` (DG0_3x3).
+        """
+        strain = numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
+
+        # Closed-form eigenvalues and eigenvectors for symmetric 3x3 tensors.
+        # Uses the trigonometric (Cardano) formula for eigenvalues, then
+        # solves (A - λI) v = 0 via cross-product of two non-parallel rows.
+        # This is both faster and more robust than iterative methods for
+        # large batches of small matrices.
+
+        # --- Step 1: Eigenvalues via trigonometric formula ---
+        q = to.diagonal(strain, dim1=-2, dim2=-1).sum(-1) / 3.0  # trace/3
+        p1 = strain[:, 0, 1] ** 2 + strain[:, 0, 2] ** 2 + strain[:, 1, 2] ** 2
+        d0 = strain[:, 0, 0] - q
+        d1 = strain[:, 1, 1] - q
+        d2 = strain[:, 2, 2] - q
+        p2 = d0**2 + d1**2 + d2**2 + 2.0 * p1
+        p = to.sqrt(to.clamp(p2 / 6.0, min=0.0))
+        p_safe = to.clamp(p, min=1e-30)
+
+        # det(B) with B = (A - qI) / p, via explicit cofactor expansion
+        detB = (
+            d0 * (d1 * d2 - strain[:, 1, 2] ** 2)
+            - strain[:, 0, 1] * (strain[:, 0, 1] * d2 - strain[:, 1, 2] * strain[:, 0, 2])
+            + strain[:, 0, 2] * (strain[:, 0, 1] * strain[:, 1, 2] - d1 * strain[:, 0, 2])
+        ) / p_safe**3
+        r = to.clamp(detB / 2.0, min=-1.0, max=1.0)
+        phi = to.acos(r) / 3.0
+
+        eig_hi = q + 2.0 * p * to.cos(phi)               # ε₁ (largest)
+        eig_lo = q + 2.0 * p * to.cos(phi + 2.0 * to.pi / 3.0)  # ε₃ (smallest)
+        eig_mid = 3.0 * q - eig_hi - eig_lo               # ε₂ (middle)
+
+        # Stack descending: ε₁ ≥ ε₂ ≥ ε₃
+        eigenvalues = to.stack([eig_hi, eig_mid, eig_lo], dim=1)  # (n_elems, 3)
+
+        # --- Step 2: Eigenvectors ---
+        # For each eigenvalue λ, solve (A - λI) v = 0.
+        # Use the cross-product of two non-parallel rows of (A - λI).
+        # This avoids singular matrix issues and is robust for repeated roots.
+        n_elems = self.n_elems
+        eye_3 = to.eye(3, device=strain.device, dtype=strain.dtype)
+        eigenvectors = to.zeros((n_elems, 3, 3), dtype=strain.dtype)
+
+        for i in range(3):
+            lam = eigenvalues[:, i]  # (n_elems,)
+            # (A - λI)
+            A_shifted = strain - lam[:, None, None] * eye_3[None, :, :]  # (n_elems, 3, 3)
+
+            # Find two non-parallel rows by taking cross products
+            # Row0 × Row1, Row1 × Row2, Row2 × Row0 — pick the one with largest norm
+            r0 = A_shifted[:, 0, :]  # (n_elems, 3)
+            r1 = A_shifted[:, 1, :]  # (n_elems, 3)
+            r2 = A_shifted[:, 2, :]  # (n_elems, 3)
+
+            c01 = to.linalg.cross(r0, r1)  # (n_elems, 3)
+            c12 = to.linalg.cross(r1, r2)  # (n_elems, 3)
+            c20 = to.linalg.cross(r2, r0)  # (n_elems, 3)
+
+            norms01 = to.linalg.vector_norm(c01, dim=1)
+            norms12 = to.linalg.vector_norm(c12, dim=1)
+            norms20 = to.linalg.vector_norm(c20, dim=1)
+
+            # Stack and pick the cross product with largest norm per element
+            candidates = to.stack([c01, c12, c20], dim=1)  # (n_elems, 3, 3)
+            candidate_norms = to.stack([norms01, norms12, norms20], dim=1)  # (n_elems, 3)
+            best_idx = to.argmax(candidate_norms, dim=1)  # (n_elems,)
+
+            # Gather the best candidate per element
+            batch_indices = to.arange(n_elems, device=strain.device)
+            vec = candidates[batch_indices, best_idx]  # (n_elems, 3)
+
+            # Normalize
+            vec_norm = to.linalg.vector_norm(vec, dim=1, keepdim=True)
+            vec_norm_safe = to.clamp(vec_norm, min=1e-30)
+            vec = vec / vec_norm_safe
+
+            eigenvectors[:, :, i] = vec
+
+        # --- Step 3: Store to FE fields ---
+        # Principal strain magnitudes as a 3-component vector (ε₁, ε₂, ε₃)
+        self.principal_strains.x.array[:] = to.flatten(eigenvalues)
+
         # Principal directions as a 3x3 tensor (columns = eigenvectors)
-        self.principal_directions.x.array[:] = to.flatten(eigenvectors)
+        self.principal_strain_directions.x.array[:] = to.flatten(eigenvectors)
 
     def compute_total_strain(self) -> to.Tensor:
         """
