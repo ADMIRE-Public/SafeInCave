@@ -145,7 +145,7 @@ def main():
         t_control=t_control,
         outputs=outputs,
         compute_elastic_response=True,
-        merged_solutions=True,
+        smooth_output=True,
     )
     sim.run()
 
