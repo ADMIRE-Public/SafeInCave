@@ -57,8 +57,8 @@ class LinearMomentumBase(ABC):
         Displacement field (vector).
     sig, eps_tot : dolfinx.fem.Function
         Stress and total strain (DG0 3×3 tensors).
-    q_nodes, q_elems, p_nodes, p_elems : dolfinx.fem.Function
-        Von Mises magnitude and pressure in node/element spaces.
+    q_elems, p_elems : dolfinx.fem.Function
+        Von Mises magnitude and pressure (DG0 scalar fields, smoothable to CG1 via smooth_output flag).
     Temp, T0 : torch.Tensor
         Current and reference temperatures per element, shape ``(n_elems,)``.
     normal : ufl.core.expr.Expr
@@ -123,7 +123,7 @@ class LinearMomentumBase(ABC):
         Side Effects
         ------------
         Initializes tensors/functions:
-        `T0`, `Temp`, `sig`, `eps_tot`, `u`, `q_elems`, `q_nodes`, `p_elems`, `p_nodes`.
+        `T0`, `Temp`, `sig`, `eps_tot`, `u`, `q_elems`, `p_elems`.
         """
         self.T0 = to.zeros(self.n_elems, dtype=to.float64)
         self.Temp = to.zeros(self.n_elems, dtype=to.float64)
@@ -133,9 +133,7 @@ class LinearMomentumBase(ABC):
         self.eps_0 = do.fem.Function(self.DG0_3x3)
         self.u = do.fem.Function(self.CG1_3x1)
         self.q_elems = do.fem.Function(self.DG0_1)
-        self.q_nodes = do.fem.Function(self.CG1_1)
         self.p_elems = do.fem.Function(self.DG0_1)
-        self.p_nodes = do.fem.Function(self.CG1_1)
 
     def set_material(self, material: Material) -> None:
         """
@@ -302,43 +300,6 @@ class LinearMomentumBase(ABC):
             self.grid.mesh, do.default_scalar_type(tuple(g))
         )
         self.b_body = ufl.dot(body_force, self.u_) * self.dx
-
-    # def compute_q_nodes(self) -> do.fem.Function:
-    # 	dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
-    # 	q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
-    # 	self.q_nodes = project(q_form, self.CG1_1)
-
-    # def compute_q_elems(self) -> do.fem.Function:
-    # 	dev = self.sig - (1/3)*ufl.tr(self.sig)*ufl.Identity(3)
-    # 	q_form = ufl.sqrt((3/2)*ufl.inner(dev, dev))
-    # 	self.q_elems = project(q_form, self.DG0_1)
-
-    def compute_q_nodes(self) -> None:
-        """
-        Compute von Mises equivalent stress and smooth it to nodes.
-
-        Returns
-        -------
-        None
-
-        Side Effects
-        ------------
-        Sets :attr:`q_nodes` by applying a node-element averaging matrix
-        (:attr:`grid.A_csr`) to the element-wise von Mises values.
-        """
-        stress = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
-        I1 = stress[:, 0, 0] + stress[:, 1, 1] + stress[:, 2, 2]
-        I2 = (
-            stress[:, 0, 0] * stress[:, 1, 1]
-            + stress[:, 1, 1] * stress[:, 2, 2]
-            + stress[:, 0, 0] * stress[:, 2, 2]
-            - stress[:, 0, 1] ** 2
-            - stress[:, 0, 2] ** 2
-            - stress[:, 1, 2] ** 2
-        )
-        J2 = (1 / 3) * I1**2 - I2
-        q_to = to.sqrt(3 * J2)
-        self.q_nodes.x.array[:] = self.grid.A_csr.dot(q_to.numpy())
 
     def compute_q_elems(self) -> None:
         """
@@ -681,17 +642,6 @@ class LinearMomentumBase(ABC):
         pass
 
     @abstractmethod
-    def compute_p_nodes(self) -> None:
-        """
-        Compute nodal pressure (mean stress) from the stress field.
-
-        Returns
-        -------
-        None
-        """
-        pass
-
-    @abstractmethod
     def solve_elastic_response(self) -> None:
         """
         Solve the purely elastic problem (e.g., for initialization).
@@ -1010,25 +960,6 @@ class LinearMomentum(LinearMomentumBase):
         """
         self.u = self.X
         
-
-    def compute_p_nodes(self) -> None:
-        """
-        Compute nodal pressure ``p = tr(σ)/3`` via node-element averaging.
-
-        Returns
-        -------
-        None
-
-        Side Effects
-        ------------
-        Writes to :attr:`p_nodes`.
-        """
-        # stress = numpy2torch(self.sig.x.array.reshape((self.n_elems, 3, 3)))
-        # I1 = stress[:, 0, 0] + stress[:, 1, 1] + stress[:, 2, 2]
-        # p_to = I1 / 3
-        # self.p_nodes.x.array[:] = self.grid.A_csr.dot(p_to)
-        self.p_nodes = project(ufl.tr(self.sig) / 3, self.CG1_1)
-
 
     def compute_p_elems(self) -> None:
         """

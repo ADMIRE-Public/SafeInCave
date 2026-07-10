@@ -239,6 +239,48 @@ class GridHandlerGMSH(object):
             (B_data, (B_row, B_col)), shape=(self.n_elems, self.n_nodes)
         )
         self.smoother = self.B_csr.dot(self.A_csr)
+        self._cg1_space_cache = {}
+
+    def smooth_dg0_to_cg1(self, dg0_func):
+        """
+        Average a DG0 field (scalar/vector/tensor) to CG1 nodes via A_csr component-wise.
+
+        Parameters
+        ----------
+        dg0_func : dolfinx.fem.Function
+            A function in a DG0 scalar, vector, or tensor space.
+
+        Returns
+        -------
+        dolfinx.fem.Function
+            Function in an equivalent CG1 space with smoothed nodal values.
+
+        Notes
+        -----
+        Uses the pre-built volume-weighted averaging matrix `self.A_csr`
+        (shape (n_nodes, n_elems)) applied independently to each component.
+        CG1 function spaces are cached to avoid repeated construction.
+        """
+        import dolfinx as do
+
+        ufl_elem = dg0_func.function_space.ufl_element()
+        shape = ufl_elem.reference_value_shape
+
+        if shape not in self._cg1_space_cache:
+            if shape == ():
+                cg1_space = do.fem.functionspace(self.mesh, ("Lagrange", 1))
+            else:
+                cg1_space = do.fem.functionspace(self.mesh, ("Lagrange", 1, shape))
+            self._cg1_space_cache[shape] = cg1_space
+        else:
+            cg1_space = self._cg1_space_cache[shape]
+
+        arr = dg0_func.x.array.reshape(self.n_elems, -1)
+        smoothed = np.stack([self.A_csr.dot(arr[:, k]) for k in range(arr.shape[1])], axis=-1)
+
+        cg1_func = do.fem.Function(cg1_space)
+        cg1_func.x.array[:] = smoothed.flatten()
+        return cg1_func
 
     def load_mesh(self):
         """

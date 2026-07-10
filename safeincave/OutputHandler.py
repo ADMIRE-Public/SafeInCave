@@ -84,6 +84,7 @@ class SaveFields:
         self.output_fields = []
         self.merged_output = None
         self.merged_solutions = False  # Set by Simulator
+        self.smooth_output = False  # Set by Simulator
         self.output_folder = None  # Set by set_output_folder()
         self._merged_field_name_map = {}  # Maps original label → unique name for merged output
 
@@ -304,6 +305,15 @@ class SaveFields:
         for i, field_data in enumerate(self.fields_data):
             field = getattr(self.eq, field_data["field_name"])
             original_name = field_data["label_name"]
+
+            if self.smooth_output:
+                try:
+                    ufl_elem = field.function_space.ufl_element()
+                    if ufl_elem.degree == 0:
+                        field = self.eq.grid.smooth_dg0_to_cg1(field)
+                except Exception:
+                    pass
+
             field.name = original_name
 
             self.output_fields[i].write_function(field, t)
