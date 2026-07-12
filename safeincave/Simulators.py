@@ -586,13 +586,17 @@ class Simulator_M(Simulator):
         simulation_logger: SimulationLogging | None = None,
         merged_solutions: bool = False,
         smooth_output: bool = False,
+        plastic_consistency_tolerance: float = 1e-4,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
         self.outputs = outputs
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
-        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
+        self.convergence_handler = ConvergenceErrorHandler(
+            convergence_criterion,
+            plastic_consistency_tolerance=plastic_consistency_tolerance,
+        )
         self.maxiter = int(maxiter)
         self.simulation_logger = simulation_logger
 
@@ -1056,12 +1060,16 @@ class Simulator_Mout(Simulator):
         merged_solutions: bool = False,
         smooth_output: bool = False,
         simulation_logger: SimulationLogging | None = None,
+        plastic_consistency_tolerance: float = 1e-4,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
         self.outputs = outputs
         self.compute_elastic_response = compute_elastic_response
-        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
+        self.convergence_handler = ConvergenceErrorHandler(
+            convergence_criterion,
+            plastic_consistency_tolerance=plastic_consistency_tolerance,
+        )
         self.simulation_logger = simulation_logger
 
         # Apply merged_solutions and smooth_output flags to all output handlers

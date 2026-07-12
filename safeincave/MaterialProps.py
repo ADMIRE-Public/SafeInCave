@@ -309,4 +309,18 @@ class Material:
             self.C_tilde_inv + dt * (1 - theta) * self.G_tilde
         )
 
+    def any_plastic_models_yielding(self) -> bool:
+        """
+        Check if any plastic models in the material are actively yielding.
+
+        Returns
+        -------
+        bool
+            True if at least one plastic model has active yielding, False otherwise.
+        """
+        for ne_model in self.elems_ne:
+            if hasattr(ne_model, 'has_active_yielding') and ne_model.has_active_yielding():
+                return True
+        return False
+
 
