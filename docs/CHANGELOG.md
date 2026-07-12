@@ -13,6 +13,7 @@
 - Implemented results logging at a specific point.
 - Fixed type hints in constitutive models.
 - Included initial state to results tracking.
+- Implemented local extensions mechanism.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
