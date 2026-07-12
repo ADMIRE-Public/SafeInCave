@@ -17,6 +17,7 @@
 - Option for smoothed output functionality.
 - Fixed broken von Mises extractor in SimulationLogging (raised AttributeError) and reduced logging setup verbosity.
 - Implemented local extensions mechanism.
+- Added a closing solve per time step so the committed inelastic strain uses the final converged rate (fixes hardening drift on models with persistent internal variables); constitutive models can now opt in to an exact elastic-trial reconstruction via uses_exact_trial.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
