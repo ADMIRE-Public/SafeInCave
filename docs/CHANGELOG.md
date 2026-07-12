@@ -17,6 +17,7 @@
 - Option for smoothed output functionality.
 - Fixed broken von Mises extractor in SimulationLogging (raised AttributeError) and reduced logging setup verbosity.
 - Implemented local extensions mechanism.
+- Mixed formulation: cached compiled bilinear form/matrix with dt as fem.Constant, closed-form symmetric 3x3 eigenvalues in compute_moduli with zero-strain/E_star guards, and a warning on linear-solver (KSP) non-convergence.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
