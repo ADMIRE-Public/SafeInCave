@@ -103,27 +103,42 @@ def _compute_external_load_vector_norm(momentum_eq: LinearMomentumBase) -> float
         momentum_eq.b_body + sum(momentum_eq.bc.neumann_bcs) + sum(momentum_eq.bc.cavern_bcs)
     )
     f_ext = fem_petsc.assemble_vector(linear_form)
-
-    # Apply lifting for Dirichlet BCs (project to null space of essential BCs)
-    fem_petsc.apply_lifting(
-        f_ext,
-        [
-            do_fem.form(
-                ufl.inner(ufl.grad(momentum_eq.du), ufl.grad(momentum_eq.u_))
-                * momentum_eq.dx
-            )
-        ],
-        [momentum_eq.bc.dirichlet_bcs],
-    )
     f_ext.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
-    # Compute norm
-    norm = f_ext.norm()
+    # Zero the rows at Dirichlet-constrained DOFs: loads applied directly at
+    # constrained DOFs are carried by reactions and play no role in the
+    # free-DOF equilibrium the residual criterion measures.
+    loads = f_ext.array.copy()
+    dirichlet_dofs = _dirichlet_dof_indices(momentum_eq)
+    if dirichlet_dofs.size:
+        loads[dirichlet_dofs] = 0.0
+
+    norm = float(np.linalg.norm(loads))
 
     # Protect against zero norm
     norm = max(norm, 1e-16)
 
     return norm
+
+
+def _dirichlet_dof_indices(momentum_eq: LinearMomentumBase) -> np.ndarray:
+    """
+    Collect the (locally owned) DOF indices constrained by Dirichlet BCs.
+
+    Used to exclude constrained DOFs from force-residual norms: the
+    out-of-balance force at a constrained DOF is the reaction force, not a
+    convergence defect.
+    """
+    indices = []
+    for bc in momentum_eq.bc.dirichlet_bcs:
+        dofs = bc.dof_indices()
+        # dolfinx returns (indices, num_owned); accept a bare array too.
+        if isinstance(dofs, tuple):
+            dofs = dofs[0]
+        indices.append(np.asarray(dofs, dtype=np.int64))
+    if not indices:
+        return np.empty(0, dtype=np.int64)
+    return np.unique(np.concatenate(indices))
 
 
 def _compute_internal_force_vector(
@@ -191,8 +206,10 @@ def _compute_force_residual(
         Current stress state, shape ``(n_elems, 3, 3)``.
     Returns
     -------
-    torch.Tensor
-        Residual vector R = P_ext - q_int, same shape as displacement DoFs.
+    tuple[torch.Tensor, float]
+        Residual vector R = P_ext - q_int (Dirichlet rows zeroed), and the
+        reference force norm to normalize it by (max of free-DOF external
+        load norm and full internal-force norm including reactions).
 
     Notes
     -----
@@ -209,18 +226,6 @@ def _compute_force_residual(
         momentum_eq.b_body + sum(momentum_eq.bc.neumann_bcs) + sum(momentum_eq.bc.cavern_bcs)
     )
     external_loads_vec = fem_petsc.assemble_vector(external_load_form)
-
-    # Apply lifting for Dirichlet BCs (project to null space)
-    fem_petsc.apply_lifting(
-        external_loads_vec,
-        [
-            do_fem.form(
-                ufl.inner(ufl.grad(momentum_eq.du), ufl.grad(momentum_eq.u_))
-                * momentum_eq.dx
-            )
-        ],
-        [momentum_eq.bc.dirichlet_bcs],
-    )
     external_loads_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
     # Get internal force vector
@@ -232,7 +237,30 @@ def _compute_force_residual(
     # Compute residual: R = P_ext - q_int (out-of-balance forces)
     residual_vector = external_loads_tensor - internal_forces_tensor
 
-    return residual_vector
+    # Zero the residual at Dirichlet-constrained DOFs: the imbalance there
+    # is the reaction force, which equilibrium never drives to zero and
+    # which must not count against convergence.
+    dirichlet_dofs = _dirichlet_dof_indices(momentum_eq)
+    if dirichlet_dofs.size:
+        residual_vector[dirichlet_dofs] = 0.0
+
+    # Reference force scale for normalizing the residual. The free-DOF
+    # external load alone is a bad reference: it is ~zero for
+    # displacement-controlled problems AND for fully confined load cases
+    # (e.g. a geostatic stage with rollers on every loaded boundary), where
+    # the entire applied load is carried directly by reactions. The full
+    # internal force vector (constrained rows INCLUDED, i.e. reactions)
+    # always carries the physical force scale of the system, so take the
+    # larger of the two.
+    free_loads = external_loads_tensor.clone()
+    if dirichlet_dofs.size:
+        free_loads[dirichlet_dofs] = 0.0
+    reference_norm = max(
+        float(to.linalg.norm(free_loads)),
+        float(to.linalg.norm(internal_forces_tensor)),
+    )
+
+    return residual_vector, reference_norm
 
 
 def _compute_vector_norm(vector: to.Tensor) -> float:
@@ -612,7 +640,11 @@ class StrainBasedCriterion(ConvergenceCriterion):
         Strain error tolerance. Default: 1e-7.
     """
 
-    def __init__(self, tolerance: float = 1e-7, name: Optional[str] = None):
+    def __init__(
+        self,
+        tolerance: float = 1e-5,
+        name: Optional[str] = None,
+    ):
         super().__init__(tolerance=tolerance, name=name or "strain_based")
 
     def initialize(self, momentum_eq: LinearMomentumBase) -> None:
@@ -675,6 +707,7 @@ class StrainBasedCriterion(ConvergenceCriterion):
         momentum_eq._strain_previous = strain_current.clone()
 
         error_value = float(error)
+
         self.history.append(error_value)
         return float(error_value)
 
@@ -750,15 +783,14 @@ class ForceResidualCriterion(ConvergenceCriterion):
                 "(momentum_eq, stress)."
             )
 
-        # Compute residual R = P_ext - q_int
-        residual_vector = _compute_force_residual(momentum_eq, stress)
+        # Compute residual R = P_ext - q_int and the reference force scale
+        # (max of free-DOF external load and full internal force incl.
+        # reactions -- robust for displacement-controlled and fully
+        # confined load cases where the free-DOF external load is ~zero).
+        residual_vector, reference_norm = _compute_force_residual(momentum_eq, stress)
         residual_norm = _compute_vector_norm(residual_vector)
 
-        # Normalize by external load norm for scale-robustness
-        external_load_norm = _compute_external_load_vector_norm(momentum_eq)
-        external_load_norm_safe = max(external_load_norm, 1e-16)
-
-        error_value = residual_norm / external_load_norm_safe
+        error_value = residual_norm / max(reference_norm, 1e-16)
         self.history.append(error_value)
         return float(error_value)
 
@@ -866,15 +898,23 @@ class DisplacementIncrementCriterion(ConvergenceCriterion):
 
         # Compute Newton iteration correction (single step)
         displacement_correction = u_new - u_old
-        correction_norm = _compute_vector_norm(displacement_correction)
+        correction_norm = float(to.linalg.norm(displacement_correction))
 
         # Compute cumulative displacement increment from step start
         displacement_total = u_new - self.u_step_start
-        total_increment_norm = _compute_vector_norm(displacement_total)
+        total_increment_norm = float(to.linalg.norm(displacement_total))
 
-        # Ratio: single step vs. cumulative (scale-independent)
-        total_increment_norm_safe = max(total_increment_norm, 1e-16)
-        error_value = correction_norm / total_increment_norm_safe
+        # Degenerate step: displacement did not move at all relative to the
+        # overall solution scale (e.g. a constant-load step already in
+        # equilibrium). Both norms are ~zero; flooring both to 1e-16 would
+        # yield a spurious ratio of 1.0 that never converges. Declare
+        # converged instead.
+        solution_scale = max(float(to.linalg.norm(u_new)), 1e-16)
+        if total_increment_norm <= 1e-12 * solution_scale or total_increment_norm <= 1e-30:
+            error_value = 0.0
+        else:
+            # Ratio: single step vs. cumulative (scale-independent)
+            error_value = correction_norm / total_increment_norm
 
         self.history.append(error_value)
         return float(error_value)

@@ -160,6 +160,8 @@ cython_debug/
 #.idea/
 
 **/output/
+**/extensions/
+**extensions
 **/jit*/
 *.pyc
 
