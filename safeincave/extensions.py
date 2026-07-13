@@ -73,6 +73,17 @@ def _extension_root(entry: Path) -> Path:
     return nested if nested.is_dir() else entry
 
 
+def _has_python_files(path: Path) -> bool:
+    """Check if path or any subdirectory contains Python files."""
+    try:
+        for _ in path.rglob("*.py"):
+            return True
+    except (OSError, RuntimeError):
+        # Handle permission errors or symlink traversal issues
+        pass
+    return False
+
+
 def _discover_extensions() -> dict[str, Path]:
     """Find extension trees in ``<repo>/extensions/`` and env-var locations."""
     folders = [Path(__file__).resolve().parent.parent / "extensions"]
@@ -84,7 +95,7 @@ def _discover_extensions() -> dict[str, Path]:
         if not folder.is_dir():
             continue
         root = _extension_root(folder)
-        if any(p.suffix == ".py" for p in root.iterdir()):
+        if _has_python_files(root):
             # The folder (typically `extensions` as a symlink into a private
             # repo) is itself a single mirror root, not a folder of entries.
             resolved = root.resolve()
