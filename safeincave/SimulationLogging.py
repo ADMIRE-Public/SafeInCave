@@ -140,9 +140,22 @@ def _extract_von_mises_stress():
         s_xx, s_yy, s_zz = s[0, 0], s[1, 1], s[2, 2]
         s_xy, s_yz, s_xz = s[0, 1], s[1, 2], s[0, 2]
         
-        j2 = ((s_xx - s_yy)**2 + (s_yy - s_zz)**2 + (s_zz - s_xx)**2 + 
-              6.0 * (s_xy**2 + s_yz**2 + s_xz**2)) / 6.0
-        return (3.0 * j2)**0.5.item()
+        # Compute mean stress (hydrostatic part)
+        s_m = (s_xx + s_yy + s_zz) / 3.0
+        
+        # Compute deviatoric stress components
+        s_xx_dev = s_xx - s_m
+        s_yy_dev = s_yy - s_m
+        s_zz_dev = s_zz - s_m
+        
+        # Compute second deviatoric invariant J2 using deviatoric components
+        j2 = ((s_xx_dev - s_yy_dev)**2 + (s_yy_dev - s_zz_dev)**2 + 
+              (s_zz_dev - s_xx_dev)**2 + 6.0 * (s_xy**2 + s_yz**2 + s_xz**2)) / 6.0
+        
+        # Von Mises stress: σ_vm = √(3·J2)
+        # Use to.sqrt to ensure tensor operations, then convert to float
+        von_mises = to.sqrt(3.0 * j2)
+        return von_mises.item()
     return extractor
 
 
@@ -241,10 +254,9 @@ class SimulationLogging:
         variables_to_track: Optional[List[str]] = None,
         time_conversion: float = 1.0,
     ):
-        """Initialize logger with element selection and variable definitions."""
         self.target_point = np.array(target_point)
         self.time_conversion = time_conversion
-        
+
         # Internal state - set by configure()
         self._monitored_elem_id = None
         self._log_file = None
@@ -298,14 +310,10 @@ class SimulationLogging:
         distances = np.linalg.norm(centroids - self.target_point, axis=1)
         self._monitored_elem_id = np.argmin(distances)
         self._log_file = log_file
-        
+
         # Print initialization message
-        distance = distances[self._monitored_elem_id]
-        print(f"\n✓ Simulation report logging enabled for element {self._monitored_elem_id}")
-        print(f"  Target point: {self.target_point}, Distance: {distance:.6f} m")
-        print(f"  Variables tracked: {', '.join(self.variables.keys())}")
-        print(f"  Log file: {log_file}\n")
-        
+        print(f"{log_file}")
+
         # Initialize CSV file with header
         self._setup_file()
     
@@ -334,7 +342,7 @@ class SimulationLogging:
                 # Add variable columns in order
                 for var_name, (var_header, _) in self.variables.items():
                     header.append(var_header)
-                
+
                 writer = csv.writer(f)
                 writer.writerow(header)
         except Exception as e:
@@ -440,7 +448,7 @@ class SimulationLogging:
                 except Exception:
                     # If extraction fails, log 0.0 and continue
                     row.append(0.0)
-            
+
             # Write to log file (rank 0 only)
             try:
                 from mpi4py import MPI

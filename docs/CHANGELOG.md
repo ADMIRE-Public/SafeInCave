@@ -14,6 +14,8 @@
 - Fixed type hints in constitutive models.
 - Included initial state to results tracking.
 - Option for smoothed output functionality.
+- Fixed broken von Mises extractor in SimulationLogging (raised AttributeError) and reduced logging setup verbosity.
+- Implemented local extensions mechanism.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
