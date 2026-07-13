@@ -124,9 +124,7 @@ def main():
     output_mom.set_output_folder(output_folder)
     output_mom.add_output_field("u", "Displacement (m)")
     output_mom.add_output_field("sig", "Stress (Pa)")
-    output_mom.add_output_field("p_nodes", "Mean stress (Pa)")
     output_mom.add_output_field("p_elems", "Mean stress (Pa)")
-    output_mom.add_output_field("q_nodes", "Von Mises stress (Pa)")
     output_mom.add_output_field("q_elems", "Von Mises stress (Pa)")
 
     output_heat = sf.SaveFields(heat_eq)
@@ -147,6 +145,7 @@ def main():
         t_control=t_control,
         outputs=outputs,
         compute_elastic_response=True,
+        smooth_output=True,
     )
     sim.run()
 

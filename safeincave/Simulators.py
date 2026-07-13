@@ -243,7 +243,9 @@ class Simulator_TM(Simulator):
         caverns: CavernHandler | None = CavernHandler(),
         compute_elastic_response: bool = True,
         merged_solutions: bool = False,
+        smooth_output: bool = False,
         simulation_logger: SimulationLogging | None = None,
+        convergence_criterion: str = "strain_based",
     ):
         self.eq_mom = eq_mom
         self.eq_heat = eq_heat
@@ -252,10 +254,12 @@ class Simulator_TM(Simulator):
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
         self.simulation_logger = simulation_logger
+        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
 
-        # Apply merged_solutions flag to all output handlers
+        # Apply merged_solutions and smooth_output flags to all output handlers
         for output in self.outputs:
             output.merged_solutions = merged_solutions
+            output.smooth_output = smooth_output
 
         # Auto-configure simulation logger if provided
         if self.simulation_logger is not None:
@@ -360,8 +364,6 @@ class Simulator_TM(Simulator):
         # Save fields
         self.eq_mom.compute_p_elems()
         self.eq_mom.compute_q_elems()
-        self.eq_mom.compute_p_nodes()
-        self.eq_mom.compute_q_nodes()
 
         # Save initial fields
         for output in self.outputs:
@@ -511,8 +513,6 @@ class Simulator_TM(Simulator):
                 # Save fields
                 self.eq_mom.compute_p_elems()
                 self.eq_mom.compute_q_elems()
-                self.eq_mom.compute_p_nodes()
-                self.eq_mom.compute_q_nodes()
                 for output in self.outputs:
                     output.save_fields(t)
 
@@ -585,6 +585,7 @@ class Simulator_M(Simulator):
         maxiter: int = 40,
         simulation_logger: SimulationLogging | None = None,
         merged_solutions: bool = False,
+        smooth_output: bool = False,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
@@ -595,9 +596,10 @@ class Simulator_M(Simulator):
         self.maxiter = int(maxiter)
         self.simulation_logger = simulation_logger
 
-        # Apply merged_solutions flag to all output handlers
+        # Apply merged_solutions and smooth_output flags to all output handlers
         for output in self.outputs:
             output.merged_solutions = merged_solutions
+            output.smooth_output = smooth_output
 
         # Auto-configure simulation logger if provided
         if self.simulation_logger is not None:
@@ -689,8 +691,6 @@ class Simulator_M(Simulator):
         # Save fields
         self.eq_mom.compute_p_elems()
         self.eq_mom.compute_q_elems()
-        self.eq_mom.compute_p_nodes()
-        self.eq_mom.compute_q_nodes()
 
         # Save initial fields
         for output in self.outputs:
@@ -826,10 +826,8 @@ class Simulator_M(Simulator):
                 self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
 
                 # Save fields
-                self.eq_mom.compute_p_nodes()
                 self.eq_mom.compute_p_elems()
                 self.eq_mom.compute_q_elems()
-                self.eq_mom.compute_q_nodes()
 
                 # Persist simulation log row at each converged time step.
                 if self.simulation_logger is not None:
@@ -901,6 +899,7 @@ class Simulator_T(Simulator):
         outputs: list[SaveFields],
         caverns: CavernHandler | None = None,
         merged_solutions: bool = False,
+        smooth_output: bool = False,
         simulation_logger: SimulationLogging | None = None,
     ):
         self.eq_heat = eq_heat
@@ -912,9 +911,10 @@ class Simulator_T(Simulator):
         if caverns is None:
             self.caverns = CavernHandler()
 
-        # Apply merged_solutions flag to all output handlers
+        # Apply merged_solutions and smooth_output flags to all output handlers
         for output in self.outputs:
             output.merged_solutions = merged_solutions
+            output.smooth_output = smooth_output
 
         # Auto-configure simulation logger if provided
         if self.simulation_logger is not None:
@@ -1054,6 +1054,7 @@ class Simulator_Mout(Simulator):
         compute_elastic_response: bool = True,
         convergence_criterion: str = "strain_based",
         merged_solutions: bool = False,
+        smooth_output: bool = False,
         simulation_logger: SimulationLogging | None = None,
     ):
         self.eq_mom = eq_mom
@@ -1063,9 +1064,10 @@ class Simulator_Mout(Simulator):
         self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
         self.simulation_logger = simulation_logger
 
-        # Apply merged_solutions flag to all output handlers
+        # Apply merged_solutions and smooth_output flags to all output handlers
         for output in self.outputs:
             output.merged_solutions = merged_solutions
+            output.smooth_output = smooth_output
 
         # Auto-configure simulation logger if provided
         if self.simulation_logger is not None:
@@ -1144,8 +1146,6 @@ class Simulator_Mout(Simulator):
         # Save fields
         self.eq_mom.compute_p_elems()
         self.eq_mom.compute_q_elems()
-        self.eq_mom.compute_p_nodes()
-        self.eq_mom.compute_q_nodes()
         output.save_fields(0)
 
         # Log initial state (step 0) to simulation logger
@@ -1260,8 +1260,6 @@ class Simulator_Mout(Simulator):
                 # Save fields
                 self.eq_mom.compute_p_elems()
                 self.eq_mom.compute_q_elems()
-                self.eq_mom.compute_p_nodes()
-                self.eq_mom.compute_q_nodes()
                 for output in self.outputs:
                     output.save_fields(t)
 
