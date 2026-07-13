@@ -44,6 +44,20 @@ See SafeInCave [documentation](https://admire-public.github.io/SafeInCave/) for 
 Users can build their own simulators using the *safeincave* package. The [documentation](https://admire-public.github.io/SafeInCave/) webpage shows detailed examples of how to set up purely **mechanical**, **heat diffusion**, and **thermomechanical** simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
 
 
+## Extensions
+SafeInCave can be extended locally without modifying its source: an *extension* is a directory tree that mirrors the `safeincave/` package layout, linked as the (gitignored) `extensions` path at the repository root:
+
+```bash
+ln -s /path/to/MyExtension/safeincave /path/to/SafeInCave/extensions
+```
+
+At `import safeincave`, every `.py` file in the extension replaces the module at the same relative path, and files that do not exist publicly are added as new modules — e.g. a constitutive model dropped in `ConstitutiveModels/` is auto-discovered and exported like a built-in. This is useful for private research code, in-development features, or site-specific modifications that should not (yet) live in the public repository.
+
+- Inspect what is active: `safeincave.extensions.discovered_extensions()` and `safeincave.extensions.active_extensions()` — log these with results for reproducibility.
+- Run vanilla SafeInCave (no extensions): set `SAFEINCAVE_NO_EXTENSIONS=1`.
+- See `safeincave/extensions.py` for details (multiple extension entries, `SAFEINCAVE_EXTENSIONS_DIR`).
+
+
 ## Mantainers
 - [Davi R. Damasceno](https://www.linkedin.com/in/drdamasceno/)
 - [Gijs van den Brekel](https://www.linkedin.com/in/gijs-van-den-brekel-041866229/)
