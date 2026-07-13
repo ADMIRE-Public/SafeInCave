@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from MomentumBC import BcHandler
 
 from abc import ABC, abstractmethod
+import warnings
 import dolfinx as do
 from dolfinx.fem import petsc as fem_petsc
 import basix
@@ -1048,6 +1049,19 @@ class LinearMomentum(LinearMomentumBase):
         # Solve linear system
         self.solver.setOperators(A)
         self.solver.solve(b, self.X.x.petsc_vec)
+
+        # A silently failed linear solve feeds garbage displacements into the
+        # nonlinear loop and can masquerade as material-model divergence.
+        reason = self.solver.getConvergedReason()
+        if reason < 0:
+            warnings.warn(
+                f"Linear solver did not converge (KSP reason={reason}, "
+                f"iterations={self.solver.getIterationNumber()}, "
+                f"residual={self.solver.getResidualNorm():.3e}). "
+                "Consider a direct solver (preonly/lu) or higher max_it.",
+                RuntimeWarning,
+            )
+
         self.X.x.scatter_forward()
         self.split_solution()
 
@@ -1218,15 +1232,63 @@ class LinearMomentumMixed(LinearMomentumBase):
         return self.p_elems
 
     def compute_moduli(self, stress_to):
+        """
+        Update the stabilization modulus E_star from the current principal
+        stress/strain ratio.
+
+        Principal values are computed with the closed-form symmetric-3x3
+        formula (robust for repeated eigenvalues, e.g. the isotropic
+        geostatic state). epsil_1 is clamped away from zero to avoid
+        dividing by a vanishing strain at the very first step.
+        """
         strain_to = self.compute_total_strain()
-        principal_stresses = to.linalg.eigvalsh(stress_to)
-        principal_strains = to.linalg.eigvalsh(strain_to)
+
+        def _sym3x3_eigvals(A: to.Tensor) -> to.Tensor:
+            """
+            Closed-form (trigonometric) eigenvalues of symmetric 3x3 tensors,
+            ascending, shape (N, 3). Replaces torch.linalg.eigvalsh, which is
+            both orders of magnitude slower for large batches of tiny matrices
+            and prone to non-convergence on (near-)isotropic tensors.
+            """
+            q = to.diagonal(A, dim1=-2, dim2=-1).sum(-1) / 3.0
+            p1 = A[:, 0, 1] ** 2 + A[:, 0, 2] ** 2 + A[:, 1, 2] ** 2
+            d0 = A[:, 0, 0] - q
+            d1 = A[:, 1, 1] - q
+            d2 = A[:, 2, 2] - q
+            p2 = d0**2 + d1**2 + d2**2 + 2.0 * p1
+            p = to.sqrt(to.clamp(p2 / 6.0, min=0.0))
+            p_safe = to.clamp(p, min=1e-30)
+            # det(B) with B = (A - q I)/p, via explicit cofactor expansion
+            detB = (
+                d0 * (d1 * d2 - A[:, 1, 2] ** 2)
+                - A[:, 0, 1] * (A[:, 0, 1] * d2 - A[:, 1, 2] * A[:, 0, 2])
+                + A[:, 0, 2] * (A[:, 0, 1] * A[:, 1, 2] - d1 * A[:, 0, 2])
+            ) / p_safe**3
+            r = to.clamp(detB / 2.0, min=-1.0, max=1.0)
+            phi = to.acos(r) / 3.0
+            e_hi = q + 2.0 * p * to.cos(phi)
+            e_lo = q + 2.0 * p * to.cos(phi + 2.0 * to.pi / 3.0)
+            e_mid = 3.0 * q - e_hi - e_lo
+            return to.stack([e_lo, e_mid, e_hi], dim=1)
+
+        principal_stresses = _sym3x3_eigvals(stress_to)
+        principal_strains = _sym3x3_eigvals(strain_to)
         sigma_1 = principal_stresses[:, 0]
         sigma_2 = principal_stresses[:, 1]
         sigma_3 = principal_stresses[:, 2]
         epsil_1 = principal_strains[:, 0]
+        epsil_1_safe = to.where(
+            epsil_1.abs() < 1e-12, to.full_like(epsil_1, 1e-12), epsil_1
+        )
         nu = self.mat.elems_e[0].nu
-        E_star_1 = (sigma_1 - nu * (sigma_2 + sigma_3)) / epsil_1
+        E_star_1 = (sigma_1 - nu * (sigma_2 + sigma_3)) / epsil_1_safe
+        # Undeformed elements (e.g. the very first iteration) give E_star = 0,
+        # which blows up the K/E_star stabilization term — fall back to the
+        # elastic modulus there.
+        E_elastic = self.mat.elems_e[0].E
+        E_star_1 = to.where(
+            E_star_1.abs() < 1e-6 * E_elastic, E_elastic, E_star_1
+        )
         self.E_star.x.array[:] = E_star_1
 
     def solve_elastic_response(self):
@@ -1296,36 +1358,52 @@ class LinearMomentumMixed(LinearMomentumBase):
         eps_th_vol_to = to.einsum("bii->b", eps_th_to)
         self.eps_th_vol.x.array[:] = eps_th_vol_to
 
-        # Build bi-linear form
+        # phi2 enters the UFL forms as a fem.Constant so changing dt does NOT
+        # require recompiling them: only the Constant's value is updated.
         phi2 = dt * (1 - self.theta)
-        eps_u = epsilon(self.du)
-        eps_tilde = eps_u - (1 / 3) * ufl.tr(eps_u) * ufl.Identity(3)
-        a = (
-            ufl.inner(
-                dotdot_ufl(
-                    self.CT_tilde,
-                    eps_tilde + dotdot_ufl(self.C_tilde_inv, self.dp * ufl.Identity(3)),
-                ),
-                epsilon(self.u_),
+        if not hasattr(self, "_phi2_const"):
+            self._phi2_const = do.fem.Constant(self.grid.mesh, float(phi2))
+        else:
+            self._phi2_const.value = float(phi2)
+
+        # Build (and cache) the bi-linear form. All spatially varying
+        # coefficients are fem.Functions updated in place, so the compiled
+        # form stays valid across iterations and time steps.
+        if not hasattr(self, "_bilinear_form"):
+            eps_u = epsilon(self.du)
+            eps_tilde = eps_u - (1 / 3) * ufl.tr(eps_u) * ufl.Identity(3)
+            a = (
+                ufl.inner(
+                    dotdot_ufl(
+                        self.CT_tilde,
+                        eps_tilde
+                        + dotdot_ufl(self.C_tilde_inv, self.dp * ufl.Identity(3)),
+                    ),
+                    epsilon(self.u_),
+                )
+                * self.dx
             )
-            * self.dx
-        )
-        a += (
-            (1 + phi2 * self.K * self.T_vol) * self.dp * self.p_
-            - self.K * ufl.tr(epsilon(self.du)) * self.p_
-        ) * self.dx
-        a += (
-            3
-            * ufl.dot(
-                self.h_cell_2 * (self.K / self.E_star) * ufl.grad(self.dp),
-                ufl.grad(self.p_),
-            )
-        ) * self.dx
-        bilinear_form = do.fem.form(a)
-        A = do.fem.petsc.assemble_matrix(bilinear_form, bcs=self.bc.dirichlet_bcs)
+            a += (
+                (1 + self._phi2_const * self.K * self.T_vol) * self.dp * self.p_
+                - self.K * ufl.tr(epsilon(self.du)) * self.p_
+            ) * self.dx
+            a += (
+                3
+                * ufl.dot(
+                    self.h_cell_2 * (self.K / self.E_star) * ufl.grad(self.dp),
+                    ufl.grad(self.p_),
+                )
+            ) * self.dx
+            self._bilinear_form = do.fem.form(a)
+            self._A_mat = do.fem.petsc.create_matrix(self._bilinear_form)
+        bilinear_form = self._bilinear_form
+        A = self._A_mat
+        A.zeroEntries()
+        do.fem.petsc.assemble_matrix(A, bilinear_form, bcs=self.bc.dirichlet_bcs)
         A.assemble()
 
-        # Build linear form
+        # Build the linear form (recompiled every iteration to avoid stale
+        # forms when BC handlers rebuild their UFL boundary terms).
         b_u = (
             ufl.inner(
                 dotdot_ufl(self.CT_tilde, self.eps_rhs_tilde - self.eps_0_tilde),
@@ -1336,7 +1414,7 @@ class LinearMomentumMixed(LinearMomentumBase):
         b_p = (
             self.K
             * (
-                phi2 * (self.T_vol * self.p_k + self.B_vol)
+                self._phi2_const * (self.T_vol * self.p_k + self.B_vol)
                 - self.eps_ne_vol
                 - self.eps_th_vol
             )
@@ -1344,9 +1422,13 @@ class LinearMomentumMixed(LinearMomentumBase):
             * self.dx
         )
         linear_form = do.fem.form(
-            self.b_body + sum(self.bc.neumann_bcs) + sum(self.bc.cavern_bcs) + b_u + b_p
+            self.b_body
+            + sum(self.bc.neumann_bcs)
+            + sum(self.bc.cavern_bcs)
+            + b_u
+            + b_p
         )
-        b = do.fem.petsc.assemble_vector(linear_form)
+        b = fem_petsc.assemble_vector(linear_form)
         do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
         b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
         do.fem.petsc.set_bc(b, self.bc.dirichlet_bcs)
