@@ -13,6 +13,7 @@
 - Implemented results logging at a specific point.
 - Fixed type hints in constitutive models.
 - Included initial state to results tracking.
+- Fixed broken von Mises extractor in SimulationLogging (raised AttributeError) and reduced logging setup verbosity.
 - Implemented local extensions mechanism.
 
 ## 3.0.3
