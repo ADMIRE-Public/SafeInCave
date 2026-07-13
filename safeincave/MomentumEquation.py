@@ -381,7 +381,9 @@ class LinearMomentumBase(ABC):
             eps_ne_k += elem_ne.eps_ne_k
         return eps_ne_k
 
-    def compute_eps_ne_rate(self, stress: to.Tensor, dt: float) -> None:
+    def compute_eps_ne_rate(
+        self, stress: to.Tensor, dt: float, eps_tot: to.Tensor | None = None
+    ) -> None:
         """
         Update non-elastic strain rate for all non-elastic elements.
 
@@ -391,14 +393,28 @@ class LinearMomentumBase(ABC):
             Stress per element, shape ``(n_elems, 3, 3)``.
         dt : float
             Time-step size.
+        eps_tot : torch.Tensor, optional
+            Current-iteration total strain, shape ``(n_elems, 3, 3)``. Passed
+            through (with the matching thermal strain) only to elements that
+            opt in via ``uses_exact_trial = True``, letting them reconstruct
+            the elastic trial stress directly from this iteration's strain
+            and the start-of-step committed inelastic strain -- avoiding the
+            one-iteration staleness of reconstructing it from a stored rate.
 
         Returns
         -------
         None
         """
+        eps_th = None
         for elem_ne in self.mat.elems_ne:
+            kwargs = {}
+            if eps_tot is not None and getattr(elem_ne, "uses_exact_trial", False):
+                if eps_th is None:
+                    eps_th = self.compute_eps_th()
+                kwargs["eps_tot"] = eps_tot
+                kwargs["eps_th"] = eps_th
             elem_ne.compute_eps_ne_rate(
-                stress, dt * self.theta, self.Temp, return_eps_ne=False
+                stress, dt * self.theta, self.Temp, return_eps_ne=False, **kwargs
             )
 
     def update_eps_ne_rate_old(self) -> None:

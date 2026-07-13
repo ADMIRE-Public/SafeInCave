@@ -13,11 +13,13 @@
 - Implemented results logging at a specific point.
 - Fixed type hints in constitutive models.
 - Included initial state to results tracking.
-- Made force-residual criterion Dirichlet-aware (constrained DOFs excluded, robust reference norm) and displacement-increment criterion robust to zero-increment steps; StrainBasedCriterion default tolerance changed from 1e-7 to 1e-5.
+- Added a plastic yield-consistency convergence gate.
+- Made force-residual criterion Dirichlet-aware and displacement-increment criterion robust to zero-increment steps.
 - Option for smoothed output functionality.
 - Fixed broken von Mises extractor in SimulationLogging (raised AttributeError) and reduced logging setup verbosity.
 - Implemented local extensions mechanism.
 - Mixed formulation: cached compiled bilinear form/matrix with dt as fem.Constant, closed-form symmetric 3x3 eigenvalues in compute_moduli with zero-strain/E_star guards, and a warning on linear-solver (KSP) non-convergence.
+- Added a closing solve per time step so the committed inelastic strain uses the final converged rate (fixes hardening drift on models with persistent internal variables); constitutive models can now opt in to an exact elastic-trial reconstruction via uses_exact_trial.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation

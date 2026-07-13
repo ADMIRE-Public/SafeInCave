@@ -35,6 +35,37 @@ class Simulator(ABC):
         """
         pass
 
+    def _final_consuming_solve(self, stress_to, t: float, dt: float):
+        """
+        Advance eps_ne_k with the converged inelastic rate before committing.
+
+        The nonlinear loop's order is solve -> stress -> compute_eps_ne_rate,
+        so the rate computed in the final iteration is never pushed into eps_ne_k
+        before update_eps_ne_old commits it. This call advances eps_ne_k without
+        resolving the momentum equation (displacement is already converged).
+
+        Note: does NOT call increment_internal_variables again here — the main
+        loop's last iteration already incremented hardening variables (e.g.
+        ViscoplasticDesai.alpha) using self.r/self.h/self.P linearized at that
+        iteration's stress. Calling it again here reapplies that same stale
+        linearization against a second, different stress delta, double-counting
+        the hardening update every step. Harmless for models without persistent
+        hardening state via this hook, but on models that have it
+        (ViscoplasticDesai, MunsonDawsonCreep, ModifiedCamClayViscoplastic) it
+        drove alpha to drift until compute_CT's consistent tangent went singular.
+        """
+        # Commit the plain (un-relaxed) rate, not the over-relaxed iterate.
+        for elem_ne in getattr(self.eq_mom.mat, "elems_ne", []):
+            fn = getattr(elem_ne, "finalize_step_rate", None)
+            if callable(fn):
+                fn()
+        # Advance eps_ne_k with the final converged rate, then update stress.
+        stress_k_to = stress_to.clone()
+        self.eq_mom.compute_eps_ne_k(dt)
+        eps_tot_to = self.eq_mom.compute_total_strain()
+        stress_to = self.eq_mom.compute_stress(eps_tot_to)
+        return stress_to, stress_k_to, eps_tot_to
+
     def _compute_error(self) -> float:
         """
         Compute current raw convergence error.
@@ -452,7 +483,7 @@ class Simulator_TM(Simulator):
                     self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
 
                     # Compute inelastic strain rates
-                    self.eq_mom.compute_eps_ne_rate(stress_to, dt)
+                    self.eq_mom.compute_eps_ne_rate(stress_to, dt, eps_tot_to)
 
                     # Recalculate volumes of caverns
                     self.caverns.calculate_volumes(self.eq_mom.u)
@@ -464,6 +495,7 @@ class Simulator_TM(Simulator):
 
                 ite = self.convergence_handler.ite
                 converged = not self.convergence_handler.not_converged_error
+                retry_scale = 0.5
 
                 if not converged:
                     if n_bisections >= max_bisections:
@@ -478,9 +510,17 @@ class Simulator_TM(Simulator):
                     )
                     stress_to = stress_to_step_start.clone()
                     dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
-                    self.t_control.dt = max(step_state["time"]["dt"] * 0.5, dt_floor)
+                    self.t_control.dt = max(
+                        step_state["time"]["dt"] * retry_scale, dt_floor
+                    )
                     n_bisections += 1
                     continue
+
+                # Closing solve: consume the final iteration's inelastic rate
+                # so the committed internal state matches the converged rate.
+                stress_to, stress_k_to, eps_tot_to = self._final_consuming_solve(
+                    stress_to, t, dt
+                )
 
                 # Adaptive dt integration via relative convergence ratio.
                 if hasattr(self.t_control, "get_next_dt"):
@@ -586,13 +626,17 @@ class Simulator_M(Simulator):
         simulation_logger: SimulationLogging | None = None,
         merged_solutions: bool = False,
         smooth_output: bool = False,
+        plastic_consistency_tolerance: float = 1e-4,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
         self.outputs = outputs
         self.caverns = caverns
         self.compute_elastic_response = compute_elastic_response
-        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
+        self.convergence_handler = ConvergenceErrorHandler(
+            convergence_criterion,
+            plastic_consistency_tolerance=plastic_consistency_tolerance,
+        )
         self.maxiter = int(maxiter)
         self.simulation_logger = simulation_logger
 
@@ -770,7 +814,7 @@ class Simulator_M(Simulator):
                     self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
 
                     # Compute inelastic strain rates
-                    self.eq_mom.compute_eps_ne_rate(stress_to, dt)
+                    self.eq_mom.compute_eps_ne_rate(stress_to, dt, eps_tot_to)
 
                     # Recalculate volumes of caverns
                     self.caverns.calculate_volumes(self.eq_mom.u)
@@ -782,6 +826,7 @@ class Simulator_M(Simulator):
 
                 ite = self.convergence_handler.ite
                 converged = not self.convergence_handler.not_converged_error
+                retry_scale = 0.5
 
                 if not converged:
                     if n_bisections >= max_bisections:
@@ -796,9 +841,17 @@ class Simulator_M(Simulator):
                     )
                     stress_to = stress_to_step_start.clone()
                     dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
-                    self.t_control.dt = max(step_state["time"]["dt"] * 0.5, dt_floor)
+                    self.t_control.dt = max(
+                        step_state["time"]["dt"] * retry_scale, dt_floor
+                    )
                     n_bisections += 1
                     continue
+
+                # Closing solve: consume the final iteration's inelastic rate
+                # so the committed internal state matches the converged rate.
+                stress_to, stress_k_to, eps_tot_to = self._final_consuming_solve(
+                    stress_to, t, dt
+                )
 
                 # Adaptive dt integration via relative convergence ratio.
                 if hasattr(self.t_control, "get_next_dt"):
@@ -1056,12 +1109,16 @@ class Simulator_Mout(Simulator):
         merged_solutions: bool = False,
         smooth_output: bool = False,
         simulation_logger: SimulationLogging | None = None,
+        plastic_consistency_tolerance: float = 1e-4,
     ):
         self.eq_mom = eq_mom
         self.t_control = t_control
         self.outputs = outputs
         self.compute_elastic_response = compute_elastic_response
-        self.convergence_handler = ConvergenceErrorHandler(convergence_criterion)
+        self.convergence_handler = ConvergenceErrorHandler(
+            convergence_criterion,
+            plastic_consistency_tolerance=plastic_consistency_tolerance,
+        )
         self.simulation_logger = simulation_logger
 
         # Apply merged_solutions and smooth_output flags to all output handlers
@@ -1211,7 +1268,7 @@ class Simulator_Mout(Simulator):
                     self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
 
                     # Compute inelastic strain rates
-                    self.eq_mom.compute_eps_ne_rate(stress_to, dt)
+                    self.eq_mom.compute_eps_ne_rate(stress_to, dt, eps_tot_to)
 
                     # Compute error via active convergence criterion
                     self.convergence_handler.evaluate(self.eq_mom)
@@ -1220,6 +1277,7 @@ class Simulator_Mout(Simulator):
 
                 ite = self.convergence_handler.ite
                 converged = not self.convergence_handler.not_converged_error
+                retry_scale = 0.5
 
                 if not converged:
                     if n_bisections >= max_bisections:
@@ -1234,9 +1292,17 @@ class Simulator_Mout(Simulator):
                     )
                     stress_to = stress_to_step_start.clone()
                     dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
-                    self.t_control.dt = max(step_state["time"]["dt"] * 0.5, dt_floor)
+                    self.t_control.dt = max(
+                        step_state["time"]["dt"] * retry_scale, dt_floor
+                    )
                     n_bisections += 1
                     continue
+
+                # Closing solve: consume the final iteration's inelastic rate
+                # so the committed internal state matches the converged rate.
+                stress_to, stress_k_to, eps_tot_to = self._final_consuming_solve(
+                    stress_to, t, dt
+                )
 
                 # Adaptive dt integration via relative convergence ratio.
                 if hasattr(self.t_control, "get_next_dt"):
