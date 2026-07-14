@@ -10,17 +10,13 @@ if TYPE_CHECKING:
 
 from ..base import EquationBase
 from abc import ABC, abstractmethod
-import warnings
 import dolfinx as do
-from dolfinx.fem import petsc as fem_petsc
-import basix
 import ufl
 from petsc4py import PETSc
 import torch as to
 from ...Materials.Material import Material
 from ...Mesh.Grid import GridHandlerGMSH
-from ...Utils import numpy2torch, project, epsilon, dotdot_torch, dotdot_ufl
-from ...Mesh.MeshParameter import ModelML
+from ...Utils import numpy2torch, project, epsilon
 
 class LinearMomentumBase(EquationBase, ABC):
     """

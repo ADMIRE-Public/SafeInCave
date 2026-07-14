@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, Any
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
-    from ...MomentumEquation import LinearMomentumBase
+    pass
 
 
 def _is_momentum_solver_instance(obj: Any) -> bool:

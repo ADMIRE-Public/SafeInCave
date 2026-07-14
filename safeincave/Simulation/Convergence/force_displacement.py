@@ -5,13 +5,12 @@
 """Force-displacement composite convergence criterion."""
 
 from typing import TYPE_CHECKING, Optional, List, Dict, Any
-import torch as to
 from .base import ConvergenceCriterion
 from .force_residual import ForceResidualCriterion
 from .displacement_increment import DisplacementIncrementCriterion
 
 if TYPE_CHECKING:
-    from ...MomentumEquation import LinearMomentumBase
+    pass
 
 class ForceDisplacementCriterion(ConvergenceCriterion):
     """

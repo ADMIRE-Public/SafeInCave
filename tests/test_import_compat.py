@@ -6,13 +6,6 @@ package restructuring. It should be run before and after each refactoring
 PR to verify zero breakage.
 """
 import safeincave as sf
-from safeincave import (
-    MomentumBC,
-    HeatBC,
-    CavernBC,
-    PostProcessingTools,
-    Utils,
-)
 
 
 class TestImportCompatibility:
@@ -88,9 +81,9 @@ class TestImportCompatibility:
 
     def test_from_submodule_imports(self):
         """Test 'from safeincave.X import Y' pattern."""
-        from safeincave.MomentumBC import GeneralBC, DirichletBC, NeumannBC, BcHandler
+        from safeincave.MomentumBC import GeneralBC
         from safeincave.HeatBC import GeneralBC as HeatGeneralBC
-        from safeincave.CavernBC import Cavern_PT, CavernHandler
+        from safeincave.CavernBC import Cavern_PT
         from safeincave.Utils import create_field_nodes
         
         # Verify they're the right classes

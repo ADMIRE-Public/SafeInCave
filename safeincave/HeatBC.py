@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .CavernBC import CavernHandler
 
-from .BC.base import GeneralBC, DirichletBC, NeumannBC
+from .BC.base import GeneralBC
 from .BC.cavern_utils import compute_cavern_heat_flux
 import numpy as np
 import dolfinx as do

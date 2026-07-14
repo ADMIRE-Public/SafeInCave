@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ...MomentumBC import BcHandler
+    pass
 
 import basix
 import dolfinx as do

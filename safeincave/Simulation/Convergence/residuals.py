@@ -5,7 +5,7 @@ from __future__ import annotations
 
 """Shared numeric helpers for convergence criteria (force residuals, internal force vectors, norms)."""
 
-from typing import Any,  Optional, Dict, Any
+from typing import Optional, Any
 import torch as to
 import numpy as np
 from mpi4py import MPI

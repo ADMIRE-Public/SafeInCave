@@ -4,10 +4,8 @@
 
 """Force residual convergence criterion."""
 
-from typing import Any,  TYPE_CHECKING, Optional
+from typing import Any,  TYPE_CHECKING
 import torch as to
-import numpy as np
-from mpi4py import MPI
 from .base import ConvergenceCriterion, _is_momentum_solver_instance
 from .residuals import (
     _compute_force_residual,
@@ -15,7 +13,7 @@ from .residuals import (
 )
 
 if TYPE_CHECKING:
-    from ...MomentumEquation import LinearMomentumBase
+    pass
 
 class ForceResidualCriterion(ConvergenceCriterion):
     """

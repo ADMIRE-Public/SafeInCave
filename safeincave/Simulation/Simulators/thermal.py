@@ -6,12 +6,8 @@
 
 from __future__ import annotations
 from .base import Simulator
-from ...HeatEquation import HeatDiffusion
-from ...TimeHandler import TimeControllerBase
-from ...OutputHandler import SaveFields
 from ...SimulationLogging import SimulationLogging
 from ...ScreenOutput import ScreenPrinter
-from ...ConvergenceCriteria import ConvergenceErrorHandler
 from ...CavernBC import CavernHandler
 
 class Simulator_T(Simulator):

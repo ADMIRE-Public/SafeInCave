@@ -5,7 +5,7 @@ from __future__ import annotations
 
 """Handler and factory for convergence criteria."""
 
-from typing import TYPE_CHECKING, Optional, Union, Any
+from typing import TYPE_CHECKING, Optional, Any
 import math
 import os
 from mpi4py import MPI
@@ -16,7 +16,7 @@ from .displacement_increment import DisplacementIncrementCriterion
 from .force_displacement import ForceDisplacementCriterion
 
 if TYPE_CHECKING:
-    from ...MomentumEquation import LinearMomentumBase
+    pass
 
 def resolve_convergence_criterion(
     convergence_criterion: str | "ConvergenceCriterion" = "strain_based",

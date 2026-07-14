@@ -11,7 +11,7 @@ from mpi4py import MPI
 from .base import ConvergenceCriterion, _is_momentum_solver_instance
 
 if TYPE_CHECKING:
-    from ...MomentumEquation import LinearMomentumBase
+    pass
 
 class StrainBasedCriterion(ConvergenceCriterion):
     """

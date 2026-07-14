@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import warnings
 
 if TYPE_CHECKING:
-    from ...MomentumBC import BcHandler
+    pass
 
 import dolfinx as do
 import ufl
@@ -15,7 +15,7 @@ from petsc4py import PETSc
 import torch as to
 from dolfinx.fem import petsc as fem_petsc
 from .base import LinearMomentumBase
-from ...Utils import numpy2torch, dotdot_ufl, dotdot_torch, epsilon, project
+from ...Utils import dotdot_ufl, dotdot_torch, epsilon, project
 
 class LinearMomentum(LinearMomentumBase):
     """

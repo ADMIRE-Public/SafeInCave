@@ -10,7 +10,6 @@ based on cavern state. The update_cavern_bcs logic is shared between
 momentum and heat equation BC handlers.
 """
 
-import numpy as np
 
 
 def compute_cavern_pressure_load(cavern, x_coord):

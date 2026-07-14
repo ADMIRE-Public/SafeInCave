@@ -9,7 +9,6 @@ import warnings
 from .base import Simulator
 from .mechanical import Simulator_M
 from ...MomentumEquation import LinearMomentum
-from ...CavernBC import CavernHandler
 
 class Simulator_Mout(Simulator):
     """
@@ -53,7 +52,6 @@ class Simulator_Mout(Simulator):
         simulation_logger: Any | None = None,
         plastic_consistency_tolerance: float = 1e-4,
     ):
-        import warnings
         warnings.warn(
             "Simulator_Mout is deprecated and will be removed in a future version. "
             "Use Simulator_M instead, which supports the same functionality.",

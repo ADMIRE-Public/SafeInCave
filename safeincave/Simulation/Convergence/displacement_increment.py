@@ -6,12 +6,10 @@
 
 from typing import Any,  TYPE_CHECKING, Optional
 import torch as to
-import numpy as np
-from mpi4py import MPI
 from .base import ConvergenceCriterion, _is_momentum_solver_instance
 
 if TYPE_CHECKING:
-    from ...MomentumEquation import LinearMomentumBase
+    pass
 
 def _initialize_step_displacement(momentum_eq: Any) -> to.Tensor:
     """

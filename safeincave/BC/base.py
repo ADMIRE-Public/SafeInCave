@@ -11,7 +11,6 @@ from here and extend as needed for equation-specific behavior.
 """
 
 from abc import ABC
-import numpy as np
 
 
 class GeneralBC(ABC):

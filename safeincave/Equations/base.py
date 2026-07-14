@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from ..MaterialProps import Material
     from ..Grid import GridHandlerGMSH
 
-import dolfinx as do
 from petsc4py import PETSc
 
 

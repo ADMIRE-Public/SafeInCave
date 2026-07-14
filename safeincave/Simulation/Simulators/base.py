@@ -6,7 +6,6 @@
 
 from abc import ABC, abstractmethod
 import copy
-from typing import Optional
 
 class Simulator(ABC):
     """
