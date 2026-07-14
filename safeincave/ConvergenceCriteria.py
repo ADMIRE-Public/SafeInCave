@@ -60,7 +60,7 @@ from dolfinx.fem import petsc as fem_petsc
 from .Utils import epsilon
 
 if TYPE_CHECKING:
-    from MomentumEquation import LinearMomentumBase
+    from .MomentumEquation import LinearMomentumBase
 
 
 # ============================================================================
