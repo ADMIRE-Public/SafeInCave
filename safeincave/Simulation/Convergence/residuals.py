@@ -1,11 +1,11 @@
 # Copyright (c) 2026, The SafeInCave Developers
-from __future__ import annotations
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Shared numeric helpers for convergence criteria (force residuals, internal force vectors, norms)."""
-
+from __future__ import annotations
 from typing import Optional, Any
+import math
+import os
 import torch as to
 import numpy as np
 from mpi4py import MPI
@@ -14,6 +14,13 @@ import ufl
 from dolfinx import fem as do_fem
 from dolfinx.fem import petsc as fem_petsc
 from ...Utils import epsilon
+from .base import ConvergenceCriterion
+from .strain_based import StrainBasedCriterion
+from .force_residual import ForceResidualCriterion
+from .displacement_increment import DisplacementIncrementCriterion
+from .force_displacement import ForceDisplacementCriterion
+
+"""Shared numeric helpers for convergence criteria (force residuals, internal force vectors, norms)."""
 
 def _compute_external_load_vector_norm(momentum_eq: Any) -> float:
     """

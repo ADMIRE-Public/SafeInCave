@@ -1,10 +1,8 @@
 # Copyright (c) 2026, The SafeInCave Developers
-from __future__ import annotations
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Handler and factory for convergence criteria."""
-
+from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Any
 import math
 import os
@@ -17,6 +15,8 @@ from .force_displacement import ForceDisplacementCriterion
 
 if TYPE_CHECKING:
     pass
+
+"""Handler and factory for convergence criteria."""
 
 def resolve_convergence_criterion(
     convergence_criterion: str | "ConvergenceCriterion" = "strain_based",

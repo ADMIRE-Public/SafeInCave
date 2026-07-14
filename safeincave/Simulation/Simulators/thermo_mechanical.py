@@ -5,6 +5,7 @@
 """Thermo-mechanical simulator."""
 
 from __future__ import annotations
+from typing import Any
 from .base import Simulator
 from ...Utils import numpy2torch
 from ...SimulationLogging import SimulationLogging

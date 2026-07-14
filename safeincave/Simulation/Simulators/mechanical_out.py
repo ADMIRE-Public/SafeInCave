@@ -5,6 +5,7 @@
 """Mechanical simulator output variant (deprecated)."""
 
 from __future__ import annotations
+from typing import Any
 import warnings
 from .base import Simulator
 from .mechanical import Simulator_M

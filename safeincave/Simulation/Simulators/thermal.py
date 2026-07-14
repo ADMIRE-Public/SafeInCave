@@ -5,6 +5,7 @@
 """Thermal simulator."""
 
 from __future__ import annotations
+from typing import Any
 from .base import Simulator
 from ...SimulationLogging import SimulationLogging
 from ...ScreenOutput import ScreenPrinter
