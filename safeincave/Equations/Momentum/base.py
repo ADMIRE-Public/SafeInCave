@@ -16,7 +16,7 @@ from petsc4py import PETSc
 import torch as to
 from ...Materials.Material import Material
 from ...Mesh.Grid import GridHandlerGMSH
-from ...Utils import numpy2torch, project, epsilon
+from ...Utils import numpy2torch, epsilon
 
 class LinearMomentumBase(EquationBase, ABC):
     """
@@ -117,10 +117,37 @@ class LinearMomentumBase(EquationBase, ABC):
         self.u = do.fem.Function(self.CG1_3x1)
         self.q_elems = do.fem.Function(self.DG0_1)
         self.p_elems = do.fem.Function(self.DG0_1)
+        self.yield_mode_elems = do.fem.Function(self.DG0_1)
         self.principal_stresses = do.fem.Function(self.DG0_3x1)
         self.principal_stress_directions = do.fem.Function(self.DG0_3x3)
         self.principal_strains = do.fem.Function(self.DG0_3x1)
         self.principal_strain_directions = do.fem.Function(self.DG0_3x3)
+
+    def compute_yield_mode(self) -> None:
+        """
+        Populate the DG0 ``yield_mode_elems`` diagnostic field from the
+        constitutive models.
+
+        Plastic models expose a duck-typed per-element ``yield_mode`` int
+        tensor (0 elastic, 1 DP face, 2 DP apex, 3 Rankine face, 4 Rankine
+        edge, 5 Rankine apex, 6 multi-surface corner); models without it are
+        skipped. Values are combined element-wise with ``max`` so the corner
+        code dominates. No-op when no attached model exposes ``yield_mode``.
+
+        Register ``yield_mode_elems`` with ``SaveFields.add_output_field`` to
+        write the field for ParaView inspection.
+        """
+        if not hasattr(self, "mat"):
+            return
+        combined = None
+        for elem in getattr(self.mat, "elems_ne", []):
+            mode = getattr(elem, "yield_mode", None)
+            if mode is None:
+                continue
+            combined = mode if combined is None else to.maximum(combined, mode)
+        if combined is None:
+            return
+        self.yield_mode_elems.x.array[:] = combined.to(to.float64).numpy()
 
     def set_material(self, material: Material) -> None:
         """
@@ -535,9 +562,18 @@ class LinearMomentumBase(EquationBase, ABC):
 
         Notes
         -----
-        Uses :func:`project` on ``ε(u)``.
+        Interpolates a cached ``fem.Expression`` of ``ε(u)`` into the
+        persistent :attr:`eps_tot` Function (avoiding the per-call
+        Function/Expression allocation of :func:`project`). The Expression
+        is keyed on the identity of ``self.u`` because ``split_solution``
+        rebinds ``u`` to the solution vector after the first solve.
         """
-        self.eps_tot = project(epsilon(self.u), self.DG0_3x3)
+        if getattr(self, "_eps_tot_expr_key", None) != id(self.u):
+            self._eps_tot_expr = do.fem.Expression(
+                epsilon(self.u), self.DG0_3x3.element.interpolation_points()
+            )
+            self._eps_tot_expr_key = id(self.u)
+        self.eps_tot.interpolate(self._eps_tot_expr)
         eps_to = numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
         return eps_to
 

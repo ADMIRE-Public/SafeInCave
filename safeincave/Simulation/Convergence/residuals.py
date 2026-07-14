@@ -42,12 +42,7 @@ def _compute_external_load_vector_norm(momentum_eq: Any) -> float:
 
     This function is MPI-safe (uses collective norm operations).
     """
-    # Build the external load vector
-    linear_form = do_fem.form(
-        momentum_eq.b_body + sum(momentum_eq.bc.neumann_bcs) + sum(momentum_eq.bc.cavern_bcs)
-    )
-    f_ext = fem_petsc.assemble_vector(linear_form)
-    f_ext.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+    f_ext = _assemble_external_load_vector(momentum_eq)
 
     # Zero the rows at Dirichlet-constrained DOFs: loads applied directly at
     # constrained DOFs are carried by reactions and play no role in the
@@ -63,6 +58,44 @@ def _compute_external_load_vector_norm(momentum_eq: Any) -> float:
     norm = max(norm, 1e-16)
 
     return norm
+
+
+def _bc_terms_key(momentum_eq: Any) -> tuple:
+    """
+    Identity key of the BC terms referenced by the cached residual forms.
+
+    BC loads live in in-place-updated fem.Constants (see BcHandler), so the
+    compiled forms stay valid while the term objects are unchanged; a change
+    of the registered BC or cavern set produces new term objects and must
+    invalidate the cache.
+    """
+    return (
+        tuple(map(id, momentum_eq.bc.neumann_bcs)),
+        tuple(map(id, getattr(momentum_eq.bc, "cavern_bcs", []))),
+    )
+
+
+def _assemble_external_load_vector(momentum_eq: Any):
+    """
+    Assemble the external load vector (body + Neumann + cavern) into a
+    cached PETSc vector using a form compiled once per BC-term set.
+    """
+    key = _bc_terms_key(momentum_eq)
+    if getattr(momentum_eq, "_resid_ext_key", None) != key:
+        form = do_fem.form(
+            momentum_eq.b_body
+            + sum(momentum_eq.bc.neumann_bcs)
+            + sum(momentum_eq.bc.cavern_bcs)
+        )
+        momentum_eq._resid_ext_form = form
+        momentum_eq._resid_ext_vec = fem_petsc.create_vector(form)
+        momentum_eq._resid_ext_key = key
+    f_ext = momentum_eq._resid_ext_vec
+    with f_ext.localForm() as f_local:
+        f_local.set(0.0)
+    fem_petsc.assemble_vector(f_ext, momentum_eq._resid_ext_form)
+    f_ext.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+    return f_ext
 
 
 def _dirichlet_dof_indices(momentum_eq: Any) -> np.ndarray:
@@ -117,13 +150,18 @@ def _compute_internal_force_vector(
     # Update stress field for assembly
     momentum_eq.sig.x.array[:] = to.flatten(stress_field)
 
-    # Build internal force form: ∫ σ : ∇u_ dx
-    # This represents the internal force contribution from current stress state
-    internal_force_form = ufl.inner(momentum_eq.sig, epsilon(momentum_eq.u_)) * momentum_eq.dx
-
-    # Assemble as a vector (right-hand side)
-    assembled_form = do_fem.form(internal_force_form)
-    internal_force_vec = fem_petsc.assemble_vector(assembled_form)
+    # Internal force form ∫ σ : ε(u_) dx, compiled once (momentum_eq.sig is
+    # a persistent Function updated in place above).
+    if getattr(momentum_eq, "_resid_int_form", None) is None:
+        internal_force_form = (
+            ufl.inner(momentum_eq.sig, epsilon(momentum_eq.u_)) * momentum_eq.dx
+        )
+        momentum_eq._resid_int_form = do_fem.form(internal_force_form)
+        momentum_eq._resid_int_vec = fem_petsc.create_vector(momentum_eq._resid_int_form)
+    internal_force_vec = momentum_eq._resid_int_vec
+    with internal_force_vec.localForm() as f_local:
+        f_local.set(0.0)
+    fem_petsc.assemble_vector(internal_force_vec, momentum_eq._resid_int_form)
     internal_force_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
     # Convert to torch tensor for consistency with other methods
@@ -165,12 +203,8 @@ def _compute_force_residual(
     For a converged solution, both R should be small (residual criterion)
     and the displacement increment should be small (strain criterion).
     """
-    # Assemble external load vector
-    external_load_form = do_fem.form(
-        momentum_eq.b_body + sum(momentum_eq.bc.neumann_bcs) + sum(momentum_eq.bc.cavern_bcs)
-    )
-    external_loads_vec = fem_petsc.assemble_vector(external_load_form)
-    external_loads_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+    # Assemble external load vector (cached compiled form)
+    external_loads_vec = _assemble_external_load_vector(momentum_eq)
 
     # Get internal force vector
     internal_forces_tensor = _compute_internal_force_vector(momentum_eq, stress_field)
