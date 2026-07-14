@@ -1,6 +1,7 @@
 # Changelog
 
 ## Next release
+- Reorganized package layout into thematic subpackages (Materials, Mesh, Output, Simulation, etc.) with one class/module per file; fixed missing imports and BC parameters surfaced during refactoring.
 - Refactored MaterialProps.py by moving classes into individual files in ConstitutiveModels folder.
 - Import automation of files in ConstitutiveModels so that the only step to add a new constitutive model is to include the file in the folder.
 - Fixed relative paths inside pytest so that it is more robust to run from anywhere in the repo.
