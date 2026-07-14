@@ -10,7 +10,7 @@ from .base import Simulator
 from ...Utils import numpy2torch
 from ...SimulationLogging import SimulationLogging
 from ...ScreenOutput import ScreenPrinter
-from ...CavernBC import CavernHandler
+from ...Cavern import CavernHandler
 from ...ConvergenceCriteria import ConvergenceErrorHandler
 
 class Simulator_M(Simulator):

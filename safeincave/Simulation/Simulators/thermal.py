@@ -9,7 +9,7 @@ from typing import Any
 from .base import Simulator
 from ...SimulationLogging import SimulationLogging
 from ...ScreenOutput import ScreenPrinter
-from ...CavernBC import CavernHandler
+from ...Cavern import CavernHandler
 
 class Simulator_T(Simulator):
     """

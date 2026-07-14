@@ -22,21 +22,21 @@ from . import extensions
 
 extensions.install()
 
-from .Grid import GridHandlerGMSH
-from .HeatEquation import HeatDiffusion
-from .MomentumEquation import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
-from .MaterialProps import Material
+from .Mesh.Grid import GridHandlerGMSH
+from .Equations.Heat import HeatDiffusion
+from .Equations.Momentum import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
+from .Materials.Material import Material
 from .Materials.Constitutive import *  # noqa: F403, F405
 from .Materials.Constitutive import __all__ as _CONSTITUTIVE_ALL
-from .OutputHandler import SaveFields
-from .SimulationLogging import (
+from .Output.SaveFields import SaveFields
+from .Output.SimLogging import (
     SimulationLogging,
     register_variable,
     get_variable,
     list_registered_variables,
 )
-from .Thermodynamics import CavernThermodynamics
-from .ConvergenceCriteria import (
+from .Thermo.CavernThermodynamics import CavernThermodynamics
+from .Simulation.Convergence import (
     ConvergenceCriterion,
     StrainBasedCriterion,
     ForceResidualCriterion,
@@ -44,13 +44,13 @@ from .ConvergenceCriteria import (
     ForceDisplacementCriterion,
 )
 from . import CavernBC
-from .Simulators import (
+from .Simulation.Simulators import (
     Simulator_TM,
     Simulator_T,
     Simulator_M,
 )
-from .ScreenOutput import ScreenPrinter
-from .TimeHandler import (
+from .Output.Screen import ScreenPrinter
+from .Simulation.TimeControl import (
     TimeControllerBase,
     TimeController,
     TimeControllerParabolic,

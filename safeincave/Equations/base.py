@@ -14,8 +14,8 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..MaterialProps import Material
-    from ..Grid import GridHandlerGMSH
+    from ..Materials.Material import Material
+    from ..Mesh.Grid import GridHandlerGMSH
 
 from petsc4py import PETSc
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ...MomentumBC import BcHandler
+    from ...BC.Momentum import BcHandler
 
 from ..base import EquationBase
 from abc import ABC, abstractmethod

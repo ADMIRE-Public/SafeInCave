@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-# Backward-compatible shim; actual implementation moved to BC.Heat
-from .BC.Heat import GeneralBC, DirichletBC, NeumannBC, RobinBC, BcHandler  # noqa: F401
+from ..base import GeneralBC, DirichletBC, NeumannBC
+from .robin import RobinBC
+from .handler import BcHandler
 
 __all__ = ["GeneralBC", "DirichletBC", "NeumannBC", "RobinBC", "BcHandler"]

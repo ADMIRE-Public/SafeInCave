@@ -1,6 +1,7 @@
 # Changelog
 
 ## Next release
+- Finished the package-layout migration: moved CavernBC, MomentumBC, HeatBC, HeatEquation, and TimeHandler into thematic subpackages (Cavern, BC.Momentum, BC.Heat, Equations.Heat, Simulation.TimeControl) with one class per file, removed dead/duplicate code (orphaned TimeControl copy, unused ConvergenceErrorHandler, SimulationLoggingLegacy, stale skops asset), and normalized `__init__.py` re-exports across all subpackages; old root-level modules remain as backward-compatible shims.
 - Reorganized package layout into thematic subpackages (Materials, Mesh, Output, Simulation, etc.) with one class/module per file; fixed missing imports and BC parameters surfaced during refactoring.
 - Refactored MaterialProps.py by moving classes into individual files in ConstitutiveModels folder.
 - Import automation of files in ConstitutiveModels so that the only step to add a new constitutive model is to include the file in the folder.

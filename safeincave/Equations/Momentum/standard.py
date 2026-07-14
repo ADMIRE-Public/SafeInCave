@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import warnings
 
 if TYPE_CHECKING:
-    from ...Grid import GridHandlerGMSH
+    from ...Mesh.Grid import GridHandlerGMSH
 
 import dolfinx as do
 import ufl

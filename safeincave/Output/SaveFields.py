@@ -9,8 +9,8 @@ import shutil
 import os
 
 if TYPE_CHECKING:
-    from ..MomentumEquation import LinearMomentum, LinearMomentumBase
-    from ..HeatEquation import HeatDiffusion
+    from ..Equations.Momentum import LinearMomentum, LinearMomentumBase
+    from ..Equations.Heat import HeatDiffusion
 
     EqType = LinearMomentum | HeatDiffusion
 
