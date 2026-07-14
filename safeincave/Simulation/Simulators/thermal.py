@@ -12,6 +12,7 @@ from ...OutputHandler import SaveFields
 from ...SimulationLogging import SimulationLogging
 from ...ScreenOutput import ScreenPrinter
 from ...ConvergenceCriteria import ConvergenceErrorHandler
+from ...CavernBC import CavernHandler
 
 class Simulator_T(Simulator):
     """

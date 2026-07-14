@@ -12,6 +12,7 @@ from .Equations.base import EquationBase
 import dolfinx as do
 import ufl
 import torch as to
+from petsc4py import PETSc
 from .MaterialProps import Material
 from .Grid import GridHandlerGMSH
 from .Utils import numpy2torch, project
