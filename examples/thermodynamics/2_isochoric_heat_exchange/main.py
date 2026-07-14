@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from safeincave.Thermodynamics import CavernThermodynamics
+from safeincave.Thermo.CavernThermodynamics import CavernThermodynamics
 
 # Define conversion units
 minute = 60

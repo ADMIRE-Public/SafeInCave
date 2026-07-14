@@ -9,7 +9,7 @@ from typing import Any
 import warnings
 from .base import Simulator
 from .mechanical import Simulator_M
-from ...MomentumEquation import LinearMomentum
+from ...Equations.Momentum import LinearMomentum
 
 class Simulator_Mout(Simulator):
     """

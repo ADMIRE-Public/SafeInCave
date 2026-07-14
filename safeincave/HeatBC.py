@@ -1,8 +1,0 @@
-# Copyright (c) 2026, The SafeInCave Developers
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
-# Backward-compatible shim; actual implementation moved to BC.Heat
-from .BC.Heat import GeneralBC, DirichletBC, NeumannBC, RobinBC, BcHandler  # noqa: F401
-
-__all__ = ["GeneralBC", "DirichletBC", "NeumannBC", "RobinBC", "BcHandler"]

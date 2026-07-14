@@ -20,7 +20,7 @@ Run: python main.py  -> outputs in ./output/munson_dawson_example/
 
 import safeincave as sf
 import safeincave.Utils as ut
-import safeincave.MomentumBC as momBC
+import safeincave.BC.Momentum as momBC
 from mpi4py import MPI
 import torch as to
 import os
@@ -280,7 +280,7 @@ def main():
     # One-shot elastic solve -> populate mom_eq.sig with the initial stress.
     mom_eq.bc.update_dirichlet(0.0)
     mom_eq.bc.update_neumann(0.0)
-    mom_eq.bc.update_cavern_bcs(sf.CavernBC.CavernHandler())
+    mom_eq.bc.update_cavern_bcs(sf.Cavern.CavernHandler())
     mom_eq.solve_elastic_response()
     eps_tot = mom_eq.compute_total_strain()
     mom_eq.compute_elastic_stress(eps_tot)

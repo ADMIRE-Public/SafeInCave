@@ -12,7 +12,7 @@ Mirrors examples/mechanics/nobian/Old/plot_results.py:
 Reads from ./output/munson_dawson_example/
 """
 
-import safeincave.PostProcessingTools as post
+import safeincave.PostProcessing as post
 import os
 import numpy as np
 import matplotlib.pyplot as plt

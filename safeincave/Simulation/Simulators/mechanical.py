@@ -8,10 +8,10 @@ from __future__ import annotations
 from typing import Any
 from .base import Simulator
 from ...Utils import numpy2torch
-from ...SimulationLogging import SimulationLogging
-from ...ScreenOutput import ScreenPrinter
+from ...Output.SimLogging import SimulationLogging
+from ...Output.Screen import ScreenPrinter
 from ...Cavern import CavernHandler
-from ...ConvergenceCriteria import ConvergenceErrorHandler
+from ..Convergence import ConvergenceErrorHandler
 
 class Simulator_M(Simulator):
     """

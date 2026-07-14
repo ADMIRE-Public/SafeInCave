@@ -16,9 +16,12 @@ private extension repository:
 
     SafeInCave_extensions/
     └── safeincave/                # mirrors the public package layout
-        ├── Simulators.py                      # REPLACES safeincave.Simulators
-        └── ConstitutiveModels/
-            └── MyModel.py                     # ADDS safeincave.ConstitutiveModels.MyModel
+        ├── Simulation/
+        │   └── Simulators/
+        │       └── mechanical.py              # REPLACES safeincave.Simulation.Simulators.mechanical
+        └── Materials/
+            └── Constitutive/
+                └── MyModel.py                 # ADDS safeincave.Materials.Constitutive.MyModel
 
 Every ``.py`` file in the extension tree replaces the public module at the
 same relative path; files that do not exist publicly are added as new modules

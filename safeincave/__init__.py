@@ -43,7 +43,7 @@ from .Simulation.Convergence import (
     DisplacementIncrementCriterion,
     ForceDisplacementCriterion,
 )
-from . import CavernBC
+from . import Cavern
 from .Simulation.Simulators import (
     Simulator_TM,
     Simulator_T,
@@ -56,9 +56,8 @@ from .Simulation.TimeControl import (
     TimeControllerParabolic,
     TimeControllerAdaptive,
 )
-from . import MomentumBC
-from . import HeatBC
-from . import PostProcessingTools
+from . import BC
+from . import PostProcessing
 from . import Utils
 
 
@@ -82,11 +81,10 @@ __all__ = [
     "TimeController",
     "TimeControllerParabolic",
     "TimeControllerAdaptive",
-    "MomentumBC",
-    "HeatBC",
-    "CavernBC",
+    "BC",
+    "Cavern",
     "CavernThermodynamics",
-    "PostProcessingTools",
+    "PostProcessing",
     "Utils",
     "ConvergenceCriterion",
     "StrainBasedCriterion",

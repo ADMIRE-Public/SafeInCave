@@ -4,6 +4,8 @@
 
 from .base import GeneralBC, DirichletBC, NeumannBC
 from .cavern_utils import compute_cavern_pressure_load, compute_cavern_heat_flux
+from . import Momentum
+from . import Heat
 
 __all__ = [
     "GeneralBC",
@@ -11,4 +13,6 @@ __all__ = [
     "NeumannBC",
     "compute_cavern_pressure_load",
     "compute_cavern_heat_flux",
+    "Momentum",
+    "Heat",
 ]

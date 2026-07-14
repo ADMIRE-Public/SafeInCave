@@ -1,8 +1,6 @@
 # Changelog
 
 ## Next release
-- Finished the package-layout migration: moved CavernBC, MomentumBC, HeatBC, HeatEquation, and TimeHandler into thematic subpackages (Cavern, BC.Momentum, BC.Heat, Equations.Heat, Simulation.TimeControl) with one class per file, removed dead/duplicate code (orphaned TimeControl copy, unused ConvergenceErrorHandler, SimulationLoggingLegacy, stale skops asset), and normalized `__init__.py` re-exports across all subpackages; old root-level modules remain as backward-compatible shims.
-- Reorganized package layout into thematic subpackages (Materials, Mesh, Output, Simulation, etc.) with one class/module per file; fixed missing imports and BC parameters surfaced during refactoring.
 - Refactored MaterialProps.py by moving classes into individual files in ConstitutiveModels folder.
 - Import automation of files in ConstitutiveModels so that the only step to add a new constitutive model is to include the file in the folder.
 - Fixed relative paths inside pytest so that it is more robust to run from anywhere in the repo.
@@ -20,9 +18,10 @@
 - Option for smoothed output functionality.
 - Fixed broken von Mises extractor in SimulationLogging (raised AttributeError) and reduced logging setup verbosity.
 - Implemented local extensions mechanism.
-- Mixed formulation: cached compiled bilinear form/matrix with dt as fem.Constant, closed-form symmetric 3x3 eigenvalues in compute_moduli with zero-strain/E_star guards, and a warning on linear-solver (KSP) non-convergence.
-- Added a closing solve per time step so the committed inelastic strain uses the final converged rate (fixes hardening drift on models with persistent internal variables); constitutive models can now opt in to an exact elastic-trial reconstruction via uses_exact_trial.
+- Mixed formulation: cached compiled bilinear form/matrix with dt as fem.Constant, closed-form symmetric 3x3 eigenvalues in compute_moduli with zero-strain/E_star guards.
+- Added a closing solve per time step so the committed inelastic strain uses the final converged rate.
 - Included principal stresses and strains in outputs.
+- Reorganized package layout into thematic subpackages (Materials, Mesh, Output, Simulation, etc.) with one class/module per file.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation

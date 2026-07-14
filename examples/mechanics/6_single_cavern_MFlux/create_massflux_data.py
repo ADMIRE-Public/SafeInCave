@@ -1,7 +1,7 @@
 import numpy as np
 from safeincave.Utils import hour
 import safeincave as sf
-from safeincave.CavernBC import Cavern_MassFlux
+from safeincave.Cavern import Cavern_MassFlux
 import matplotlib.pyplot as plt
 import os
 

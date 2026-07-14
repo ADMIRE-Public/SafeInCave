@@ -1,7 +1,7 @@
 import safeincave as sf
 import safeincave.Utils as ut
-import safeincave.HeatBC as heatBC
-import safeincave.MomentumBC as momBC
+import safeincave.BC.Heat as heatBC
+import safeincave.BC.Momentum as momBC
 from mpi4py import MPI
 import torch as to
 import os

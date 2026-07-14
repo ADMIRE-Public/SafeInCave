@@ -1,8 +1,8 @@
 import safeincave as sf
 from safeincave.Utils import GPa, create_field_elems, create_field_nodes
-import safeincave.MomentumBC as momBC
-import safeincave.HeatBC as heatBC
-import safeincave.CavernBC as caveBC
+import safeincave.BC.Momentum as momBC
+import safeincave.BC.Heat as heatBC
+import safeincave.Cavern as caveBC
 import torch as to
 import os
 

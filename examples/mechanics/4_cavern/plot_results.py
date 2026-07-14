@@ -1,4 +1,4 @@
-import safeincave.PostProcessingTools as post
+import safeincave.PostProcessing as post
 import os
 import numpy as np
 import matplotlib.pyplot as plt
