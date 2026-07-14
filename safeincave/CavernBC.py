@@ -9,6 +9,7 @@ import ufl
 from dolfinx import fem
 from mpi4py import MPI
 from .Utils import save_json
+from .BC.cavern_utils import compute_cavern_pressure_load
 import numpy as np
 import os
 

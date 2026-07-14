@@ -8,16 +8,16 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .HeatBC import BcHandler
 
+from .Equations.base import EquationBase
 import dolfinx as do
 import ufl
-from petsc4py import PETSc
 import torch as to
 from .MaterialProps import Material
 from .Grid import GridHandlerGMSH
 from .Utils import numpy2torch, project
 
 
-class HeatDiffusion:
+class HeatDiffusion(EquationBase):
     """
     Transient heat-diffusion solver on a DOLFINx mesh.
 
@@ -80,14 +80,7 @@ class HeatDiffusion:
         rtol: float = 1e-12,
         max_it: int = 100,
     ):
-        self.grid = grid
-        self.solver_name = solver_name
-        self.preconditioner = preconditioner
-        self.rtol = rtol
-        self.max_it = max_it
-
-        self.build_solver()
-        self.create_function_spaces()
+        super().__init__(grid, solver_name, preconditioner, rtol, max_it)
 
         self.n_elems = self.DG0_1.dofmap.index_map.size_local + len(
             self.DG0_1.dofmap.index_map.ghosts
@@ -98,15 +91,8 @@ class HeatDiffusion:
         self.dt = do.fem.Constant(self.grid.mesh, 1.0)
 
         self.create_trial_test_functions()
-        self.create_ds_dx()
         self.create_fenicsx_fields()
         # self.create_pytorch_fields()
-
-    def build_solver(self) -> None:
-        self.solver = PETSc.KSP().create(self.grid.mesh.comm)
-        self.solver.setType(self.solver_name)
-        self.solver.getPC().setType(self.preconditioner)
-        self.solver.setTolerances(rtol=self.rtol, max_it=self.max_it)
 
     def set_material(self, material: Material) -> None:
         """

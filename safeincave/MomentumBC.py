@@ -8,136 +8,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .CavernBC import CavernHandler
 
-from abc import ABC
+from .BC.base import GeneralBC, DirichletBC, NeumannBC
+from .BC.cavern_utils import compute_cavern_pressure_load
 import numpy as np
 import dolfinx as do
 import ufl
-
-
-class GeneralBC(ABC):
-    """
-    Base container for time-dependent boundary-condition data.
-
-    Subclasses (e.g., :class:`DirichletBC`, :class:`NeumannBC`) set the
-    concrete fields and `type` identifier.
-
-    Attributes
-    ----------
-    boundary_name : str or None
-        Name/label of the boundary as defined by mesh tags.
-    type : str or None
-        Boundary condition type identifier (e.g., ``"dirichlet"``, ``"neumann"``).
-    values : list[float] or None
-        Boundary values sampled at the times in ``time_values``.
-    time_values : list[float] or None
-        Monotonically increasing times associated with ``values``.
-    """
-
-    def __init__(self):
-        self.boundary_name = None
-        self.type = None
-        self.values = None
-        self.time_values = None
-
-
-class DirichletBC(GeneralBC):
-    """
-    Time-dependent Dirichlet (essential) boundary condition for one component.
-
-    Parameters
-    ----------
-    boundary_name : str
-        Named boundary in the mesh tags (handled by the grid object).
-    component : int
-        Component index of the vector field to constrain (e.g., 0=x, 1=y, 2=z).
-    values : list[float]
-        Prescribed values over time (interpolated with :func:`numpy.interp`).
-    time_values : list[float]
-        Times corresponding to ``values`` (must be monotone).
-
-    Attributes
-    ----------
-    type : str
-        Always ``"dirichlet"``.
-    component : int
-        Constrained component index.
-    values, time_values : list[float]
-        Stored time history for interpolation.
-    boundary_name : str
-        Stored boundary label.
-    """
-
-    def __init__(
-        self, boundary_name: str, component: int, values: list, time_values: list
-    ):
-        self.boundary_name = boundary_name
-        self.type = "dirichlet"
-        self.values = values
-        self.time_values = time_values
-        self.component = component
-
-
-class NeumannBC(GeneralBC):
-    """
-    Time-dependent Neumann (traction/pressure) boundary condition with hydrostatics.
-
-    The applied boundary value is modeled as
-    ``p(t) + ρ g (H - x[i])``, where ``p(t)`` is a time-dependent pressure,
-    ``ρ`` is density, ``g`` is gravity (default negative for downward),
-    ``H`` is a reference elevation, and ``x[i]`` is the spatial coordinate
-    in the chosen direction.
-
-    Parameters
-    ----------
-    boundary_name : str
-        Named boundary in the mesh tags.
-    direction : int
-        Coordinate index used for hydrostatic variation (0=x, 1=y, 2=z).
-    density : float
-        Fluid/solid density ``ρ``.
-    ref_pos : float
-        Reference elevation ``H``.
-    values : list[float]
-        Time samples for the base pressure ``p(t)`` (before sign).
-    time_values : list[float]
-        Times corresponding to ``values`` (must be monotone).
-    g : float, default=-9.81
-        Gravitational acceleration (sign included).
-
-    Attributes
-    ----------
-    type : str
-        Always ``"neumann"``.
-    direction : int
-        Axis index for hydrostatic term.
-    density : float
-        Stored density.
-    ref_pos : float
-        Stored reference elevation.
-    gravity : float
-        Stored gravitational acceleration.
-    boundary_name, values, time_values : as given
-        Stored metadata and time history.
-    """
-
-    def __init__(
-        self,
-        boundary_name: str,
-        direction: int,
-        density: float,
-        ref_pos: float,
-        values: list,
-        time_values: list,
-        g=-9.81,
-    ):
-        self.boundary_name = boundary_name
-        self.type = "neumann"
-        self.values = values
-        self.time_values = time_values
-        self.direction = direction
-        self.density = density
-        self.ref_pos = ref_pos
-        self.gravity = g
 
 
 class BcHandler:
@@ -304,11 +179,7 @@ class BcHandler:
     def update_cavern_bcs(self, cavern_handler: CavernHandler):
         self.cavern_bcs = []
         for cavern in cavern_handler.caverns_PT + cavern_handler.caverns_MFlux:
-            i = cavern.direction
-            rho = cavern.density
-            H = cavern.ref_pos
-            p = -cavern.P
-            load = p + rho * cavern.gravity * (H - self.x[i])
+            load = compute_cavern_pressure_load(cavern, self.x)
             self.cavern_bcs.append(
                 load
                 * self.normal

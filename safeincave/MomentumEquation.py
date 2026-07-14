@@ -6,8 +6,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from MomentumBC import BcHandler
+    from .MomentumBC import BcHandler
 
+from .Equations.base import EquationBase
 from abc import ABC, abstractmethod
 import warnings
 import dolfinx as do
@@ -22,7 +23,7 @@ from .Utils import numpy2torch, project, epsilon, dotdot_torch, dotdot_ufl
 from .Parameter_h import ModelML
 
 
-class LinearMomentumBase(ABC):
+class LinearMomentumBase(EquationBase, ABC):
     """
     Abstract base for a thermo-(visco)elastic linear momentum solver on a DOLFINx mesh.
 
@@ -85,16 +86,8 @@ class LinearMomentumBase(ABC):
         rtol: float = 1e-12,
         max_it: int = 100,
     ):
-        self.grid = grid
+        super().__init__(grid, solver_name, preconditioner, rtol, max_it)
         self.theta = theta
-        self.solver_name = solver_name
-        self.preconditioner = preconditioner
-        self.rtol = rtol
-        self.max_it = max_it
-
-        self.build_solver()
-        self.create_function_spaces()
-        self.create_ds_dx()
 
         self.n_elems = self.DG0_1.dofmap.index_map.size_local + len(
             self.DG0_1.dofmap.index_map.ghosts
@@ -106,12 +99,6 @@ class LinearMomentumBase(ABC):
         self.commom_fields()
         self.create_fenicsx_fields()
         self.create_pytorch_fields()
-
-    def build_solver(self) -> None:
-        self.solver = PETSc.KSP().create(self.grid.mesh.comm)
-        self.solver.setType(self.solver_name)
-        self.solver.getPC().setType(self.preconditioner)
-        self.solver.setTolerances(rtol=self.rtol, max_it=self.max_it)
 
     def commom_fields(self) -> None:
         """

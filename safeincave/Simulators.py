@@ -1085,6 +1085,10 @@ class Simulator_Mout(Simulator):
     """
     Mechanical-only simulator (linear momentum).
 
+    .. deprecated:: 3.0.3
+        Use :class:`Simulator_M` instead. This class is maintained for
+        backward compatibility but will be removed in a future version.
+
     Solves the momentum equation with possible non-elastic behavior using a
     θ-method loop and fixed-point iterations per step. No thermal coupling.
 
@@ -1119,260 +1123,35 @@ class Simulator_Mout(Simulator):
         simulation_logger: SimulationLogging | None = None,
         plastic_consistency_tolerance: float = 1e-4,
     ):
-        self.eq_mom = eq_mom
-        self.t_control = t_control
-        self.outputs = outputs
-        self.compute_elastic_response = compute_elastic_response
-        self.convergence_handler = ConvergenceErrorHandler(
-            convergence_criterion,
-            plastic_consistency_tolerance=plastic_consistency_tolerance,
+        import warnings
+        warnings.warn(
+            "Simulator_Mout is deprecated and will be removed in a future version. "
+            "Use Simulator_M instead, which supports the same functionality.",
+            DeprecationWarning,
+            stacklevel=2
         )
-        self.simulation_logger = simulation_logger
-
-        # Apply merged_solutions and smooth_output flags to all output handlers
-        for output in self.outputs:
-            output.merged_solutions = merged_solutions
-            output.smooth_output = smooth_output
-
-        # Auto-configure simulation logger if provided
-        if self.simulation_logger is not None:
-            SimulationLogging.auto_configure_from_simulator(
-                self.simulation_logger, self, self.outputs
-            )
-
-        ScreenPrinter.reset_instance()
-        self.screen = ScreenPrinter(
-            self.eq_mom.grid,
-            self.eq_mom.solver,
-            self.eq_mom.mat,
-            self.outputs,
-            t_control.time_unit,
+        
+        # Delegate to Simulator_M with caverns=None (no cavern support in Mout)
+        self._simulator_m = Simulator_M(
+            eq_mom=eq_mom,
+            t_control=t_control,
+            outputs=outputs,
+            caverns=None,  # Simulator_Mout doesn't support caverns
+            compute_elastic_response=compute_elastic_response,
+            convergence_criterion=convergence_criterion,
+            maxiter=40,  # Default from Simulator_M
+            simulation_logger=simulation_logger,
+            merged_solutions=merged_solutions,
+            smooth_output=smooth_output,
+            plastic_consistency_tolerance=plastic_consistency_tolerance,
         )
 
     def run(self) -> None:
         """
         Run the mechanical simulation.
 
-        Workflow
-        --------
-        1. Initialize outputs and boundary conditions.
-        2. Optionally solve a purely elastic step.
-        3. Initialize non-elastic rates.
-        4. For each time step: assemble/solve, update internal variables and
-           rates, compute relevant quantities, and save fields.
-
-        Convergence
-        -----------
-        Uses a relative change in total strain between iterations as error.
-        If `theta == 1.0` or no non-elastic elements exist, iteration ends
-        immediately.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        - Printing occurs on rank 0 only.
-        - The first `output.save_fields(0)` call uses the last `output`
-          from the preceding loop variable.
+        .. deprecated:: 3.0.3
+            Use :meth:`Simulator_M.run` instead.
         """
-        # Output field
-        for output in self.outputs:
-            output.initialize()
-
-        # Update boundary conditions
-        self.eq_mom.bc.update_dirichlet(self.t_control.t)
-        self.eq_mom.bc.update_neumann(self.t_control.t)
-
-        if self.compute_elastic_response:
-            # Solve elasticity
-            self.eq_mom.solve_elastic_response()
-
-            # Calculate total (elastic) strain
-            eps_tot_to = self.eq_mom.compute_total_strain()
-
-            # Compute stress
-            stress_to = self.eq_mom.compute_elastic_stress(eps_tot_to)
-
-        else:
-            # Calculate total strain
-            eps_tot_to = self.eq_mom.compute_total_strain()
-
-            # Retrieve stress
-            stress_to = numpy2torch(
-                self.eq_mom.sig.x.array.reshape((self.eq_mom.n_elems, 3, 3))
-            )
-
-        # Calculate and eps_ie_rate_old
-        self.eq_mom.compute_eps_ne_rate(stress_to, self.t_control.t)
-        self.eq_mom.update_eps_ne_rate_old()
-
-        # Save fields
-        self.eq_mom.compute_p_elems()
-        self.eq_mom.compute_q_elems()
-        self.eq_mom.compute_principal_stresses()
-        self.eq_mom.compute_principal_strains()
-        output.save_fields(0)
-
-        # Log initial state (step 0) to simulation logger
-        if self.simulation_logger is not None:
-            self.simulation_logger.log_initial_state(
-                time=self.t_control.t,
-                time_final=self.t_control.t_final,
-                stress=stress_to,
-                strain=eps_tot_to,
-            )
-
-        # Print initial state header row
-        self.screen.print_initial_state(
-            self.t_control.t,
-            self.t_control.t_final,
-            self.t_control.time_conversion,
-        )
-
-        # First step has no previous nonlinear iteration count.
-        ite = 0
-
-        # Time loop
-        while self.t_control.keep_looping():
-            max_bisections = int(getattr(self.t_control, "max_bisections", 5))
-            n_bisections = 0
-            step_completed = False
-
-            while not step_completed:
-                step_state = self._capture_step_state(include_heat=False, include_caverns=False)
-                stress_to_step_start = stress_to.clone()
-
-                # Advance time
-                self.t_control.advance_time()
-
-                t = self.t_control.t
-                dt = self.t_control.dt
-
-                # Update boundary conditions
-                self.eq_mom.bc.update_dirichlet(t)
-                self.eq_mom.bc.update_neumann(t)
-
-                # Initialize criterion at step start
-                maxiter = int(getattr(self.t_control, "maxiter", 40) or 40)
-                self.convergence_handler.initialize_step(
-                    self.eq_mom,
-                    maxiter=maxiter,
-                )
-
-                while self.convergence_handler.not_converged():
-                    # Update stress
-                    stress_k_to = stress_to.clone()
-
-                    # Build bi-linear form
-                    self.eq_mom.solve(stress_k_to, t, dt)
-
-                    # Compute total strain
-                    eps_tot_to = self.eq_mom.compute_total_strain()
-
-                    # Compute stress
-                    stress_to = self.eq_mom.compute_stress(eps_tot_to)
-
-                    # Increment internal variables
-                    self.eq_mom.increment_internal_variables(stress_to, stress_k_to, dt)
-
-                    # Compute inelastic strain rates
-                    self.eq_mom.compute_eps_ne_rate(stress_to, dt, eps_tot_to)
-
-                    # Compute error via active convergence criterion
-                    self.convergence_handler.evaluate(self.eq_mom)
-
-                    self.convergence_handler.increment_iteration()
-
-                ite = self.convergence_handler.ite
-                converged = not self.convergence_handler.not_converged_error
-                retry_scale = 0.5
-
-                if not converged:
-                    if n_bisections >= max_bisections:
-                        raise RuntimeError(
-                            f"Failed to converge after {max_bisections} retries "
-                            f"(ite={ite}, maxiter={self.convergence_handler.maxiter})."
-                        )
-                    self._restore_step_state(
-                        step_state,
-                        include_heat=False,
-                        include_caverns=False,
-                    )
-                    stress_to = stress_to_step_start.clone()
-                    dt_floor = float(getattr(self.t_control, "dt_min", 0.0))
-                    self.t_control.dt = max(
-                        step_state["time"]["dt"] * retry_scale, dt_floor
-                    )
-                    n_bisections += 1
-                    continue
-
-                # Closing solve: consume the final iteration's inelastic rate
-                # so the committed internal state matches the converged rate.
-                stress_to, stress_k_to, eps_tot_to = self._final_consuming_solve(
-                    stress_to, t, dt
-                )
-
-                # Adaptive dt integration via relative convergence ratio.
-                if hasattr(self.t_control, "get_next_dt"):
-                    maxiter = max(int(self.convergence_handler.maxiter or 1), 1)
-                    convergence_ratio = ite / maxiter
-                    self.t_control.dt = self.t_control.get_next_dt(
-                        convergence_ratio=convergence_ratio,
-                        n_bisections=n_bisections,
-                        converged=True,
-                    )
-
-                # Update internal variables
-                self.eq_mom.update_internal_variables()
-
-                # Update strain rates
-                self.eq_mom.update_eps_ne_rate_old()
-
-                # Update strain
-                self.eq_mom.update_eps_ne_old(stress_to, stress_k_to, dt)
-
-                # Save fields
-                self.eq_mom.compute_p_elems()
-                self.eq_mom.compute_q_elems()
-                self.eq_mom.compute_principal_stresses()
-                self.eq_mom.compute_principal_strains()
-                for output in self.outputs:
-                    output.save_fields(t)
-
-                # Log simulation state
-                if self.simulation_logger is not None:
-                    self.simulation_logger.log_step(
-                        step=self.t_control.step_counter,
-                        stress=stress_to,
-                        iteration=ite,
-                        nonlinear_error=self.convergence_handler.error,
-                        time=t,
-                        time_step=dt,
-                        time_final=self.t_control.t_final,
-                        strain=eps_tot_to,
-                    )
-
-                # Print stuff
-                screen_output_row = [
-                    self.t_control.step_counter,
-                    self.t_control.dt_used / self.t_control.time_conversion,
-                    f"{t / self.t_control.time_conversion} / {self.t_control.t_final / self.t_control.time_conversion}",
-                    ite,
-                    self.convergence_handler.error,
-                ]
-                self.screen.print_row(screen_output_row)
-                step_completed = True
-
-            # if self.eq_mom.grid.mesh.comm.rank == 0:
-            # 	print(t/self.t_control.time_unit, ite, error)
-            # 	sys.stdout.flush()
-            # 	try:
-            # 		print(float(self.eq_mom.mat.elems_ne[-1].Fvp.max()))
-            # 		sys.stdout.flush()
-            # 	except:
-            # 		pass
-
-        self.screen.close()
-        self._finalize_outputs()
+        # Delegate to the wrapped Simulator_M instance
+        self._simulator_m.run()

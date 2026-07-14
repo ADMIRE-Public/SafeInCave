@@ -8,91 +8,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .CavernBC import CavernHandler
 
-from abc import ABC
+from .BC.base import GeneralBC, DirichletBC, NeumannBC
+from .BC.cavern_utils import compute_cavern_heat_flux
 import numpy as np
 import dolfinx as do
-
-
-class GeneralBC(ABC):
-    """
-    Base container for boundary-condition data (time-dependent).
-
-    Parameters
-    ----------
-    boundary_name : str
-        Name/label of the boundary as defined in the mesh tags handled by
-        the equation's grid (e.g., ``eq.grid.get_boundary_tags(boundary_name)``).
-    values : list of float
-        Values of the boundary condition at the times given by ``time_values``.
-        Interpreted piecewise-linearly via :func:`numpy.interp`.
-    time_values : list of float
-        Monotonically increasing times associated with ``values``.
-
-    Attributes
-    ----------
-    boundary_name : str
-        Boundary label used to query mesh tags.
-    values : list of float
-        Time-sampled boundary values.
-    time_values : list of float
-        Sample times corresponding to ``values``.
-    type : str or None
-        Boundary condition type identifier (set by subclasses).
-    """
-
-    def __init__(self, boundary_name: str, values: list, time_values: list):
-        self.boundary_name = boundary_name
-        self.values = values
-        self.time_values = time_values
-        self.type = None
-
-
-class DirichletBC(GeneralBC):
-    """
-    Time-dependent Dirichlet boundary condition (essential BC).
-
-    Parameters
-    ----------
-    boundary_name : str
-        Named boundary in the mesh tags.
-    values : list of float
-        Prescribed values over time.
-    time_values : list of float
-        Times corresponding to ``values``.
-
-    Attributes
-    ----------
-    type : str
-        Always ``"dirichlet"``.
-    """
-
-    def __init__(self, boundary_name: str, values: list, time_values: list):
-        super().__init__(boundary_name, values, time_values)
-        self.type = "dirichlet"
-
-
-class NeumannBC(GeneralBC):
-    """
-    Time-dependent Neumann boundary condition (natural BC / flux).
-
-    Parameters
-    ----------
-    boundary_name : str
-        Named boundary in the mesh tags.
-    values : list of float
-        Flux/intensity values over time.
-    time_values : list of float
-        Times corresponding to ``values``.
-
-    Attributes
-    ----------
-    type : str
-        Always ``"neumann"``.
-    """
-
-    def __init__(self, boundary_name: str, values: list, time_values: list):
-        super().__init__(boundary_name, values, time_values)
-        self.type = "neumann"
 
 
 class RobinBC(GeneralBC):
@@ -230,11 +149,11 @@ class BcHandler:
             If the boundary condition type is not supported.
         """
         if bc.type == "dirichlet":
-        	self.dirichlet_boundaries.append(bc)
+            self.dirichlet_boundaries.append(bc)
         elif bc.type == "neumann":
-        	self.neumann_boundaries.append(bc)
+            self.neumann_boundaries.append(bc)
         elif bc.type == "robin":
-        	self.robin_boundaries.append(bc)
+            self.robin_boundaries.append(bc)
         else:
             raise Exception(f"Boundary type {bc.type} not supported.")
 
@@ -362,8 +281,7 @@ class BcHandler:
             + cavern_handler.caverns_MFlux
             + cavern_handler.caverns_T
         ):
-            T_inf = cavern.T
-            h = cavern.h_conv
+            T_inf, h = compute_cavern_heat_flux(cavern)
             self.cavern_bcs_a.append(
                 h
                 * self.dT
