@@ -8,11 +8,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .CavernBC import CavernHandler
 
-from .BC.base import GeneralBC
+from .BC.base import GeneralBC, DirichletBC, NeumannBC
 from .BC.cavern_utils import compute_cavern_pressure_load
 import numpy as np
 import dolfinx as do
 import ufl
+
+__all__ = ["GeneralBC", "DirichletBC", "NeumannBC", "BcHandler"]
 
 
 class BcHandler:

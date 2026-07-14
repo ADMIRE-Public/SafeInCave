@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from __future__ import annotations
-from typing import Optional, Any
+from typing import Optional, Any, TYPE_CHECKING
 import math
 import os
 import torch as to
@@ -15,10 +15,9 @@ from dolfinx import fem as do_fem
 from dolfinx.fem import petsc as fem_petsc
 from ...Utils import epsilon
 from .base import ConvergenceCriterion
-from .strain_based import StrainBasedCriterion
-from .force_residual import ForceResidualCriterion
-from .displacement_increment import DisplacementIncrementCriterion
-from .force_displacement import ForceDisplacementCriterion
+
+if TYPE_CHECKING:
+    pass
 
 """Shared numeric helpers for convergence criteria (force residuals, internal force vectors, norms)."""
 
@@ -313,13 +312,18 @@ def resolve_convergence_criterion(
 
     criterion_key = str(convergence_criterion).strip().lower()
 
+    # Lazy imports to avoid circular dependency
     if criterion_key == "strain_based":
+        from .strain_based import StrainBasedCriterion
         return StrainBasedCriterion()
     if criterion_key == "force_residual":
+        from .force_residual import ForceResidualCriterion
         return ForceResidualCriterion()
     if criterion_key == "displacement_increment":
+        from .displacement_increment import DisplacementIncrementCriterion
         return DisplacementIncrementCriterion()
     if criterion_key == "force_displacement":
+        from .force_displacement import ForceDisplacementCriterion
         return ForceDisplacementCriterion()
 
     raise ValueError(
