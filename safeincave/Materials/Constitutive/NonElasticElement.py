@@ -5,7 +5,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import torch as to
-from ..Utils import dotdot_torch
+from ...Utils import dotdot_torch
 
 
 class NonElasticElement(ABC):

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 import torch as to
-from ..Utils import dotdot_torch
+from ...Utils import dotdot_torch
 from .NonElasticElement import NonElasticElement
 
 
