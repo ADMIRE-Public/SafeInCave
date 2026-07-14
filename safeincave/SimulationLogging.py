@@ -192,6 +192,17 @@ def _extract_yield_indicator():
     return extractor
 
 
+def _extract_yield_indicator_h():
+    """Create extractor for the tension-cutoff (Rankine) yield indicator."""
+    def extractor(elem_id: int, **kwargs) -> int:
+        """Extract Rankine yield indicator for given element."""
+        yield_indicator_h = kwargs.get('yield_indicator_h')
+        if yield_indicator_h is None:
+            return 0
+        return int(yield_indicator_h[elem_id].item())
+    return extractor
+
+
 # ============================================================================
 # Register Default Variables
 # ============================================================================
@@ -208,6 +219,7 @@ def _register_default_variables():
     register_variable('ezz', 'ezz (-)', _extract_strain_component('zz'))
     register_variable('F', 'F (Pa)', _extract_yield_function())
     register_variable('dl', 'dl (-)', _extract_plastic_multiplier())
+    register_variable('YieldR', 'YieldR', _extract_yield_indicator_h())
     register_variable('YieldDP', 'YieldDP', _extract_yield_indicator())
 
 
@@ -575,7 +587,14 @@ class SimulationLogging:
                 elif hasattr(elem_ne, 'is_plastic'):
                     log_kwargs['yield_indicator'] = elem_ne.is_plastic
                 break
-        
+
+        # Tension-cutoff (Rankine) indicator lives on its own model, which may
+        # not be the element that supplied F/delta_lambda above.
+        for elem_ne in material.elems_ne:
+            if hasattr(elem_ne, 'YieldR'):
+                log_kwargs['yield_indicator_h'] = elem_ne.YieldR
+                break
+
         return log_kwargs
 
 

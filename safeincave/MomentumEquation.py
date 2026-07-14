@@ -627,6 +627,12 @@ class LinearMomentumBase(ABC):
                     eps_th = self.compute_eps_th()
                 kwargs["eps_tot"] = eps_tot
                 kwargs["eps_th"] = eps_th
+                # Initial stress (apply_initial_stress) enters the
+                # formulation as an eigenstrain, so it is NOT contained in
+                # eps_tot; the exact trial reconstruction must superpose it.
+                sig0 = getattr(self, "sig0_to", None)
+                if sig0 is not None:
+                    kwargs["sig0"] = sig0
             elem_ne.compute_eps_ne_rate(
                 stress, dt * self.theta, self.Temp, return_eps_ne=False, **kwargs
             )
@@ -1112,6 +1118,8 @@ class LinearMomentum(LinearMomentumBase):
         self.eps_0.x.array[:] = to.flatten(self.eps0_to)
         # self.eps_tot.x.array[:] = to.flatten(self.eps0_to)
         self.sig.x.array[:] = to.flatten(sig0)
+        # Kept for the exact-trial reconstruction in compute_eps_ne_rate.
+        self.sig0_to = sig0.clone()
         self.sig0.x.array[:] = to.flatten(sig0)
 
     def compute_eps_rhs(self, dt: float, stress_k: to.Tensor) -> None:
@@ -1404,6 +1412,8 @@ class LinearMomentumMixed(LinearMomentumBase):
         self.eps_0_tilde_to = sig0 * one_over_2G[:, None, None]
         self.eps_0_tilde.x.array[:] = to.flatten(self.eps_0_tilde_to)
         self.sig.x.array[:] = to.flatten(sig0)
+        # Kept for the exact-trial reconstruction in compute_eps_ne_rate.
+        self.sig0_to = sig0.clone()
 
 
     def compute_eps_k_ne_vol(self, eps_k_ne):
