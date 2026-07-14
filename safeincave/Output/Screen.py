@@ -6,9 +6,9 @@ import time
 import os
 import sys
 from mpi4py import MPI
-from .MaterialProps import Material
-from .OutputHandler import SaveFields
-from .Grid import GridHandlerGMSH
+from ..Materials.Material import Material
+from .SaveFields import SaveFields
+from ..Mesh.Grid import GridHandlerGMSH
 from petsc4py import PETSc
 
 
