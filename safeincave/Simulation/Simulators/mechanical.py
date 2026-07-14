@@ -160,6 +160,7 @@ class Simulator_M(Simulator):
         # Save fields
         self.eq_mom.compute_p_elems()
         self.eq_mom.compute_q_elems()
+        self.eq_mom.compute_yield_mode()
         self.eq_mom.compute_principal_stresses()
         self.eq_mom.compute_principal_strains()
 
@@ -308,6 +309,7 @@ class Simulator_M(Simulator):
                 # Save fields
                 self.eq_mom.compute_p_elems()
                 self.eq_mom.compute_q_elems()
+                self.eq_mom.compute_yield_mode()
                 self.eq_mom.compute_principal_stresses()
                 self.eq_mom.compute_principal_strains()
 

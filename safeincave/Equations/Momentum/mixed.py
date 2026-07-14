@@ -354,33 +354,46 @@ class LinearMomentumMixed(LinearMomentumBase):
         do.fem.petsc.assemble_matrix(A, bilinear_form, bcs=self.bc.dirichlet_bcs)
         A.assemble()
 
-        # Build the linear form (recompiled every iteration to avoid stale
-        # forms when BC handlers rebuild their UFL boundary terms).
-        b_u = (
-            ufl.inner(
-                dotdot_ufl(self.CT_tilde, self.eps_rhs_tilde - self.eps_0_tilde),
-                epsilon(self.u_),
+        # Build (and cache) the linear form. BC loads live in in-place
+        # updated fem.Constants (see BcHandler), so the compiled form stays
+        # valid while the BC/cavern term objects are unchanged; the identity
+        # key rebuilds it if the BC or cavern set itself changes.
+        bc_key = (
+            tuple(map(id, self.bc.neumann_bcs)),
+            tuple(map(id, getattr(self.bc, "cavern_bcs", []))),
+        )
+        if getattr(self, "_linear_form_key", None) != bc_key:
+            b_u = (
+                ufl.inner(
+                    dotdot_ufl(self.CT_tilde, self.eps_rhs_tilde - self.eps_0_tilde),
+                    epsilon(self.u_),
+                )
+                * self.dx
             )
-            * self.dx
-        )
-        b_p = (
-            self.K
-            * (
-                self._phi2_const * (self.T_vol * self.p_k + self.B_vol)
-                - self.eps_ne_vol
-                - self.eps_th_vol
+            b_p = (
+                self.K
+                * (
+                    self._phi2_const * (self.T_vol * self.p_k + self.B_vol)
+                    - self.eps_ne_vol
+                    - self.eps_th_vol
+                )
+                * self.p_
+                * self.dx
             )
-            * self.p_
-            * self.dx
-        )
-        linear_form = do.fem.form(
-            self.b_body
-            + sum(self.bc.neumann_bcs)
-            + sum(self.bc.cavern_bcs)
-            + b_u
-            + b_p
-        )
-        b = fem_petsc.assemble_vector(linear_form)
+            self._linear_form = do.fem.form(
+                self.b_body
+                + sum(self.bc.neumann_bcs)
+                + sum(self.bc.cavern_bcs)
+                + b_u
+                + b_p
+            )
+            self._b_vec = fem_petsc.create_vector(self._linear_form)
+            self._linear_form_key = bc_key
+        linear_form = self._linear_form
+        b = self._b_vec
+        with b.localForm() as b_local:
+            b_local.set(0.0)
+        fem_petsc.assemble_vector(b, linear_form)
         do.fem.petsc.apply_lifting(b, [bilinear_form], [self.bc.dirichlet_bcs])
         b.ghostUpdate(addv=PETSc.InsertMode.ADD_VALUES, mode=PETSc.ScatterMode.REVERSE)
         do.fem.petsc.set_bc(b, self.bc.dirichlet_bcs)

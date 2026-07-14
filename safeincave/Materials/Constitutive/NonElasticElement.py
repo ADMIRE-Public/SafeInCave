@@ -33,6 +33,20 @@ class NonElasticElement(ABC):
         Tangent-like operator (N, 6, 6) assembled in `compute_G_B`.
     """
 
+    #: Incremental-Newton capability flag. When True the model implements
+    #: :meth:`compute_stress_and_tangent`/:meth:`commit_increment` and can be
+    #: driven by the Newton solver path (LinearMomentumNewton); the staggered
+    #: theta-scheme path ignores the flag entirely.
+    supports_incremental_newton: bool = False
+
+    #: True on a model that participates in a multi-surface pair as the
+    #: secondary partner (e.g. PlasticRankine linked via cede_to): the primary
+    #: partner's compute_stress_and_tangent returns the joint stress/tangent
+    #: and stages the secondary's share; the Newton driver must not call the
+    #: secondary's compute_stress_and_tangent directly, only its
+    #: commit_increment.
+    newton_secondary: bool = False
+
     def __init__(self, n_elems: int) -> None:
         self.n_elems = n_elems
         self.eps_ne_rate = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
@@ -50,6 +64,37 @@ class NonElasticElement(ABC):
         Temp: to.Tensor,
         return_eps_ne: bool = False,
     ) -> None:
+        pass
+
+    def compute_stress_and_tangent(
+        self, eps_el_trial: to.Tensor, Temp: to.Tensor, dt: float
+    ) -> tuple[to.Tensor, to.Tensor]:
+        """
+        Incremental-Newton constitutive update (backward-Euler return map).
+
+        Given the elastic trial strain ``eps_el_trial`` (N, 3, 3) — total
+        strain minus thermal and all committed inelastic strain, with the
+        initial stress folded in as an eigenstrain — return the return-mapped
+        stress (N, 3, 3) and the consistent algorithmic tangent ``D_ep``
+        (N, 6, 6) in the ``Spring.C`` Voigt convention (tensorial shear,
+        2μ shear diagonal). Must stage the inelastic increment internally and
+        be stateless across repeated calls (line-search trial evaluations);
+        the staged increment is folded into ``eps_ne_old`` only by
+        :meth:`commit_increment`.
+
+        Only meaningful when ``supports_incremental_newton`` is True.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support the incremental-Newton "
+            "solver path (supports_incremental_newton is False)."
+        )
+
+    def commit_increment(self) -> None:
+        """
+        Fold the increment staged by the last :meth:`compute_stress_and_tangent`
+        into ``eps_ne_old`` / internal variables. Called once per accepted
+        time step by the Newton driver. Default: no-op.
+        """
         pass
 
     def increment_internal_variables(self, *args) -> None:
