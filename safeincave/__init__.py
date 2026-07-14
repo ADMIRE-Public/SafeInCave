@@ -26,8 +26,8 @@ from .Grid import GridHandlerGMSH
 from .HeatEquation import HeatDiffusion
 from .MomentumEquation import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
 from .MaterialProps import Material
-from .ConstitutiveModels import *  # noqa: F403, F405
-from .ConstitutiveModels import __all__ as _CONSTITUTIVE_ALL
+from .Materials.Constitutive import *  # noqa: F403, F405
+from .Materials.Constitutive import __all__ as _CONSTITUTIVE_ALL
 from .OutputHandler import SaveFields
 from .SimulationLogging import (
     SimulationLogging,

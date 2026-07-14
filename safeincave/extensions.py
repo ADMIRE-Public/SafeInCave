@@ -134,6 +134,13 @@ class _ExtensionFinder(importlib.abc.MetaPathFinder):
             return None
         rel = fullname.split(".")[1:]
 
+        # Apply legacy path aliases for backward compatibility
+        # Maps old module paths to their new locations after refactoring
+        rel_tuple = tuple(rel)
+        if rel_tuple == ("ConstitutiveModels",) or len(rel) > 1 and rel[0] == "ConstitutiveModels":
+            # Rewrite safeincave.ConstitutiveModels.* -> safeincave.Materials.Constitutive.*
+            rel = ["Materials", "Constitutive"] + rel[1:]
+
         matches: list[tuple[str, Path]] = []
         for name, root in self.roots.items():
             base = root.joinpath(*rel)
