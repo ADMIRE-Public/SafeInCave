@@ -12,6 +12,7 @@ from .strain_based import StrainBasedCriterion
 from .force_residual import ForceResidualCriterion
 from .displacement_increment import DisplacementIncrementCriterion
 from .force_displacement import ForceDisplacementCriterion
+from .newton_residual import NewtonResidualCriterion
 
 if TYPE_CHECKING:
     pass
@@ -55,11 +56,13 @@ def resolve_convergence_criterion(
         return DisplacementIncrementCriterion()
     if criterion_key == "force_displacement":
         return ForceDisplacementCriterion()
+    if criterion_key == "newton_residual":
+        return NewtonResidualCriterion()
 
     raise ValueError(
         "Unknown convergence_criterion. Supported values: "
         "'strain_based', 'force_residual', "
-        "'displacement_increment', 'force_displacement'."
+        "'displacement_increment', 'force_displacement', 'newton_residual'."
     )
 
 

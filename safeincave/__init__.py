@@ -24,7 +24,12 @@ extensions.install()
 
 from .Mesh.Grid import GridHandlerGMSH
 from .Equations.Heat import HeatDiffusion
-from .Equations.Momentum import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
+from .Equations.Momentum import (
+    LinearMomentumBase,
+    LinearMomentum,
+    LinearMomentumMixed,
+    LinearMomentumNewton,
+)
 from .Materials.Material import Material
 from .Materials.Constitutive import *  # noqa: F403, F405
 from .Materials.Constitutive import __all__ as _CONSTITUTIVE_ALL
@@ -42,16 +47,21 @@ from .Simulation.Convergence import (
     ForceResidualCriterion,
     DisplacementIncrementCriterion,
     ForceDisplacementCriterion,
+    NewtonResidualCriterion,
+    BacktrackingLineSearch,
 )
 from . import Cavern
 from .Simulation.Simulators import (
     Simulator_TM,
     Simulator_T,
     Simulator_M,
+    Simulator_MNewton,
+    Simulator_TMNewton,
 )
 from .Output.Screen import ScreenPrinter
 from .Simulation.TimeControl import (
     TimeControllerBase,
+    TimeControllerNewton,
     TimeController,
     TimeControllerParabolic,
     TimeControllerAdaptive,
@@ -67,6 +77,7 @@ __all__ = [
     "LinearMomentumBase",
     "LinearMomentum",
     "LinearMomentumMixed",
+    "LinearMomentumNewton",
     "Material",
     "SaveFields",
     "SimulationLogging",
@@ -76,8 +87,11 @@ __all__ = [
     "Simulator_TM",
     "Simulator_T",
     "Simulator_M",
+    "Simulator_MNewton",
+    "Simulator_TMNewton",
     "ScreenPrinter",
     "TimeControllerBase",
+    "TimeControllerNewton",
     "TimeController",
     "TimeControllerParabolic",
     "TimeControllerAdaptive",
@@ -91,6 +105,8 @@ __all__ = [
     "ForceResidualCriterion",
     "DisplacementIncrementCriterion",
     "ForceDisplacementCriterion",
+    "NewtonResidualCriterion",
+    "BacktrackingLineSearch",
 ] + _CONSTITUTIVE_ALL
 
 __author__ = "Hermínio T. Honório"
