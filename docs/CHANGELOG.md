@@ -22,6 +22,7 @@
 - Included principal stresses and strains in outputs.
 - Reorganized package layout into thematic subpackages with one class/module per file.
 - Implemented efficient solvers Newton_P1 and Newton_P2.
+- Updated readme with HyCavern and lined rock cavern info.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
