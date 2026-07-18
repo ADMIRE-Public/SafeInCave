@@ -5,10 +5,7 @@
 import skops.io as sio
 import numpy as np
 import os
-try:
-    from ..Utils.IO import numpy2torch
-except ImportError:
-    from .Utils import numpy2torch
+from .IO import numpy2torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 

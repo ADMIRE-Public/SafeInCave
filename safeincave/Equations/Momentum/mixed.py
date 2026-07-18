@@ -15,8 +15,7 @@ from petsc4py import PETSc
 import torch as to
 from dolfinx.fem import petsc as fem_petsc
 from .base import LinearMomentumBase
-from ...Utils import numpy2torch, dotdot_ufl, dotdot_torch, epsilon, project
-from ...Mesh.MeshParameter import ModelML
+from ...Utils import numpy2torch, dotdot_ufl, dotdot_torch, epsilon, project, ModelML
 
 class LinearMomentumMixed(LinearMomentumBase):
     def __init__(
