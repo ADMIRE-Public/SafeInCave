@@ -21,7 +21,8 @@
 - Mixed formulation: cached compiled bilinear form/matrix with dt as fem.Constant, closed-form symmetric 3x3 eigenvalues in compute_moduli with zero-strain/E_star guards.
 - Added a closing solve per time step so the committed inelastic strain uses the final converged rate.
 - Included principal stresses and strains in outputs.
-- Reorganized package layout into thematic subpackages (Materials, Mesh, Output, Simulation, etc.) with one class/module per file.
+- Reorganized package layout into thematic subpackages with one module per file.
+- Updated readme with HyCavern and lined rock cavern info.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
