@@ -1,4 +1,4 @@
-from safeincave.CavernBC import (
+from safeincave.Cavern import (
     CavernHandler,
     Cavern_PT,
     Cavern_T,

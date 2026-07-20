@@ -16,9 +16,12 @@ private extension repository:
 
     SafeInCave_extensions/
     └── safeincave/                # mirrors the public package layout
-        ├── Simulators.py                      # REPLACES safeincave.Simulators
-        └── ConstitutiveModels/
-            └── MyModel.py                     # ADDS safeincave.ConstitutiveModels.MyModel
+        ├── Simulation/
+        │   └── Simulators/
+        │       └── mechanical.py              # REPLACES safeincave.Simulation.Simulators.mechanical
+        └── Materials/
+            └── Constitutive/
+                └── MyModel.py                 # ADDS safeincave.Materials.Constitutive.MyModel
 
 Every ``.py`` file in the extension tree replaces the public module at the
 same relative path; files that do not exist publicly are added as new modules
@@ -133,6 +136,13 @@ class _ExtensionFinder(importlib.abc.MetaPathFinder):
         if not fullname.startswith("safeincave.") or fullname in _PROTECTED:
             return None
         rel = fullname.split(".")[1:]
+
+        # Apply legacy path aliases for backward compatibility
+        # Maps old module paths to their new locations after refactoring
+        rel_tuple = tuple(rel)
+        if rel_tuple == ("ConstitutiveModels",) or len(rel) > 1 and rel[0] == "ConstitutiveModels":
+            # Rewrite safeincave.ConstitutiveModels.* -> safeincave.Materials.Constitutive.*
+            rel = ["Materials", "Constitutive"] + rel[1:]
 
         matches: list[tuple[str, Path]] = []
         for name, root in self.roots.items():

@@ -1,5 +1,5 @@
 import safeincave as sf
-import safeincave.HeatBC as heatBC
+import safeincave.BC.Heat as heatBC
 from mpi4py import MPI
 import torch as to
 import os

@@ -65,7 +65,7 @@ where = ["."]
 include = ["safeincave*"]
 
 [tool.setuptools.package-data]
-"safeincave" = ["app/assets/*.png", "model_h.skops"]
+"safeincave" = ["app/assets/*.png", "Utils/model_h.skops"]
 
 [project.urls]
 Repository = "https://github.com/ADMIRE-Public/SafeInCave"

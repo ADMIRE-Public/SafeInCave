@@ -8,7 +8,7 @@ Reads centroid-cell data from ./output/case_0/<formulation>/ and produces:
     - yield function F evolution
 """
 
-import safeincave.PostProcessingTools as post
+import safeincave.PostProcessing as post
 import os
 import numpy as np
 import matplotlib.pyplot as plt

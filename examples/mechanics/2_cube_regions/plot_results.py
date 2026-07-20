@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-import safeincave.PostProcessingTools as post
+import safeincave.PostProcessing as post
 
 
 def apply_grey_theme(fig, axes, transparent=True, grid_color="0.92", back_color="0.85"):

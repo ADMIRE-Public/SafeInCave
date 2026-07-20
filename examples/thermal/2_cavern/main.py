@@ -1,6 +1,6 @@
 import safeincave as sf
 import safeincave.Utils as ut
-import safeincave.HeatBC as heatBC
+import safeincave.BC.Heat as heatBC
 import torch as to
 import os
 

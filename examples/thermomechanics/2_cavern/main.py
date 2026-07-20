@@ -1,7 +1,7 @@
 import safeincave as sf
 from safeincave.Utils import GPa, MPa, day, hour, create_field_elems, create_field_nodes
-import safeincave.HeatBC as heatBC
-import safeincave.MomentumBC as momBC
+import safeincave.BC.Heat as heatBC
+import safeincave.BC.Momentum as momBC
 from mpi4py import MPI
 import os
 import sys

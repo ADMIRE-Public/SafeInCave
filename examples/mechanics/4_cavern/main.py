@@ -1,6 +1,6 @@
 import safeincave as sf
 from safeincave.Utils import day, GPa, create_field_elems
-import safeincave.MomentumBC as momBC
+import safeincave.BC.Momentum as momBC
 import torch as to
 import os
 

@@ -1,6 +1,6 @@
 import safeincave as sf
 import safeincave.Utils as ut
-import safeincave.MomentumBC as momBC
+import safeincave.BC.Momentum as momBC
 import dolfinx as do
 import os
 import torch as to
