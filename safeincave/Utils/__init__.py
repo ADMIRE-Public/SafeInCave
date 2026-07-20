@@ -4,3 +4,4 @@
 
 # Backward-compatible shim; actual implementation in Utils.IO
 from .IO import *  # noqa: F401, F403
+from .MeshParameter import Element, ModelML  # noqa: F401

@@ -20,7 +20,7 @@
 - Implemented local extensions mechanism.
 - Added a closing solve per time step so the committed inelastic strain uses the final converged rate.
 - Included principal stresses and strains in outputs.
-- Reorganized package layout into thematic subpackages with one class/module per file.
+- Reorganized package layout into thematic subpackages with one module per file.
 - Implemented efficient solvers Newton_P1 and Newton_P2.
 - Updated readme with HyCavern and lined rock cavern info.
 
