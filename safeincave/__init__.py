@@ -1,4 +1,3 @@
-# ruff: noqa: E402
 # Copyright (c) 2026, The SafeInCave Developers
 #
 # SPDX-License-Identifier: BSD-3-Clause
@@ -34,7 +33,7 @@ from .Derivatives import (
 )
 from .Equations.Heat import HeatDiffusion
 from .Equations.Momentum import LinearMomentum, LinearMomentumBase, LinearMomentumMixed
-from .Materials.Constitutive import *  # noqa: F403
+from .Materials.Constitutive import *
 from .Materials.Constitutive import __all__ as _CONSTITUTIVE_ALL
 from .Materials.Material import Material
 from .Mesh.Grid import GridHandlerGMSH
