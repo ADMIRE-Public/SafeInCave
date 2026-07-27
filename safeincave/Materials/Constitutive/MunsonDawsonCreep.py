@@ -3,8 +3,83 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from __future__ import annotations
+from typing import Any
 import torch as to
+from ...Derivatives import deviator, pack_H_voigt, split_sym3
 from .NonElasticElement import NonElasticElement
+
+
+def _md_fields_kernel(
+    xp: Any, stress: Any, Temp: Any, zeta: Any, p: dict
+) -> tuple:
+    """
+    Namespace-generic Munson-Dawson intermediate quantities.
+
+    Returns `(s_dev, sigma_safe, epsdot_ss, eps_t_star, F)`.  Pure and
+    out-of-place: the piecewise hardening/recovery split is a `where` on
+    both branches rather than boolean-mask assignment, so it traces cleanly
+    and neither branch can leak a NaN into the derivative.
+    """
+    s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = split_sym3(stress)
+
+    s_dev = deviator(xp, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
+
+    # sigma = sqrt(3 J2) = von Mises equivalent stress (Pa)
+    sigma = xp.sqrt(
+        0.5
+        * (
+            (s_xx - s_yy) ** 2
+            + (s_xx - s_zz) ** 2
+            + (s_yy - s_zz) ** 2
+            + 6.0 * (s_xy**2 + s_xz**2 + s_yz**2)
+        )
+    )
+
+    # 1 Pa floor — purely numerical guard against 1/sigma and sigma^n at
+    # zero-stress elements.  Does not affect any realistic cavern state.
+    sigma_safe = xp.clip(sigma, 1.0, None)
+    mu_safe = xp.clip(p["mu"], 1.0, None)
+
+    epsdot_ss = p["A"] * xp.exp(-p["Q"] / (p["R"] * Temp)) * (sigma_safe ** p["n"])
+
+    ratio = xp.clip(sigma_safe / mu_safe, 1e-30, None)
+    eps_t_star = p["K0"] * xp.exp(p["c"] * Temp) * (ratio ** p["m"])
+    eps_t_star = xp.clip(eps_t_star, 1e-50, None)
+
+    Delta_cap = p["alpha_w"] + p["beta_w"] * xp.log10(ratio)
+
+    # Piecewise F with hardening / recovery branches.  The ±50 exponent
+    # clamp guards against overflow at pathological stress states
+    # (exp(50) ≈ 5e21 — far beyond any realistic F).
+    r_arg = 1.0 - (zeta / eps_t_star)
+    r_arg2 = r_arg * r_arg
+
+    hardening = zeta <= eps_t_star
+    exp_arg = xp.where(hardening, Delta_cap * r_arg2, -p["delta"] * r_arg2)
+    F = xp.exp(xp.clip(exp_arg, -50.0, 50.0))
+
+    return s_dev, sigma_safe, epsdot_ss, eps_t_star, F
+
+
+def _rate_from_fields(s_dev: Any, sigma_safe: Any, epsdot_ss: Any, F: Any) -> Any:
+    """Assemble ``epsdot_ij = F * epsdot_ss * (3/2) s_ij / sigma`` from fields."""
+    scalar_rate = F * epsdot_ss
+    flow_dir = (1.5 / sigma_safe)[:, None, None] * s_dev
+    return flow_dir * scalar_rate[:, None, None]
+
+
+def _rate_kernel(xp: Any, stress: Any, Temp: Any, zeta: Any, p: dict) -> Any:
+    """Namespace-generic Munson-Dawson strain-rate kernel."""
+    s_dev, sigma_safe, epsdot_ss, _, F = _md_fields_kernel(xp, stress, Temp, zeta, p)
+    return _rate_from_fields(s_dev, sigma_safe, epsdot_ss, F)
+
+
+def _residue_kernel(
+    xp: Any, stress: Any, Temp: Any, zeta: Any, zeta_old: Any, dt: float, p: dict
+) -> Any:
+    """Backward-Euler residue ``r = zeta - zeta_old - (F - 1) * epsdot_ss * dt``."""
+    _, _, epsdot_ss, _, F = _md_fields_kernel(xp, stress, Temp, zeta, p)
+    return zeta - zeta_old - (F - 1.0) * epsdot_ss * dt
 
 
 class MunsonDawsonCreep(NonElasticElement):
@@ -64,8 +139,9 @@ class MunsonDawsonCreep(NonElasticElement):
         delta: to.Tensor,
         mu: to.Tensor,
         name: str = "creep_munson_dawson",
+        derivative_method: Any = None,
     ) -> None:
-        super().__init__(A.shape[0])
+        super().__init__(A.shape[0], derivative_method=derivative_method)
         self.name = name
 
         self.R = 8.32
@@ -134,6 +210,34 @@ class MunsonDawsonCreep(NonElasticElement):
     # Physics evaluator (shared by rate, residue, and FD probes)
     # ------------------------------------------------------------------ #
 
+    _PARAM_NAMES = (
+        "A",
+        "Q",
+        "n",
+        "K0",
+        "c",
+        "m",
+        "alpha_w",
+        "beta_w",
+        "delta",
+        "mu",
+    )
+
+    def _params(self, xp: Any) -> dict:
+        """Material parameters cast into the array namespace `xp`."""
+        values = self._cast(xp, *(getattr(self, k) for k in self._PARAM_NAMES))
+        params = dict(zip(self._PARAM_NAMES, values))
+        params["R"] = self.R
+        return params
+
+    def rate_fn(
+        self, xp: Any, stress: Any, phi1: float, Temp: Any, zeta: Any = None
+    ) -> Any:
+        """Namespace-generic strain-rate kernel (see :class:`NonElasticElement`)."""
+        if zeta is None:
+            zeta = self._cast(xp, self.zeta)
+        return _rate_kernel(xp, stress, Temp, zeta, self._params(xp))
+
     def _compute_md_fields(
         self, stress_vec: to.Tensor, Temp: to.Tensor, zeta: to.Tensor
     ) -> tuple:
@@ -149,59 +253,7 @@ class MunsonDawsonCreep(NonElasticElement):
         eps_t_star : (N,) transient threshold strain
         F : (N,) transient function value
         """
-        s_xx = stress_vec[:, 0, 0]
-        s_yy = stress_vec[:, 1, 1]
-        s_zz = stress_vec[:, 2, 2]
-        s_xy = stress_vec[:, 0, 1]
-        s_xz = stress_vec[:, 0, 2]
-        s_yz = stress_vec[:, 1, 2]
-
-        sigma_mean = (s_xx + s_yy + s_zz) / 3.0
-        s_dev = stress_vec.clone()
-        s_dev[:, 0, 0] = s_xx - sigma_mean
-        s_dev[:, 1, 1] = s_yy - sigma_mean
-        s_dev[:, 2, 2] = s_zz - sigma_mean
-
-        # sigma = sqrt(3 J2) = von Mises equivalent stress (Pa)
-        sigma = to.sqrt(
-            0.5
-            * (
-                (s_xx - s_yy) ** 2
-                + (s_xx - s_zz) ** 2
-                + (s_yy - s_zz) ** 2
-                + 6.0 * (s_xy**2 + s_xz**2 + s_yz**2)
-            )
-        )
-
-        # 1 Pa floor — purely numerical guard against 1/sigma and sigma^n at
-        # zero-stress elements.  Does not affect any realistic cavern state.
-        sigma_safe = to.clamp(sigma, min=1.0)
-        mu_safe = to.clamp(self.mu, min=1.0)
-
-        epsdot_ss = self.A * to.exp(-self.Q / (self.R * Temp)) * (sigma_safe**self.n)
-
-        ratio = to.clamp(sigma_safe / mu_safe, min=1e-30)
-        eps_t_star = self.K0 * to.exp(self.c * Temp) * (ratio**self.m)
-        eps_t_star = to.clamp(eps_t_star, min=1e-50)
-
-        Delta_cap = self.alpha_w + self.beta_w * to.log10(ratio)
-
-        # Piecewise F with hardening / recovery branches.  The ±50 exponent
-        # clamp guards against overflow during FD probes at pathological
-        # stress states (exp(50) ≈ 5e21 — far beyond any realistic F).
-        r_arg = 1.0 - (zeta / eps_t_star)
-        r_arg2 = r_arg * r_arg
-
-        F = to.ones_like(epsdot_ss)
-        mask = zeta <= eps_t_star
-        exp_arg_hard = to.clamp(Delta_cap[mask] * r_arg2[mask], min=-50.0, max=50.0)
-        exp_arg_recov = to.clamp(
-            -self.delta[~mask] * r_arg2[~mask], min=-50.0, max=50.0
-        )
-        F[mask] = to.exp(exp_arg_hard)
-        F[~mask] = to.exp(exp_arg_recov)
-
-        return s_dev, sigma_safe, epsdot_ss, eps_t_star, F
+        return _md_fields_kernel(to, stress_vec, Temp, zeta, self._params(to))
 
     def compute_residue(
         self, stress: to.Tensor, zeta: to.Tensor, Temp: to.Tensor, dt: float
@@ -215,8 +267,9 @@ class MunsonDawsonCreep(NonElasticElement):
         -------
         torch.Tensor, shape (N,)
         """
-        _, _, epsdot_ss, _, F = self._compute_md_fields(stress, Temp, zeta)
-        return zeta - self.zeta_old - (F - 1.0) * epsdot_ss * dt
+        return _residue_kernel(
+            to, stress, Temp, zeta, self.zeta_old, dt, self._params(to)
+        )
 
     # ------------------------------------------------------------------ #
     # Strain-rate evaluator
@@ -250,13 +303,10 @@ class MunsonDawsonCreep(NonElasticElement):
         if zeta is None:
             zeta = self.zeta
 
-        s_dev, sigma_safe, epsdot_ss, eps_t_star, F = self._compute_md_fields(
-            stress_vec, Temp, zeta
+        s_dev, sigma_safe, epsdot_ss, eps_t_star, F = _md_fields_kernel(
+            to, stress_vec, Temp, zeta, self._params(to)
         )
-
-        scalar_rate = F * epsdot_ss
-        flow_dir = (1.5 / sigma_safe)[:, None, None] * s_dev
-        eps_rate = flow_dir * scalar_rate[:, None, None]
+        eps_rate = _rate_from_fields(s_dev, sigma_safe, epsdot_ss, F)
 
         if return_eps_ne:
             return eps_rate
@@ -271,78 +321,87 @@ class MunsonDawsonCreep(NonElasticElement):
     # ISV-coupled consistent tangent
     # ------------------------------------------------------------------ #
 
+    #: Forward-difference step (Pa) for dr/dsigma under the FD backend.
+    EPSILON_STRESS_RESIDUE: float = 1e-1
+    #: Elements whose |dr/dzeta| falls below this are treated as zeta-inert.
+    H_MIN: float = 1e-12
+
     def compute_B_and_H_over_h(
         self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor
     ) -> tuple[to.Tensor, to.Tensor]:
         """
-        Build the ISV-coupled consistent-tangent terms by finite differences
-        (following ViscoplasticDesai.compute_B_and_H_over_h).
+        Build the ISV-coupled consistent-tangent terms.
 
             r  = residue at the reference (sigma, zeta)
-            h  = (r(sigma, zeta+eps) - r) / eps                (N,)
-            Q  = (eps_MD(sigma, zeta+eps) - eps_MD) / eps      (N, 3, 3)
-            P[i,j] = (r(sigma+eps*e_ij, zeta) - r) / eps       (N, 3, 3, symmetric)
-            H   = Q (outer) P  packed in tensorial-Voigt 6×6
-            H/h = (1/h) * H
-            B   = (r / h) * Q
+            h  = dr/dzeta                                     (N,)
+            Q  = d(eps_MD)/dzeta                              (N, 3, 3)
+            P  = dr/dsigma                                    (N, 3, 3, symmetric)
+            H  = Q (outer) P  packed in tensorial-Voigt 6x6
+            B  = (r / h) * Q
+
+        The derivatives come from `self.derivative`: forward finite
+        differences by default, exact AD when the element was built with
+        ``derivative_method="torch_ad"`` / ``"jax_ad"``.
 
         r, h, P are stored on the instance for the subsequent
         `increment_internal_variables` call.  B and H/h are returned.
         """
-        # Forward-difference scale for ζ: tied to the natural range eps_t*
-        # so it stays meaningful whether ζ is 0 (start of run) or near ε_t*.
-        _, _, _, eps_t_star_now, _ = self._compute_md_fields(stress, Temp, self.zeta)
+        params = self._params(to)
+
+        # Forward-difference scale for zeta: tied to the natural range eps_t*
+        # so it stays meaningful whether zeta is 0 (start of run) or near eps_t*.
+        _, _, _, eps_t_star_now, _ = _md_fields_kernel(
+            to, stress, Temp, self.zeta, params
+        )
         zeta_scale = to.clamp(to.abs(self.zeta) + eps_t_star_now, min=1e-30)
         eps_zeta = self._SQRT_FLOAT64_EPS * zeta_scale  # shape (N,)
 
-        # Forward-difference scale for stress (Pa).  On ~1e7 Pa cavern
-        # stresses this is a relative step of ~1e-8, which is the optimal
-        # float64 FD scale.
-        EPSILON_STRESS = 1e-1
+        def _isv_probe(xp, zeta):
+            p = self._params(xp)
+            s = self._cast(xp, stress)
+            T = self._cast(xp, Temp)
+            rate = _rate_kernel(xp, s, T, zeta, p)
+            r = _residue_kernel(
+                xp, s, T, zeta, self._cast(xp, self.zeta_old), dt, p
+            )
+            return rate, r
 
-        # --- r, h, Q via zeta-perturbation ------------------------------- #
-        self.r = self.compute_residue(stress, self.zeta, Temp, dt)
-
-        zeta_eps = self.zeta + eps_zeta
-        r_zeta = self.compute_residue(stress, zeta_eps, Temp, dt)
-        self.h = (r_zeta - self.r) / eps_zeta
-
-        eps_rate_ref = self.compute_eps_ne_rate(
-            stress, dt * theta, Temp, zeta=self.zeta, return_eps_ne=True
+        Q, self.h = self.derivative.d_d_isv(_isv_probe, self.zeta, step=eps_zeta)
+        self.r = _residue_kernel(
+            to, stress, Temp, self.zeta, self.zeta_old, dt, params
         )
-        eps_rate_zeta = self.compute_eps_ne_rate(
-            stress, dt * theta, Temp, zeta=zeta_eps, return_eps_ne=True
-        )
-        Q = (eps_rate_zeta - eps_rate_ref) / eps_zeta[:, None, None]
 
         # Ill-conditioning guard (e.g., at zero-stress far-field cells where
-        # the residue is insensitive to ζ).  Zeroing the tangent contribution
-        # for these cells is equivalent to making ζ locally inert for this
+        # the residue is insensitive to zeta).  Zeroing the tangent contribution
+        # for these cells is equivalent to making zeta locally inert for this
         # Newton iteration.
-        H_MIN = 1e-12
-        self.ind_h_small = to.where(to.abs(self.h) < H_MIN)[0]
+        self.ind_h_small = to.where(to.abs(self.h) < self.H_MIN)[0]
         if len(self.ind_h_small) > 0:
             self.h[self.ind_h_small] = 1.0
 
         B = (self.r / self.h)[:, None, None] * Q
 
-        # --- P = dr/dsigma via stress-perturbation ----------------------- #
-        # Probe only the upper-triangular component of the symmetric tensor,
-        # matching Desai: _compute_md_fields reads only (i,j) with i<=j, so
-        # the FD is consistent with how the residue sees stress.  The factor
-        # of 2 on shear entries is carried inside _compute_H via the Voigt
-        # packing.
-        self.P = to.zeros_like(stress)
-        stress_eps = stress.clone()
-        for i, j in [(0, 0), (1, 1), (2, 2), (0, 1), (0, 2), (1, 2)]:
-            stress_eps[:, i, j] += EPSILON_STRESS
-            r_sig = self.compute_residue(stress_eps, self.zeta, Temp, dt)
-            self.P[:, i, j] = (r_sig - self.r) / EPSILON_STRESS
-            self.P[:, j, i] = self.P[:, i, j]
-            stress_eps[:, i, j] -= EPSILON_STRESS
+        # P = dr/dsigma.  Only the upper triangle is probed and then mirrored;
+        # the factor of 2 on shear entries is carried by `pack_H_voigt`.
+        def _stress_probe(xp, s):
+            return _residue_kernel(
+                xp,
+                s,
+                self._cast(xp, Temp),
+                self._cast(xp, self.zeta),
+                self._cast(xp, self.zeta_old),
+                dt,
+                self._params(xp),
+            )
 
-        H = self._compute_H(Q, self.P)
-        H_over_h = H / self.h[:, None, None]
+        self.P = self.derivative.d_scalar_d_stress(
+            _stress_probe,
+            stress,
+            step=self.EPSILON_STRESS_RESIDUE,
+            f0=self.r,
+        )
+
+        H_over_h = pack_H_voigt(Q, self.P) / self.h[:, None, None]
 
         if len(self.ind_h_small) > 0:
             B[self.ind_h_small] = 0.0
@@ -350,57 +409,3 @@ class MunsonDawsonCreep(NonElasticElement):
             self.P[self.ind_h_small] = 0.0
 
         return B, H_over_h
-
-    def _compute_H(self, Q: to.Tensor, P: to.Tensor) -> to.Tensor:
-        """
-        Tensorial-Voigt 6x6 packing of the rank-one tensor Q (outer) P.
-        Shear rows/columns carry the factor of 2 implicit in tensorial
-        Voigt storage of symmetric tensors — matches
-        `ViscoplasticDesai.compute_H`.
-        """
-        n_elems = P.shape[0]
-        H = to.zeros((n_elems, 6, 6), dtype=to.float64)
-
-        H[:, 0, 0] = Q[:, 0, 0] * P[:, 0, 0]
-        H[:, 0, 1] = Q[:, 0, 0] * P[:, 1, 1]
-        H[:, 0, 2] = Q[:, 0, 0] * P[:, 2, 2]
-        H[:, 0, 3] = 2 * Q[:, 0, 0] * P[:, 0, 1]
-        H[:, 0, 4] = 2 * Q[:, 0, 0] * P[:, 0, 2]
-        H[:, 0, 5] = 2 * Q[:, 0, 0] * P[:, 1, 2]
-
-        H[:, 1, 0] = Q[:, 1, 1] * P[:, 0, 0]
-        H[:, 1, 1] = Q[:, 1, 1] * P[:, 1, 1]
-        H[:, 1, 2] = Q[:, 1, 1] * P[:, 2, 2]
-        H[:, 1, 3] = 2 * Q[:, 1, 1] * P[:, 0, 1]
-        H[:, 1, 4] = 2 * Q[:, 1, 1] * P[:, 0, 2]
-        H[:, 1, 5] = 2 * Q[:, 1, 1] * P[:, 1, 2]
-
-        H[:, 2, 0] = Q[:, 2, 2] * P[:, 0, 0]
-        H[:, 2, 1] = Q[:, 2, 2] * P[:, 1, 1]
-        H[:, 2, 2] = Q[:, 2, 2] * P[:, 2, 2]
-        H[:, 2, 3] = 2 * Q[:, 2, 2] * P[:, 0, 1]
-        H[:, 2, 4] = 2 * Q[:, 2, 2] * P[:, 0, 2]
-        H[:, 2, 5] = 2 * Q[:, 2, 2] * P[:, 1, 2]
-
-        H[:, 3, 0] = Q[:, 0, 1] * P[:, 0, 0]
-        H[:, 3, 1] = Q[:, 0, 1] * P[:, 1, 1]
-        H[:, 3, 2] = Q[:, 0, 1] * P[:, 2, 2]
-        H[:, 3, 3] = 2 * Q[:, 0, 1] * P[:, 0, 1]
-        H[:, 3, 4] = 2 * Q[:, 0, 1] * P[:, 0, 2]
-        H[:, 3, 5] = 2 * Q[:, 0, 1] * P[:, 1, 2]
-
-        H[:, 4, 0] = Q[:, 0, 2] * P[:, 0, 0]
-        H[:, 4, 1] = Q[:, 0, 2] * P[:, 1, 1]
-        H[:, 4, 2] = Q[:, 0, 2] * P[:, 2, 2]
-        H[:, 4, 3] = 2 * Q[:, 0, 2] * P[:, 0, 1]
-        H[:, 4, 4] = 2 * Q[:, 0, 2] * P[:, 0, 2]
-        H[:, 4, 5] = 2 * Q[:, 0, 2] * P[:, 1, 2]
-
-        H[:, 5, 0] = Q[:, 1, 2] * P[:, 0, 0]
-        H[:, 5, 1] = Q[:, 1, 2] * P[:, 1, 1]
-        H[:, 5, 2] = Q[:, 1, 2] * P[:, 2, 2]
-        H[:, 5, 3] = 2 * Q[:, 1, 2] * P[:, 0, 1]
-        H[:, 5, 4] = 2 * Q[:, 1, 2] * P[:, 0, 2]
-        H[:, 5, 5] = 2 * Q[:, 1, 2] * P[:, 1, 2]
-
-        return H
