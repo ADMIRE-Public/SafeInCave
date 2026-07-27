@@ -80,17 +80,17 @@ Rules and escape hatches:
 
 from __future__ import annotations
 
-import importlib.abc
-import importlib.util
 import os
 import sys
 import warnings
+import importlib.abc
+import importlib.util
 from pathlib import Path
 
 #: Modules that must never be overlaid (the mechanism itself).
 _PROTECTED = {"safeincave.extensions"}
 
-_finder: _ExtensionFinder | None = None
+_finder: "_ExtensionFinder | None" = None
 
 
 def _read_target_prefix(entry: Path) -> tuple[str, ...] | None:
@@ -284,7 +284,7 @@ def install() -> None:
         return
     try:
         roots = _discover_extensions()
-    except (OSError, ValueError) as exc:
+    except Exception as exc:
         warnings.warn(
             f"SafeInCave extension discovery failed: {exc}", RuntimeWarning
         )

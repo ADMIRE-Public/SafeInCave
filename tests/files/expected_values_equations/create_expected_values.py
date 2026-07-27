@@ -5,6 +5,7 @@ sys.path.append(os.path.join("..", "..", "..", "safeincave"))
 from Equations import LinearMomentum
 from Grid import GridHandlerGMSH
 from Utils import read_json, save_json
+import ufl as ufl
 
 
 def main():

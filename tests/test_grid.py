@@ -1,10 +1,8 @@
 import os
-import unittest
-
-import dolfinx as do
-import numpy as np
-
 from safeincave import GridHandlerGMSH
+import numpy as np
+import unittest
+import dolfinx as do
 
 
 class Test1(unittest.TestCase):

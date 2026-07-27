@@ -2,11 +2,9 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import os
-
-import numpy as np
 import skops.io as sio
-
+import numpy as np
+import os
 from .IO import numpy2torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -27,7 +25,8 @@ class Element:
         for edge in edges:
             v1, v2 = edge
             length = np.linalg.norm(self.P_0[v1] - self.P_0[v2])
-            max_length = max(max_length, length)
+            if length > max_length:
+                max_length = length
         self.scale = max_length
 
 

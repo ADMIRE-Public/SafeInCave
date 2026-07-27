@@ -1,6 +1,5 @@
-import unittest
-
 from safeincave import CavernThermodynamics
+import unittest
 
 
 class Test_T(unittest.TestCase):

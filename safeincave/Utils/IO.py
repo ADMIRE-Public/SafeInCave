@@ -2,15 +2,13 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import json
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
-
-import dolfinx as do
+from numpy.typing import NDArray
+from typing import Callable, Any, TYPE_CHECKING
 import numpy as np
 import torch as to
+import dolfinx as do
 import ufl
-from numpy.typing import NDArray
+import json
 
 if TYPE_CHECKING:
     from ..Mesh.Grid import GridHandlerGMSH

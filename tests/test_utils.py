@@ -1,14 +1,13 @@
 import os
+from safeincave import GridHandlerGMSH
+import safeincave.Utils as ut
+import torch as to
+import numpy as np
 import unittest
 
-import dolfinx as do
-import numpy as np
-import torch as to
-import ufl
 from mpi4py import MPI
-
-import safeincave.Utils as ut
-from safeincave import GridHandlerGMSH
+import dolfinx as do
+import ufl
 
 
 class Test1(unittest.TestCase):
