@@ -47,6 +47,38 @@ class ADEvaluatorBase(DerivativeEvaluator):
             of the output of `fn`.
         """
 
+    def _jvp_batch(
+        self, fn: Callable, x: to.Tensor, directions: to.Tensor
+    ) -> tuple:
+        """
+        Batched forward-mode JVPs along multiple tangent directions.
+
+        Parameters
+        ----------
+        fn : callable
+            ``fn(xp, x)`` returning a tensor or a tuple of tensors.
+        x : torch.Tensor
+            Evaluation point, shape (N, 3, 3).
+        directions : torch.Tensor
+            Batch of tangent directions, shape (B, N, 3, 3) where B is the
+            number of directions.
+
+        Returns
+        -------
+        tuple
+            ``(value, tangents)`` where `value` matches the output of `fn(xp, x)`
+            and `tangents` has shape (B, ...) stacking the derivative along each
+            direction.
+
+        Notes
+        -----
+        Default implementation loops over directions and stacks results. Backends
+        should override this for efficiency (e.g. with vmap).
+        """
+        results = [self._jvp(fn, x, directions[i]) for i in range(directions.shape[0])]
+        values, derivs = zip(*results)
+        return values[0], to.stack(derivs)
+
     def d_tensor_d_stress(
         self,
         fn: Callable,
@@ -57,11 +89,17 @@ class ADEvaluatorBase(DerivativeEvaluator):
         n_elems = stress.shape[0]
         E = to.zeros((n_elems, 6, 6), dtype=to.float64)
 
-        for i, j, k, phi in STRESS_BASIS:
-            direction = to.zeros_like(stress)
-            direction[:, i, j] = 1.0
-            _, d_fn = self._jvp(fn, stress, direction)
-            E[:, :, k] = phi * d_fn[:, VOIGT_ROWS_I, VOIGT_ROWS_J]
+        # Build batch of 6 tangent directions (one per STRESS_BASIS entry)
+        directions = to.zeros((6, n_elems, 3, 3), dtype=stress.dtype, device=stress.device)
+        for idx, (i, j, k, phi) in enumerate(STRESS_BASIS):
+            directions[idx, :, i, j] = 1.0
+
+        # Compute all 6 JVPs in one batched call
+        _, d_fn_batch = self._jvp_batch(fn, stress, directions)
+
+        # Scatter results into Jacobian columns
+        for idx, (i, j, k, phi) in enumerate(STRESS_BASIS):
+            E[:, :, k] = phi * d_fn_batch[idx, :, VOIGT_ROWS_I, VOIGT_ROWS_J]
         return E
 
     def d_scalar_d_stress(
@@ -74,12 +112,18 @@ class ADEvaluatorBase(DerivativeEvaluator):
     ) -> to.Tensor:
         P = to.zeros_like(stress)
 
-        for i, j, _, _ in STRESS_BASIS:
-            direction = to.zeros_like(stress)
-            direction[:, i, j] = 1.0
-            _, d_fn = self._jvp(fn, stress, direction)
-            P[:, i, j] = d_fn
-            P[:, j, i] = d_fn
+        # Build batch of 6 tangent directions (one per STRESS_BASIS entry)
+        directions = to.zeros((6, stress.shape[0], 3, 3), dtype=stress.dtype, device=stress.device)
+        for idx, (i, j, _, _) in enumerate(STRESS_BASIS):
+            directions[idx, :, i, j] = 1.0
+
+        # Compute all 6 JVPs in one batched call
+        _, d_fn_batch = self._jvp_batch(fn, stress, directions)
+
+        # Scatter results into symmetric matrix
+        for idx, (i, j, _, _) in enumerate(STRESS_BASIS):
+            P[:, i, j] = d_fn_batch[idx]
+            P[:, j, i] = d_fn_batch[idx]
         return P
 
     def d_d_isv(

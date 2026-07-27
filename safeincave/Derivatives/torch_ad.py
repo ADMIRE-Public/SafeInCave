@@ -24,3 +24,11 @@ class TorchADEvaluator(ADEvaluatorBase):
 
     def _jvp(self, fn: Callable, x: to.Tensor, v: to.Tensor) -> tuple:
         return to.func.jvp(lambda a: fn(to, a), (x,), (v,))
+
+    def _jvp_batch(self, fn: Callable, x: to.Tensor, directions: to.Tensor) -> tuple:
+        """Batched JVP using vmap over the tangent directions."""
+        def single_jvp(v):
+            return to.func.jvp(lambda a: fn(to, a), (x,), (v,))
+
+        values, tangents = to.func.vmap(single_jvp)(directions)
+        return values[0], tangents

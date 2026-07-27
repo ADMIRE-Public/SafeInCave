@@ -66,6 +66,21 @@ class JaxADEvaluator(ADEvaluatorBase):
         value, derivative = jax.jvp(lambda a: fn(jnp, a), (x_jax,), (v_jax,))
         return tree_map(from_namespace, value), tree_map(from_namespace, derivative)
 
+    def _jvp_batch(
+        self, fn: Callable, x: to.Tensor, directions: to.Tensor
+    ) -> tuple:
+        """Batched JVP using vmap over the tangent directions, converting once."""
+        jax, jnp = _import_jax()
+
+        x_jax = to_namespace(jnp, x)
+        directions_jax = to_namespace(jnp, directions)
+
+        def single_jvp(v):
+            return jax.jvp(lambda a: fn(jnp, a), (x_jax,), (v,))
+
+        values, tangents = jax.vmap(single_jvp)(directions_jax)
+        return tree_map(from_namespace, values[0]), tree_map(from_namespace, tangents)
+
     def to_jax(self, *arrays: Any) -> Any:
         """Convert torch tensors into jnp arrays (convenience for kernels)."""
         _, jnp = _import_jax()
