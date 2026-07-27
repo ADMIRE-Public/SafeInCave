@@ -77,4 +77,5 @@ Repository = "https://github.com/ADMIRE-Public/SafeInCave"
 [tool.ruff.lint]
 # E402: module level import not at top - extensions.install() must run before imports
 # F403: unable to detect undefined names from wildcard import - used for constitutive model auto-discovery
-ignore = ["E402", "F403"]
+# N999: project convention uses PascalCase module names (e.g. Grid.py, IO.py) throughout
+ignore = ["E402", "F403", "N999"]
