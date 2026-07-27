@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 # Copyright (c) 2026, The SafeInCave Developers
 #
 # SPDX-License-Identifier: BSD-3-Clause
@@ -14,7 +15,6 @@ sets version information.
 
 __version__ = "3.0.3"
 
-# ruff: noqa: E402
 # Apply local extensions BEFORE any submodule import, so extension trees can
 # shadow/add safeincave modules and every import below already resolves to them.
 from . import extensions
