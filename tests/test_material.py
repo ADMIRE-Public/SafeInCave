@@ -1,7 +1,9 @@
-import safeincave as sc
-import torch as to
-import numpy as np
 import unittest
+
+import numpy as np
+import torch as to
+
+import safeincave as sc
 
 
 class TestSpring(unittest.TestCase):
