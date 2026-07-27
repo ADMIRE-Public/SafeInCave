@@ -4,4 +4,5 @@
 
 # Backward-compatible shim; actual implementation in Utils.IO
 from .IO import *
-from .MeshParameter import Element as Element, ModelML as ModelML
+from .MeshParameter import Element as Element
+from .MeshParameter import ModelML as ModelML
