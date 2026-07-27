@@ -12,14 +12,16 @@ characteristics across finite-difference, torch autodiff, and JAX autodiff
 approaches.
 """
 
-import safeincave as sf
-import safeincave.Utils as ut
-import safeincave.BC.Momentum as momBC
-import dolfinx as do
 import os
-import torch as to
 import time
+
+import dolfinx as do
 import numpy as np
+import torch as to
+
+import safeincave as sf
+import safeincave.BC.Momentum as momBC
+import safeincave.Utils as ut
 
 
 class LinearMomentumMod(sf.LinearMomentum):
