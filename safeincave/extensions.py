@@ -80,11 +80,11 @@ Rules and escape hatches:
 
 from __future__ import annotations
 
+import importlib.abc
+import importlib.util
 import os
 import sys
 import warnings
-import importlib.abc
-import importlib.util
 from pathlib import Path
 
 #: Modules that must never be overlaid (the mechanism itself).

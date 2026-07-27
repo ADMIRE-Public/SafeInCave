@@ -2,7 +2,6 @@ import os
 import sys
 
 sys.path.append(os.path.join("..", "..", "..", "safeincave"))
-import ufl
 from Equations import LinearMomentum
 from Grid import GridHandlerGMSH
 from Utils import read_json, save_json
