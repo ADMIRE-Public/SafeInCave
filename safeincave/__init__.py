@@ -14,10 +14,9 @@ sets version information.
 
 __version__ = "3.0.3"
 
+# ruff: noqa: E402
 # Apply local extensions BEFORE any submodule import, so extension trees can
 # shadow/add safeincave modules and every import below already resolves to them.
-# The late imports are intentional, hence the file-level E402 exemption.
-# ruff: noqa: E402
 from . import extensions
 
 extensions.install()
