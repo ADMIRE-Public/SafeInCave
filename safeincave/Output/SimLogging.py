@@ -195,6 +195,23 @@ def _extract_principal_stress(index: int):
     return extractor
 
 
+def _extract_principal_strain(index: int):
+    """Create extractor for principal strain at given index (0=e1, 1=e2, 2=e3).
+    Index 0 gives the largest eigenvalue (greatest extension / least compression)."""
+    def extractor(elem_id: int, strain=None, **kwargs) -> float:
+        """Extract principal strain for given element."""
+        if strain is None:
+            return 0.0
+        eps = strain[elem_id]
+        eps_np = eps.numpy() if hasattr(eps, "numpy") else np.asarray(eps)
+        eigvals = np.linalg.eigvalsh(eps_np)
+        if eigvals.ndim > 1:
+            eigvals = eigvals[0]
+        eigvals_desc = eigvals[::-1]
+        return float(eigvals_desc[index])
+    return extractor
+
+
 def _extract_yield_function():
     """Create extractor for yield function value."""
     def extractor(elem_id: int, **kwargs) -> float:
@@ -272,6 +289,9 @@ def _register_default_variables():
     register_variable('exx', 'exx (-)', _extract_strain_component('xx'))
     register_variable('eyy', 'eyy (-)', _extract_strain_component('yy'))
     register_variable('ezz', 'ezz (-)', _extract_strain_component('zz'))
+    register_variable('e1', 'e1 (-)', _extract_principal_strain(0))
+    register_variable('e2', 'e2 (-)', _extract_principal_strain(1))
+    register_variable('e3', 'e3 (-)', _extract_principal_strain(2))
     register_variable('F', 'F (Pa)', _extract_yield_function())
     register_variable('dl', 'dl (-)', _extract_plastic_multiplier())
     register_variable('YieldR', 'YieldR', _extract_yield_indicator_h())
