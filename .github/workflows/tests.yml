@@ -57,9 +57,8 @@ jobs:
             fenics-dolfinx=0.9.0 \
             numpy=1.26.4 \
             scipy=1.14.1 \
-            lxml \
-            pytz \
-            h5py \
+            lxml=6.1.1 \
+            h5py=3.16.0 \
             pip
           python - <<'PY'
           import dolfinx
@@ -75,13 +74,14 @@ jobs:
         shell: bash -el {0}
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install ruff
+          python -m pip install ruff==0.15.17
           python -m pip install meshio==3.3.1
-          python -m pip install skops
+          python -m pip install skops==0.14.0
           python -m pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cpu
           python -m pip install \
-            "gmsh>=4.14.0" \
-            CoolProp
+            gmsh==4.15.2 \
+            CoolProp==7.2.0 \
+            scikit-learn==1.7.2
           python -m pip install --editable . --no-deps
 
       - name: Run linting

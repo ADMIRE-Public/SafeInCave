@@ -106,7 +106,7 @@ conda activate safe
 The tag (safe) should now appear in the command line. SafeInCave currently uses [FEniCSx v0.9.0](https://fenicsproject.org/blog/v0.9.0/), so make sure to install this version. To install FEniCS v0.9.0 using conda, executed:
 
 ```bash
-conda install -c conda-forge fenics-dolfinx=0.9.0 mpich pyvista
+conda install -c conda-forge fenics-dolfinx=0.9.0 mpich
 ```
 
 Install SafeInCave by executing:
