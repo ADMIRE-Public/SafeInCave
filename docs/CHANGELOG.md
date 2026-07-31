@@ -23,6 +23,7 @@
 - Included principal stresses and strains in outputs.
 - Reorganized package layout into thematic subpackages with one module per file.
 - Updated readme with HyCavern and lined rock cavern info.
+- Pinned dependency versions exactly and removed unused packages to prevent CI churn.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
