@@ -44,6 +44,9 @@ dependencies = [
   "scipy==1.14.1",
 ]
 
+[project.scripts]
+sic = "safeincave.cli:main"
+
 [project.optional-dependencies]
 docs = [
   "mkdocs",
