@@ -26,6 +26,7 @@
 - Pinned dependency versions exactly and removed unused packages to prevent CI churn.
 - Bumped CI to Python 3.12 to match the project's conda envs and fix an unsolvable conda-forge dependency pin.
 - Caching in CI test workflow.
+- Add sic CLI subcommand.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
