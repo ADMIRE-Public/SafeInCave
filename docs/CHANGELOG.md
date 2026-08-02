@@ -25,6 +25,7 @@
 - Updated readme with HyCavern and lined rock cavern info.
 - Pinned dependency versions exactly and removed unused packages to prevent CI churn.
 - Bumped CI to Python 3.12 to match the project's conda envs and fix an unsolvable conda-forge dependency pin.
+- Speed up CI test workflow.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
