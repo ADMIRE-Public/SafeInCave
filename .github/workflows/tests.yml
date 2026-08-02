@@ -48,7 +48,7 @@ jobs:
           channel-priority: strict
           channels: conda-forge
           miniforge-version: latest
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Install pinned FEniCSx
         shell: bash -el {0}
@@ -60,6 +60,7 @@ jobs:
             lxml=6.1.1 \
             h5py=3.16.0 \
             pip
+          echo "LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
           python - <<'PY'
           import dolfinx
 
