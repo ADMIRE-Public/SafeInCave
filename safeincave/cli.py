@@ -23,7 +23,7 @@ from pathlib import Path
 
 
 def _run_script(args: argparse.Namespace) -> None:
-    script_path = Path.cwd() / f"{args.name}.py"
+    script_path = Path.cwd() / args.name
     if not script_path.is_file():
         print(f"sic run: no such file: {script_path}", file=sys.stderr)
         sys.exit(1)
@@ -33,12 +33,12 @@ def _run_script(args: argparse.Namespace) -> None:
 
 
 def _register_run(subparsers: argparse._SubParsersAction) -> None:
-    parser = subparsers.add_parser("run", help="Run <name>.py from the current directory (default: main)")
+    parser = subparsers.add_parser("run", help="Run <name>.py from the current directory (default: main.py)")
     parser.add_argument(
         "name",
         nargs="?",
-        default="main",
-        help="Script name without the .py extension (default: 'main')",
+        default="main.py",
+        help="Script filename, including the .py extension (default: 'main.py')",
     )
     parser.add_argument("script_args", nargs=argparse.REMAINDER, help="Extra arguments forwarded to the script")
     parser.set_defaults(func=_run_script)
