@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     env:
-      CONDA_PKGS_DIRS: ${{ github.workspace }}/.conda_pkgs_dir
+      CONDA_PKGS_DIRS: ${{ runner.temp }}/conda_pkgs_dir
 
     steps:
       - name: Check out repository
