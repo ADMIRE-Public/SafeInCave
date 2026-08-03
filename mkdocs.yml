@@ -76,6 +76,9 @@ nav:
       - Cite SafeInCave: home/cite.md
       - Changelog: CHANGELOG.md
 
+  - Usage:
+      - YAML case definitions: usage/yaml_input.md
+
 
   - Theory:
       - Introduction: theory/intro.md
