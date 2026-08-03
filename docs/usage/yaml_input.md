@@ -125,19 +125,43 @@ times.
 `stages` is a list, and each entry runs a full simulation with its own time
 controller, boundary conditions, outputs and simulator, while the grid,
 equations and material are built once and carried over. This is how a
-geostatic equilibrium step is followed by an operational step:
+geostatic equilibrium step is followed by an operational step, using
+`GeostaticStep` to check/equilibrate/commit the in-situ stress before the
+operational stage continues from it:
 
 ```yaml
 stages:
   - name: equilibrium
     time: {type: TimeControllerParabolic, n_time_steps: 20, initial_time: 0.0,
            final_time: 100, time_unit: day}
-    ...
+    bcs:
+      momentum: [...]           # same tractions/rollers the operational stage uses
+    outputs:
+      - equation: momentum
+        folder: output/equilibrium
+        fields: {sig: "Stress (Pa)"}
+    simulator:
+      type: GeostaticStep
+      tolerance: 1.0e-8
   - name: operation
     time: {type: TimeControllerAdaptive, initial_time: 0.0, initial_dt: 0.01,
            final_time: 30, time_unit: day, dt_max: 1.0}
     ...
+    simulator:
+      type: Simulator_M
+      compute_elastic_response: false   # continue from the committed geostatic state
 ```
+
+`GeostaticStep` checks the initial stress set on the momentum equation
+against the applied loads/BCs, solves to equilibrium (always with
+`compute_elastic_response=false` internally, so two documented defects in
+the elastic pre-solve path are never reached), then commits the equilibrated
+stress as the new reference and zeros displacement, strain and inelastic
+history — hence `operation` should run with `compute_elastic_response:
+false` to continue from that committed state. Note there is currently no
+YAML key to set an initial stress before stage 0 (`apply_initial_stress` is
+Python-API only), so a fully YAML-only geostatic workflow needs that set up
+separately, e.g. via `sic y2p` and a small edit to the generated script.
 
 ### Heat and thermomechanics
 
