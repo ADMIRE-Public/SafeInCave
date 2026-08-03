@@ -6,9 +6,9 @@ hour = 60 * 60
 MPa = 1e6
 
 
-def plot_eps_tot(ax, output_folder):
+def plot_eps_tot(ax, output_folder, output_format="xdmf"):
     centroids, time_list, eps_tot = post.read_cell_tensor(
-        os.path.join(output_folder, "eps_tot", "eps_tot.xdmf")
+        os.path.join(output_folder, "eps_tot", f"eps_tot.{output_format}")
     )
 
     target_point = [1.0, 1.0, 1.0]
@@ -27,18 +27,18 @@ def plot_eps_tot(ax, output_folder):
     ax.set_facecolor("0.85")
 
 
-def plot_strains(ax, output_folder):
+def plot_strains(ax, output_folder, output_format="xdmf"):
     centroids, time_list, eps_ve = post.read_cell_tensor(
-        os.path.join(output_folder, "eps_ve", "eps_ve.xdmf")
+        os.path.join(output_folder, "eps_ve", f"eps_ve.{output_format}")
     )
     centroids, time_list, eps_cr = post.read_cell_tensor(
-        os.path.join(output_folder, "eps_cr", "eps_cr.xdmf")
+        os.path.join(output_folder, "eps_cr", f"eps_cr.{output_format}")
     )
     centroids, time_list, eps_vp = post.read_cell_tensor(
-        os.path.join(output_folder, "eps_vp", "eps_vp.xdmf")
+        os.path.join(output_folder, "eps_vp", f"eps_vp.{output_format}")
     )
     centroids, time_list, eps_tot = post.read_cell_tensor(
-        os.path.join(output_folder, "eps_tot", "eps_tot.xdmf")
+        os.path.join(output_folder, "eps_tot", f"eps_tot.{output_format}")
     )
 
     eps_e = eps_tot - eps_ve - eps_cr - eps_vp
@@ -65,9 +65,9 @@ def plot_strains(ax, output_folder):
     ax.set_facecolor("0.85")
 
 
-def plot_Fvp(ax, output_folder):
+def plot_Fvp(ax, output_folder, output_format="xdmf"):
     centroids, time_list, Fvp = post.read_cell_scalar(
-        os.path.join(output_folder, "Fvp", "Fvp.xdmf")
+        os.path.join(output_folder, "Fvp", f"Fvp.{output_format}")
     )
 
     time_list /= hour
@@ -90,6 +90,11 @@ def main():
     # output_folder = os.path.join("output", "case_0", "P1P1_Stab")
     # output_folder = os.path.join("output", "case_0", "P1P1_Stab_E_Star")
 
+    # Format the results were written with (see SaveFields(output_format=...) in
+    # main.py / main_adaptive.py)
+    output_format = "xdmf"
+    # output_format = "vtkhdf"
+
     # Plot loading schedule
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 3))
     fig.subplots_adjust(
@@ -97,9 +102,9 @@ def main():
     )
     fig.patch.set_alpha(0.0)
 
-    plot_eps_tot(ax1, output_folder)
-    plot_strains(ax2, output_folder)
-    plot_Fvp(ax3, output_folder)
+    plot_eps_tot(ax1, output_folder, output_format)
+    plot_strains(ax2, output_folder, output_format)
+    plot_Fvp(ax3, output_folder, output_format)
 
     plt.show()
 

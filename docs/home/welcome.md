@@ -58,7 +58,7 @@ Being **open-source** is perhaps the most important aspect of SafeInCave. This h
 - **Constitutive model**: Munson-Dawson model, two branches model, thermal strains, Cam-Clay model, etc.
 - **Robust linearization**: Provides robustness and flexibility to include new constitutive models.
 - **Time discretization**: Choose between Explicit, Crank-Nicolson, and Fully-Implicit schemes.
-- **XDMF output**: Efficient output format in terms of size and postprocessing.
+- **Format-agnostic output**: Results are written as XDMF (default) or VTKHDF, both efficient in terms of size and postprocessing.
 
 <!-- --- -->
 

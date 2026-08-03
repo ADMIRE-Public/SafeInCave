@@ -42,4 +42,4 @@ This object orchestrates time loop within the simulator. It decides the time ste
 ## *Ouputs* object
 This object tells the simulator which fields to save during the simulation and where to save those fields. For the mechanical model, the user can choose to save, for example, the displacements, von Mises stresses, mean stresses, stress tensor, total strain tensor, creep strains, hardening parameter, etc. For the heat diffusion model, temperature is usually the only interest, but the heat flux vector, for example, can also be calculated in a custom function. Any property in the *Material* object can also be saved.
 
-All the results are saved in *.xdmf* files.
+All the results are saved in *.xdmf* files by default. Passing `output_format="vtkhdf"` to `SaveFields` writes *.vtkhdf* files instead, the format Kitware maintains as the successor of XDMF. Both are read back by the same `safeincave.PostProcessing` readers, which pick the backend from the file extension.
