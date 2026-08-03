@@ -9,6 +9,8 @@ from .strain_based import StrainBasedCriterion  # noqa: F401
 from .force_residual import ForceResidualCriterion  # noqa: F401
 from .displacement_increment import DisplacementIncrementCriterion  # noqa: F401
 from .force_displacement import ForceDisplacementCriterion  # noqa: F401
+from .newton_residual import NewtonResidualCriterion  # noqa: F401
+from .line_search import BacktrackingLineSearch  # noqa: F401
 from .handler import (  # noqa: F401
     ConvergenceErrorHandler,
     resolve_convergence_criterion,
@@ -22,6 +24,8 @@ __all__ = [
     "ForceResidualCriterion",
     "DisplacementIncrementCriterion",
     "ForceDisplacementCriterion",
+    "NewtonResidualCriterion",
+    "BacktrackingLineSearch",
     "ConvergenceErrorHandler",
     "resolve_convergence_criterion",
     "initialize_convergence_state",

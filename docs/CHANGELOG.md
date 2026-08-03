@@ -18,10 +18,10 @@
 - Option for smoothed output functionality.
 - Fixed broken von Mises extractor in SimulationLogging (raised AttributeError) and reduced logging setup verbosity.
 - Implemented local extensions mechanism.
-- Mixed formulation: cached compiled bilinear form/matrix with dt as fem.Constant, closed-form symmetric 3x3 eigenvalues in compute_moduli with zero-strain/E_star guards.
 - Added a closing solve per time step so the committed inelastic strain uses the final converged rate.
 - Included principal stresses and strains in outputs.
 - Reorganized package layout into thematic subpackages with one module per file.
+- Implemented efficient solvers Newton_P1 and Newton_P2.
 - Updated readme with HyCavern and lined rock cavern info.
 - Pinned dependency versions exactly and removed unused packages to prevent CI churn.
 - Bumped CI to Python 3.12 to match the project's conda envs and fix an unsolvable conda-forge dependency pin.

@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from ...Cavern import CavernHandler
 
 from ..base import GeneralBC
-from ..cavern_utils import compute_cavern_pressure_load
 import numpy as np
 import dolfinx as do
 import ufl
@@ -48,6 +47,17 @@ class BcHandler:
     def __init__(self):
         self.dirichlet_boundaries = []
         self.neumann_boundaries = []
+        # Constant-backed BC caches. The DOLFINx BC objects / UFL terms are
+        # built ONCE with a persistent fem.Constant per time-varying load;
+        # per-step updates only assign Constant.value. This keeps the
+        # dirichlet_bcs/neumann_bcs/cavern_bcs list objects identity-stable,
+        # which is the hard prerequisite for caching compiled forms that
+        # reference them (a form compiled against a load baked in as a float
+        # would freeze that load at its compile-time value).
+        self._dirichlet_consts = None
+        self._neumann_consts = None
+        self._cavern_cache_key = None
+        self._cavern_consts = None
 
     def set_uV(self, uV):
         self.uV = uV
@@ -80,6 +90,8 @@ class BcHandler:
         """
         self.dirichlet_boundaries = []
         self.neumann_boundaries = []
+        self._dirichlet_consts = None
+        self._neumann_consts = None
 
     def add_boundary_condition(self, bc: GeneralBC) -> None:
         """
@@ -101,8 +113,10 @@ class BcHandler:
         """
         if bc.type == "dirichlet":
             self.dirichlet_boundaries.append(bc)
+            self._dirichlet_consts = None
         elif bc.type == "neumann":
             self.neumann_boundaries.append(bc)
+            self._neumann_consts = None
         else:
             raise Exception(f"Boundary type {bc.type} not supported.")
 
@@ -121,24 +135,30 @@ class BcHandler:
 
         Side Effects
         ------------
-        Populates :attr:`dirichlet_bcs` with
-        :class:`dolfinx.fem.DirichletBC` constructed by:
-        - locating DOFs on each boundary for the target component, and
-        - interpolating the prescribed value via :func:`numpy.interp`.
+        On first call (or after the registered BC set changes), builds
+        :attr:`dirichlet_bcs` once: DOFs are located per boundary and each
+        :class:`dolfinx.fem.DirichletBC` wraps a persistent
+        :class:`dolfinx.fem.Constant`. Subsequent calls only assign
+        ``Constant.value`` from :func:`numpy.interp`, keeping the BC objects
+        (and the list) identity-stable for cached compiled forms.
         """
-        self.dirichlet_bcs = []
-        for bc in self.dirichlet_boundaries:
-            value = np.interp(t, bc.time_values, bc.values)
-            dofs = do.fem.locate_dofs_topological(
-                self.uV.sub(bc.component),
-                self.boundary_dim,
-                self.boundary_tags[bc.boundary_name],
-            )
-            self.dirichlet_bcs.append(
-                do.fem.dirichletbc(
-                    do.default_scalar_type(value), dofs, self.uV.sub(bc.component)
+        if self._dirichlet_consts is None:
+            mesh = self.uV.mesh
+            self._dirichlet_consts = []
+            self.dirichlet_bcs = []
+            for bc in self.dirichlet_boundaries:
+                const = do.fem.Constant(mesh, do.default_scalar_type(0.0))
+                dofs = do.fem.locate_dofs_topological(
+                    self.uV.sub(bc.component),
+                    self.boundary_dim,
+                    self.boundary_tags[bc.boundary_name],
                 )
-            )
+                self.dirichlet_bcs.append(
+                    do.fem.dirichletbc(const, dofs, self.uV.sub(bc.component))
+                )
+                self._dirichlet_consts.append(const)
+        for bc, const in zip(self.dirichlet_boundaries, self._dirichlet_consts):
+            const.value = np.interp(t, bc.time_values, bc.values)
 
     def update_neumann(self, t: float) -> None:
         """
@@ -160,28 +180,59 @@ class BcHandler:
 
         Side Effects
         ------------
-        Populates :attr:`neumann_bcs` with UFL surface integrals to be added
-        to the right-hand side form.
+        On first call (or after the registered BC set changes), builds
+        :attr:`neumann_bcs` once as UFL surface integrals whose time-varying
+        pressure lives in a persistent :class:`dolfinx.fem.Constant`.
+        Subsequent calls only assign ``Constant.value``, keeping the UFL
+        terms (and the list) identity-stable for cached compiled forms.
         """
-        self.neumann_bcs = []
-        for bc in self.neumann_boundaries:
-            i = bc.direction
-            rho = bc.density
-            H = bc.ref_pos
-            p = -np.interp(t, bc.time_values, bc.values)
-            value_neumann = p + rho * bc.gravity * (H - self.x[i])
-            self.neumann_bcs.append(
-                value_neumann
-                * self.normal
-                * self.ds(self.dolfin_tags[self.boundary_dim][bc.boundary_name])
-            )
+        if self._neumann_consts is None:
+            mesh = self.uV.mesh
+            self._neumann_consts = []
+            self.neumann_bcs = []
+            for bc in self.neumann_boundaries:
+                i = bc.direction
+                rho = bc.density
+                H = bc.ref_pos
+                p_const = do.fem.Constant(mesh, do.default_scalar_type(0.0))
+                value_neumann = p_const + rho * bc.gravity * (H - self.x[i])
+                self.neumann_bcs.append(
+                    value_neumann
+                    * self.normal
+                    * self.ds(self.dolfin_tags[self.boundary_dim][bc.boundary_name])
+                )
+                self._neumann_consts.append(p_const)
+        for bc, p_const in zip(self.neumann_boundaries, self._neumann_consts):
+            p_const.value = -np.interp(t, bc.time_values, bc.values)
 
     def update_cavern_bcs(self, cavern_handler: CavernHandler):
-        self.cavern_bcs = []
-        for cavern in cavern_handler.caverns_PT + cavern_handler.caverns_MFlux:
-            load = compute_cavern_pressure_load(cavern, self.x)
-            self.cavern_bcs.append(
-                load
-                * self.normal
-                * self.ds(self.dolfin_tags[self.boundary_dim][cavern.cavern_name])
-            )
+        """
+        Build/update cavern pressure loads. The UFL terms are built once per
+        cavern set with persistent :class:`dolfinx.fem.Constant` objects for
+        the two time-varying scalars (gauge pressure ``P`` and fluid density);
+        per-call updates only assign ``Constant.value``. A change in the
+        cavern set rebuilds the terms (invalidating any cached forms that
+        reference :attr:`cavern_bcs`).
+        """
+        caverns = cavern_handler.caverns_PT + cavern_handler.caverns_MFlux
+        cache_key = tuple(id(cavern) for cavern in caverns)
+        if self._cavern_cache_key != cache_key:
+            mesh = self.uV.mesh
+            self._cavern_cache_key = cache_key
+            self._cavern_consts = []
+            self.cavern_bcs = []
+            for cavern in caverns:
+                p_const = do.fem.Constant(mesh, do.default_scalar_type(0.0))
+                rho_const = do.fem.Constant(mesh, do.default_scalar_type(0.0))
+                load = p_const + rho_const * cavern.gravity * (
+                    cavern.ref_pos - self.x[cavern.direction]
+                )
+                self.cavern_bcs.append(
+                    load
+                    * self.normal
+                    * self.ds(self.dolfin_tags[self.boundary_dim][cavern.cavern_name])
+                )
+                self._cavern_consts.append((p_const, rho_const))
+        for cavern, (p_const, rho_const) in zip(caverns, self._cavern_consts):
+            p_const.value = -cavern.P
+            rho_const.value = cavern.density

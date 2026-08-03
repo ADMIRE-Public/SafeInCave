@@ -12,6 +12,7 @@ from .strain_based import StrainBasedCriterion
 from .force_residual import ForceResidualCriterion
 from .displacement_increment import DisplacementIncrementCriterion
 from .force_displacement import ForceDisplacementCriterion
+from .newton_residual import NewtonResidualCriterion
 
 if TYPE_CHECKING:
     pass
@@ -55,11 +56,13 @@ def resolve_convergence_criterion(
         return DisplacementIncrementCriterion()
     if criterion_key == "force_displacement":
         return ForceDisplacementCriterion()
+    if criterion_key == "newton_residual":
+        return NewtonResidualCriterion()
 
     raise ValueError(
         "Unknown convergence_criterion. Supported values: "
         "'strain_based', 'force_residual', "
-        "'displacement_increment', 'force_displacement'."
+        "'displacement_increment', 'force_displacement', 'newton_residual'."
     )
 
 
@@ -143,6 +146,13 @@ class ConvergenceErrorHandler:
         # net on top, not folded into any one criterion's number.
         self.plastic_consistency_tolerance = plastic_consistency_tolerance
         self.plastic_consistency_error: float = 0.0
+        # Optional per-iteration CSV trace (SAFEINCAVE_CONV_TRACE=<path>):
+        # one row per nonlinear iteration with the criterion error, the
+        # consistency residual and per-model plastic diagnostics. Meant for
+        # plastic-model debugging; costs nothing when the variable is unset.
+        self._trace_path: Optional[str] = os.environ.get("SAFEINCAVE_CONV_TRACE")
+        self._trace_step: int = 0
+        self._trace_header_written: bool = False
 
     def initialize_step(
         self,
@@ -155,6 +165,7 @@ class ConvergenceErrorHandler:
         self.ite = 0
         self.maxiter = maxiter
         self.below_max_iterations = True if maxiter is None else (self.ite < maxiter)
+        self._trace_step += 1
         initialize_convergence_state(
             momentum_eq,
             self.criterion,
@@ -182,7 +193,40 @@ class ConvergenceErrorHandler:
                 flush=True,
             )
 
+        if self._trace_path and momentum_eq.grid.mesh.comm.rank == 0:
+            self._write_trace_row(momentum_eq)
+
         return self.error
+
+    def _write_trace_row(self, momentum_eq: Any) -> None:
+        """Append one per-iteration diagnostics row to the trace CSV."""
+        columns = ["step", "ite", "error", "plastic_consistency_error"]
+        values = [
+            self._trace_step,
+            self.ite,
+            self.error,
+            self.plastic_consistency_error,
+        ]
+        for elem_ne in getattr(momentum_eq.mat, "elems_ne", []):
+            name = getattr(elem_ne, "name", type(elem_ne).__name__)
+            consistency = getattr(elem_ne, "consistency_error", None)
+            if consistency is not None:
+                columns.append(f"{name}_consistency")
+                values.append(float(consistency))
+            is_plastic = getattr(elem_ne, "is_plastic", None)
+            if is_plastic is not None:
+                columns.append(f"{name}_n_plastic")
+                values.append(int(is_plastic.sum()))
+            corner = getattr(elem_ne, "corner", None)
+            if corner is not None:
+                columns.append(f"{name}_n_corner")
+                values.append(int(corner.sum()))
+        with open(self._trace_path, "a") as f:
+            if not self._trace_header_written:
+                if f.tell() == 0:
+                    f.write(",".join(columns) + "\n")
+                self._trace_header_written = True
+            f.write(",".join(str(v) for v in values) + "\n")
 
     def evaluate(
         self,

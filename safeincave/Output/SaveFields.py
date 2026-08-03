@@ -347,8 +347,18 @@ class SaveFields:
             if self.smooth_output:
                 try:
                     ufl_elem = field.function_space.ufl_element()
+                    mesh_degree = field.function_space.mesh.geometry.cmap.degree
                     if ufl_elem.degree == 0:
                         field = self.eq.grid.smooth_dg0_to_cg1(field)
+                    elif ufl_elem.degree > mesh_degree:
+                        # Interpolate high-order fields (e.g., P2) to CG1 for output
+                        cg1_space = do.fem.functionspace(
+                            field.function_space.mesh,
+                            ("Lagrange", 1, ufl_elem.reference_value_shape),
+                        )
+                        cg1_field = do.fem.Function(cg1_space)
+                        cg1_field.interpolate(field)
+                        field = cg1_field
                 except Exception:
                     pass
 
