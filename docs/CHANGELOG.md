@@ -25,6 +25,7 @@
 - Updated readme with HyCavern and lined rock cavern info.
 - Pinned dependency versions exactly and removed unused packages to prevent CI churn.
 - Bumped CI to Python 3.12 to match the project's conda envs and fix an unsolvable conda-forge dependency pin.
+- Included abstraction of derivative evaluation and automatic differentiation.
 - Caching in CI test workflow.
 - Add sic CLI subcommand.
 - Made simulation output format agnostic and added a VTKHDF output backend.

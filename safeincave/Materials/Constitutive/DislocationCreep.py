@@ -3,8 +3,37 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from __future__ import annotations
+from typing import Any
 import torch as to
+from ...Derivatives import deviator, split_sym3
 from .NonElasticElement import NonElasticElement
+
+
+def _rate_kernel(
+    xp: Any, stress: Any, Temp: Any, A: Any, Q: Any, n: Any, R: float
+) -> Any:
+    """
+    Namespace-generic dislocation-creep rate kernel.
+
+    Pure and out-of-place so it can be traced by both AD backends; see
+    :mod:`safeincave.Derivatives.namespace`.
+    """
+    s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = split_sym3(stress)
+
+    dev = deviator(xp, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
+
+    q_vm = xp.sqrt(
+        0.5
+        * (
+            (s_xx - s_yy) ** 2
+            + (s_xx - s_zz) ** 2
+            + (s_yy - s_zz) ** 2
+            + 6 * (s_xy**2 + s_xz**2 + s_yz**2)
+        )
+    )
+
+    A_bar = A * xp.exp(-Q / R / Temp) * q_vm ** (n - 1)
+    return A_bar[:, None, None] * dev
 
 
 class DislocationCreep(NonElasticElement):
@@ -22,6 +51,8 @@ class DislocationCreep(NonElasticElement):
         Stress exponent per element, shape (N,).
     name : str, optional
         Element name, by default "creep".
+    derivative_method : str or DerivativeEvaluator, optional
+        Derivative backend; see :class:`NonElasticElement`.
 
     Attributes
     ----------
@@ -31,13 +62,25 @@ class DislocationCreep(NonElasticElement):
         Material parameters, shape (N,).
     """
 
-    def __init__(self, A: to.Tensor, Q: to.Tensor, n: to.Tensor, name: str = "creep") -> None:
-        super().__init__(A.shape[0])
+    def __init__(
+        self,
+        A: to.Tensor,
+        Q: to.Tensor,
+        n: to.Tensor,
+        name: str = "creep",
+        derivative_method: Any = None,
+    ) -> None:
+        super().__init__(A.shape[0], derivative_method=derivative_method)
         self.R = 8.32
         self.Q = Q
         self.A = A
         self.n = n
         self.name = name
+
+    def rate_fn(self, xp: Any, stress: Any, phi1: float, Temp: Any) -> Any:
+        """Namespace-generic strain-rate kernel (see :class:`NonElasticElement`)."""
+        A, Q, n = self._cast(xp, self.A, self.Q, self.n)
+        return _rate_kernel(xp, stress, Temp, A, Q, n, self.R)
 
     def compute_eps_ne_rate(
         self,
@@ -65,31 +108,9 @@ class DislocationCreep(NonElasticElement):
         None or torch.Tensor
             (N, 3, 3) if `return_eps_ne=True`, else `None`.
         """
-        s_xx = stress_vec[:, 0, 0]
-        s_yy = stress_vec[:, 1, 1]
-        s_zz = stress_vec[:, 2, 2]
-        s_xy = stress_vec[:, 0, 1]
-        s_xz = stress_vec[:, 0, 2]
-        s_yz = stress_vec[:, 1, 2]
-
-        sigma_mean = (s_xx + s_yy + s_zz) / 3
-        dev = stress_vec.clone()
-        dev[:, 0, 0] = s_xx - sigma_mean
-        dev[:, 1, 1] = s_yy - sigma_mean
-        dev[:, 2, 2] = s_zz - sigma_mean
-
-        q_vm = to.sqrt(
-            0.5
-            * (
-                (s_xx - s_yy) ** 2
-                + (s_xx - s_zz) ** 2
-                + (s_yy - s_zz) ** 2
-                + 6 * (s_xy**2 + s_xz**2 + s_yz**2)
-            )
+        eps_rate = _rate_kernel(
+            to, stress_vec, Temp, self.A, self.Q, self.n, self.R
         )
-
-        A_bar = self.A * to.exp(-self.Q / self.R / Temp) * q_vm ** (self.n - 1)
-        eps_rate = A_bar[:, None, None] * dev
         if return_eps_ne:
             return eps_rate
         else:

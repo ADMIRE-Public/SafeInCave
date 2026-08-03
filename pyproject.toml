@@ -49,6 +49,11 @@ dependencies = [
 sic = "safeincave.cli:main"
 
 [project.optional-dependencies]
+# Enables derivative_method="jax_ad". Pinned below 0.4.36, which requires
+# numpy>=2 and so conflicts with the numpy==1.26.4 / dolfinx 0.9.0 pins above.
+jax = [
+  "jax[cpu]==0.4.35",
+]
 docs = [
   "mkdocs",
   "mkdocs-material",
@@ -72,3 +77,9 @@ include = ["safeincave*"]
 
 [project.urls]
 Repository = "https://github.com/ADMIRE-Public/SafeInCave"
+
+[tool.ruff.lint]
+# E402: module level import not at top - extensions.install() must run before imports
+# F403: unable to detect undefined names from wildcard import - used for constitutive model auto-discovery
+# N999: project convention uses PascalCase module names (e.g. Grid.py, IO.py) throughout
+ignore = ["E402", "F403", "N999"]

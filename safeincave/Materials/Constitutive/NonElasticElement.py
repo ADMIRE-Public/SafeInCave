@@ -4,8 +4,14 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from typing import Any
 import torch as to
 from ...Utils import dotdot_torch
+from ...Derivatives import (
+    DerivativeEvaluator,
+    resolve_derivative_evaluator,
+    to_namespace,
+)
 
 
 class NonElasticElement(ABC):
@@ -18,6 +24,11 @@ class NonElasticElement(ABC):
     ----------
     n_elems : int
         Number of elements.
+    derivative_method : str or DerivativeEvaluator, optional
+        Backend used to differentiate the strain rate with respect to stress:
+        ``"finite_difference"`` (default), ``"torch_ad"`` or ``"jax_ad"``.
+        `None` uses the global default — see
+        :func:`safeincave.set_default_derivative_method`.
 
     Attributes
     ----------
@@ -31,10 +42,21 @@ class NonElasticElement(ABC):
         State variable term (N, 3, 3) assembled in `compute_G_B`.
     G : torch.Tensor
         Tangent-like operator (N, 6, 6) assembled in `compute_G_B`.
+    derivative : DerivativeEvaluator
+        Resolved derivative backend used by `compute_E` and, where relevant,
+        by `compute_B_and_H_over_h`.
     """
 
-    def __init__(self, n_elems: int) -> None:
+    #: Finite-difference step (Pa) used by `compute_E` under the FD backend.
+    EPSILON_STRESS_RATE: float = 1e-2
+
+    def __init__(
+        self,
+        n_elems: int,
+        derivative_method: "str | DerivativeEvaluator | None" = None,
+    ) -> None:
         self.n_elems = n_elems
+        self.derivative = resolve_derivative_evaluator(derivative_method)
         self.eps_ne_rate = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
         self.eps_ne_rate_old = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
         self.eps_ne_old = to.zeros((self.n_elems, 3, 3), dtype=to.float64)
@@ -120,11 +142,59 @@ class NonElasticElement(ABC):
         """
         self.eps_ne_rate_old = self.eps_ne_rate.clone()
 
+    def rate_fn(
+        self, xp: Any, stress: Any, phi1: float, Temp: Any, **isv: Any
+    ) -> Any:
+        """
+        Array-namespace-generic strain-rate kernel used by the derivative backends.
+
+        Parameters
+        ----------
+        xp : module
+            Array namespace: `torch` for the finite-difference and torch-AD
+            backends, `jax.numpy` for the JAX-AD backend.
+        stress : array
+            Stress per element, shape (N, 3, 3).
+        phi1 : float
+            Time integration factor (`dt*theta`).
+        Temp : array
+            Temperature per element.
+        **isv
+            Optional internal-state-variable overrides (e.g. `alpha`, `zeta`,
+            `pc`), forwarded to the concrete model.
+
+        Returns
+        -------
+        array
+            Strain rate, shape (N, 3, 3), in the namespace `xp`.
+
+        Notes
+        -----
+        The default implementation simply forwards to `compute_eps_ne_rate`,
+        which covers the finite-difference and torch-AD backends. Mechanisms
+        that want the JAX backend must override this with a kernel written
+        against `xp` only — see :mod:`safeincave.Derivatives.namespace`.
+        """
+        if xp is to:
+            return self.compute_eps_ne_rate(
+                stress, phi1, Temp, return_eps_ne=True, **isv
+            )
+        raise NotImplementedError(
+            f"{type(self).__name__} does not provide an array-namespace-generic "
+            "strain-rate kernel, so derivative_method='jax_ad' is unavailable "
+            "for it. Use 'finite_difference' or 'torch_ad', or override "
+            "`rate_fn`."
+        )
+
     def compute_E(
         self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor
     ) -> None:
         """
-        Finite-difference approximation of the 6×6 operator E = d(eps_ne)/d(stress).
+        The 6×6 operator E = d(eps_ne)/d(stress).
+
+        Evaluated by `self.derivative`: central finite differences by default,
+        or exact forward-mode AD when the mechanism was built with
+        ``derivative_method="torch_ad"`` / ``"jax_ad"``.
 
         Parameters
         ----------
@@ -143,35 +213,16 @@ class NonElasticElement(ABC):
             Operator `E` with shape (N, 6, 6).
         """
         phi1 = dt * theta
-        EPSILON = 1e-2
-        E = to.zeros((self.n_elems, 6, 6), dtype=to.float64)
-        stress_eps = stress.clone()
-        c1 = 1.0
-        c2 = 2.0
-        magic_indexes = [
-            (0, 0, 0, c1),
-            (1, 1, 1, c1),
-            (2, 2, 2, c1),
-            (0, 1, 3, c2),
-            (0, 2, 4, c2),
-            (1, 2, 5, c2),
-        ]
-        for i, j, k, phi in magic_indexes:
-            stress_eps[:, i, j] += EPSILON
-            eps_A = self.compute_eps_ne_rate(stress_eps, phi1, Temp, return_eps_ne=True)
-            stress_eps[:, i, j] -= EPSILON
-            stress_eps[:, i, j] -= EPSILON
-            eps_B = self.compute_eps_ne_rate(stress_eps, phi1, Temp, return_eps_ne=True)
-            stress_eps[:, i, j] += EPSILON
-            E[:, :, k] = (
-                phi
-                * (
-                    eps_A[:, [0, 1, 2, 0, 0, 1], [0, 1, 2, 1, 2, 2]]
-                    - eps_B[:, [0, 1, 2, 0, 0, 1], [0, 1, 2, 1, 2, 2]]
-                )
-                / (2 * EPSILON)
-            )
-        return E
+        return self.derivative.d_tensor_d_stress(
+            lambda xp, s: self.rate_fn(xp, s, phi1, self._cast(xp, Temp)),
+            stress,
+            step=self.EPSILON_STRESS_RATE,
+        )
+
+    @staticmethod
+    def _cast(xp: Any, *tensors: Any) -> Any:
+        """Move torch parameters into the namespace `xp` (identity for torch)."""
+        return to_namespace(xp, *tensors)
 
     def compute_B_and_H_over_h(
         self, stress: to.Tensor, dt: float, theta: float, Temp: to.Tensor

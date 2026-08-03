@@ -3,8 +3,26 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from __future__ import annotations
+from typing import Any
 import torch as to
+from ...Derivatives import deviator, split_sym3
 from .NonElasticElement import NonElasticElement
+
+
+def _rate_kernel(
+    xp: Any, stress: Any, Temp: Any, A: Any, d: Any, Q: Any, R: float
+) -> Any:
+    """
+    Namespace-generic pressure-solution-creep rate kernel.
+
+    Pure and out-of-place so it can be traced by both AD backends.
+    """
+    s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = split_sym3(stress)
+
+    dev = deviator(xp, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz)
+
+    A_bar = (A / d**3 / Temp) * xp.exp(-Q / R / Temp)
+    return A_bar[:, None, None] * dev
 
 
 class PressureSolutionCreep(NonElasticElement):
@@ -22,6 +40,8 @@ class PressureSolutionCreep(NonElasticElement):
         Activation energy per element, shape (N,).
     name : str, optional
         Element name, by default "creep".
+    derivative_method : str or DerivativeEvaluator, optional
+        Derivative backend; see :class:`NonElasticElement`.
 
     Attributes
     ----------
@@ -31,13 +51,25 @@ class PressureSolutionCreep(NonElasticElement):
         Material parameters, shape (N,).
     """
 
-    def __init__(self, A: to.Tensor, d: to.Tensor, Q: to.Tensor, name: str = "creep") -> None:
-        super().__init__(A.shape[0])
+    def __init__(
+        self,
+        A: to.Tensor,
+        d: to.Tensor,
+        Q: to.Tensor,
+        name: str = "creep",
+        derivative_method: Any = None,
+    ) -> None:
+        super().__init__(A.shape[0], derivative_method=derivative_method)
         self.R = 8.32
         self.Q = Q
         self.A = A
         self.d = d
         self.name = name
+
+    def rate_fn(self, xp: Any, stress: Any, phi1: float, Temp: Any) -> Any:
+        """Namespace-generic strain-rate kernel (see :class:`NonElasticElement`)."""
+        A, d, Q = self._cast(xp, self.A, self.d, self.Q)
+        return _rate_kernel(xp, stress, Temp, A, d, Q, self.R)
 
     def compute_eps_ne_rate(
         self,
@@ -65,18 +97,9 @@ class PressureSolutionCreep(NonElasticElement):
         None or torch.Tensor
             (N, 3, 3) if `return_eps_ne=True`, else `None`.
         """
-        s_xx = stress_vec[:, 0, 0]
-        s_yy = stress_vec[:, 1, 1]
-        s_zz = stress_vec[:, 2, 2]
-
-        sigma_mean = (s_xx + s_yy + s_zz) / 3
-        dev = stress_vec.clone()
-        dev[:, 0, 0] = s_xx - sigma_mean
-        dev[:, 1, 1] = s_yy - sigma_mean
-        dev[:, 2, 2] = s_zz - sigma_mean
-
-        A_bar = (self.A / self.d**3 / Temp) * to.exp(-self.Q / self.R / Temp)
-        eps_rate = A_bar[:, None, None] * dev
+        eps_rate = _rate_kernel(
+            to, stress_vec, Temp, self.A, self.d, self.Q, self.R
+        )
         if return_eps_ne:
             return eps_rate
         else:

@@ -22,6 +22,16 @@ from . import extensions
 
 extensions.install()
 
+from .Derivatives import (
+    DerivativeEvaluator,
+    FiniteDifferenceEvaluator,
+    TorchADEvaluator,
+    JaxADEvaluator,
+    resolve_derivative_evaluator,
+    set_default_derivative_method,
+    get_default_derivative_method,
+    evaluate_derivative,
+)
 from .Mesh.Grid import GridHandlerGMSH
 from .Equations.Heat import HeatDiffusion
 from .Equations.Momentum import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
@@ -65,6 +75,14 @@ from . import Utils
 
 
 __all__ = [
+    "DerivativeEvaluator",
+    "FiniteDifferenceEvaluator",
+    "TorchADEvaluator",
+    "JaxADEvaluator",
+    "resolve_derivative_evaluator",
+    "set_default_derivative_method",
+    "get_default_derivative_method",
+    "evaluate_derivative",
     "GridHandlerGMSH",
     "HeatDiffusion",
     "LinearMomentumBase",

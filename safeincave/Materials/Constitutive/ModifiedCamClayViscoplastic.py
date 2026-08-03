@@ -3,8 +3,92 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from __future__ import annotations
+from typing import Any
 import torch as to
+from ...Derivatives import build_sym3, pack_H_voigt, split_sym3
 from .NonElasticElement import NonElasticElement
+
+
+def _mcc_fields_kernel(xp: Any, stress: Any, pc: Any, p: dict) -> tuple:
+    """
+    Namespace-generic Modified Cam-Clay intermediate quantities.
+
+    Returns `(s_dev, p_safe, F, lambda_P, m_pos, p_n)`.  Pure and
+    out-of-place; the Macaulay bracket on `F/pc^2` is a double-`where` so the
+    inactive branch never evaluates a fractional power of zero, whose
+    derivative would be infinite.
+    """
+    # Compression-positive stress
+    s_xx, s_yy, s_zz, s_xy, s_xz, s_yz = split_sym3(-stress)
+
+    p_mean = (s_xx + s_yy + s_zz) / 3.0
+    d_xx = s_xx - p_mean
+    d_yy = s_yy - p_mean
+    d_zz = s_zz - p_mean
+    s_dev = build_sym3(xp, d_xx, d_yy, d_zz, s_xy, s_xz, s_yz)
+
+    # q^2 = 3 J2 = 1.5 s:s
+    q2 = 1.5 * (
+        d_xx**2 + d_yy**2 + d_zz**2 + 2.0 * (s_xy**2 + s_xz**2 + s_yz**2)
+    )
+
+    # Numerical floors: 1 Pa on p and pc to guard divisions / power laws
+    p_safe = xp.clip(p_mean, 1.0, None)
+    pc_safe = xp.clip(pc, 1.0, None)
+
+    M2 = p["M"] * p["M"]
+    F = p_safe * p_safe - p_safe * pc_safe + q2 / M2
+
+    # Perzyna multiplier: <F/pc^2>^n / eta_v
+    eta_safe = xp.clip(p["eta_v"], 1e-30, None)
+    ratio = xp.clip(F / (pc_safe * pc_safe), 0.0, 1e6)  # cap avoids overflow
+    active = ratio > 0.0
+    ratio_safe = xp.where(active, ratio, xp.ones_like(ratio))
+    lambda_P = xp.where(
+        active, (ratio_safe ** p["n_rate"]) / eta_safe, xp.zeros_like(ratio)
+    )
+
+    # Dimensionless flow direction m = (1/pc) * dF/dsigma_pos.
+    # dF/dsigma_pos = (2p - pc)/3 delta + (3/M^2) s_dev  [Pa]
+    # so m_vol = (2p - pc) / (3 pc), m_dev = (3 / (M^2 pc)) s_dev.
+    coeff_vol = (2.0 * p_safe - pc_safe) / (3.0 * pc_safe)
+    coeff_dev = 3.0 / (M2 * pc_safe)
+    m_pos = build_sym3(
+        xp,
+        coeff_dev * d_xx + coeff_vol,
+        coeff_dev * d_yy + coeff_vol,
+        coeff_dev * d_zz + coeff_vol,
+        coeff_dev * s_xy,
+        coeff_dev * s_xz,
+        coeff_dev * s_yz,
+    )
+
+    # Consistent preconsolidation (root of F=0 in p_c): p_n = p + q^2/(M^2 p)
+    p_n = p_safe + q2 / (M2 * p_safe)
+
+    return s_dev, p_safe, F, lambda_P, m_pos, p_n
+
+
+def _rate_kernel(xp: Any, stress: Any, pc: Any, p: dict) -> tuple:
+    """Namespace-generic MCC viscoplastic rate kernel; returns `(eps_rate, F)`."""
+    _, _, F, lambda_P, m_pos, _ = _mcc_fields_kernel(xp, stress, pc, p)
+    # m_pos is dimensionless and lambda_P is in 1/s, so eps_rate is in 1/s.
+    # The sign converts the compression-positive direction to the
+    # safeincave convention.
+    return -m_pos * lambda_P[:, None, None], F
+
+
+def _residue_kernel(
+    xp: Any, stress: Any, pc: Any, pc_old: Any, p: dict
+) -> Any:
+    """Residue ``r = pc - pc_old * (p_n / pc_old)**theta``."""
+    _, _, _, _, _, p_n = _mcc_fields_kernel(xp, stress, pc, p)
+
+    pc_old_safe = xp.clip(pc_old, 1.0, None)
+    p_n_safe = xp.clip(p_n, 1.0, None)
+
+    pc_target = pc_old_safe * (p_n_safe / pc_old_safe) ** p["theta"]
+    return pc - pc_target
 
 
 class ModifiedCamClayViscoplastic(NonElasticElement):
@@ -69,8 +153,9 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         eta_v: to.Tensor,
         n_rate: to.Tensor,
         name: str = "cam_clay",
+        derivative_method: Any = None,
     ) -> None:
-        super().__init__(M.shape[0])
+        super().__init__(M.shape[0], derivative_method=derivative_method)
         self.name = name
 
         self.M = M.to(dtype=to.float64)
@@ -124,6 +209,22 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
     # Physics evaluator (shared by rate, residue, and FD probes)
     # ------------------------------------------------------------------ #
 
+    _PARAM_NAMES = ("M", "lam", "kap", "theta", "e0", "eta_v", "n_rate")
+
+    def _params(self, xp: Any) -> dict:
+        """Material parameters cast into the array namespace `xp`."""
+        values = self._cast(xp, *(getattr(self, k) for k in self._PARAM_NAMES))
+        return dict(zip(self._PARAM_NAMES, values))
+
+    def rate_fn(
+        self, xp: Any, stress: Any, phi1: float, Temp: Any, pc: Any = None
+    ) -> Any:
+        """Namespace-generic strain-rate kernel (see :class:`NonElasticElement`)."""
+        if pc is None:
+            pc = self._cast(xp, self.pc)
+        eps_rate, _ = _rate_kernel(xp, stress, pc, self._params(xp))
+        return eps_rate
+
     def _compute_mcc_fields(self, stress: to.Tensor, pc: to.Tensor):
         """
         Compute MCC intermediate quantities for a given (stress, p_c) state.
@@ -143,56 +244,7 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
                      m = (1/p_c) * dF/dsigma_ij in compression-positive frame
         p_n        : (N,) consistent preconsolidation pressure p + q^2/(M^2 p)
         """
-        # Compression-positive stress
-        s_pos = -stress
-        s_xx = s_pos[:, 0, 0]
-        s_yy = s_pos[:, 1, 1]
-        s_zz = s_pos[:, 2, 2]
-        s_xy = s_pos[:, 0, 1]
-        s_xz = s_pos[:, 0, 2]
-        s_yz = s_pos[:, 1, 2]
-
-        p = (s_xx + s_yy + s_zz) / 3.0
-        s_dev = s_pos.clone()
-        s_dev[:, 0, 0] = s_xx - p
-        s_dev[:, 1, 1] = s_yy - p
-        s_dev[:, 2, 2] = s_zz - p
-
-        # q^2 = 3 J2 = 1.5 s:s
-        q2 = 1.5 * (
-            s_dev[:, 0, 0] ** 2
-            + s_dev[:, 1, 1] ** 2
-            + s_dev[:, 2, 2] ** 2
-            + 2.0 * (s_xy**2 + s_xz**2 + s_yz**2)
-        )
-
-        # Numerical floors: 1 Pa on p and pc to guard divisions / power laws
-        p_safe = to.clamp(p, min=1.0)
-        pc_safe = to.clamp(pc, min=1.0)
-
-        M2 = self.M * self.M
-        F = p_safe * p_safe - p_safe * pc_safe + q2 / M2
-
-        # Perzyna multiplier: <F/pc^2>^n / eta_v
-        eta_safe = to.clamp(self.eta_v, min=1e-30)
-        ratio = to.clamp(F / (pc_safe * pc_safe), min=0.0)
-        ratio = to.clamp(ratio, max=1e6)  # cap to avoid FD overflow
-        lambda_P = (ratio**self.n_rate) / eta_safe
-
-        # Dimensionless flow direction m = (1/pc) * dF/dsigma_pos.
-        # dF/dsigma_pos = (2p - pc)/3 delta + (3/M^2) s_dev  [Pa]
-        # so m_vol = (2p - pc) / (3 pc), m_dev = (3 / (M^2 pc)) s_dev (both dimensionless).
-        coeff_vol = (2.0 * p_safe - pc_safe) / (3.0 * pc_safe)
-        coeff_dev = 3.0 / (M2 * pc_safe)
-        m_pos = coeff_dev[:, None, None] * s_dev
-        m_pos[:, 0, 0] += coeff_vol
-        m_pos[:, 1, 1] += coeff_vol
-        m_pos[:, 2, 2] += coeff_vol
-
-        # Consistent preconsolidation (root of F=0 in p_c): p_n = p + q^2/(M^2 p)
-        p_n = p_safe + q2 / (M2 * p_safe)
-
-        return s_dev, p_safe, F, lambda_P, m_pos, p_n
+        return _mcc_fields_kernel(to, stress, pc, self._params(to))
 
     def compute_residue(self, stress: to.Tensor, pc: to.Tensor, dt: float) -> to.Tensor:
         """
@@ -210,13 +262,9 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         unit time) but kept in the signature for interface symmetry with
         :meth:`MunsonDawsonCreep.compute_residue`.
         """
-        _, _, _, _, _, p_n = self._compute_mcc_fields(stress, pc)
-
-        pc_old_safe = to.clamp(self.pc_old, min=1.0)
-        p_n_safe = to.clamp(p_n, min=1.0)
-
-        pc_target = pc_old_safe * (p_n_safe / pc_old_safe) ** self.theta
-        return pc - pc_target
+        return _residue_kernel(
+            to, stress, pc, self.pc_old, self._params(to)
+        )
 
     # ------------------------------------------------------------------ #
     # Strain-rate evaluator
@@ -244,11 +292,7 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
         if pc is None:
             pc = self.pc
 
-        _, _, F, lambda_P, m_pos, _ = self._compute_mcc_fields(stress, pc)
-
-        # Convert compression-positive flow direction to safeincave convention.
-        # m_pos is dimensionless, lambda_P is in 1/s, so eps_rate is in 1/s.
-        eps_rate = -m_pos * lambda_P[:, None, None]
+        eps_rate, F = _rate_kernel(to, stress, pc, self._params(to))
 
         if return_eps_ne:
             return eps_rate
@@ -260,61 +304,68 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
     # ISV-coupled consistent tangent
     # ------------------------------------------------------------------ #
 
+    #: Forward-difference step (Pa) for dr/dsigma under the FD backend.
+    EPSILON_STRESS_RESIDUE: float = 1e-1
+    #: Elements whose |dr/dpc| falls below this are treated as pc-inert.
+    H_MIN: float = 1e-12
+
     def compute_B_and_H_over_h(
         self, stress: to.Tensor, dt: float, theta_t: float, Temp: to.Tensor
     ) -> tuple[to.Tensor, to.Tensor]:
         """
-        FD-based ISV-coupled consistent-tangent terms (mirrors
+        ISV-coupled consistent-tangent terms (mirrors
         :meth:`MunsonDawsonCreep.compute_B_and_H_over_h`):
 
             r  = residue at (sigma, pc)
-            h  = (r(sigma, pc+eps) - r) / eps
-            Q  = (eps_vp(sigma, pc+eps) - eps_vp) / eps   (N, 3, 3)
-            P  = (r(sigma+eps*e_ij, pc) - r) / eps        (N, 3, 3, symmetric)
+            h  = dr/dpc                                  (N,)
+            Q  = d(eps_vp)/dpc                           (N, 3, 3)
+            P  = dr/dsigma                               (N, 3, 3, symmetric)
             H  = Q (outer) P  packed in tensorial-Voigt 6x6
             B  = (r / h) * Q
+
+        The derivatives come from `self.derivative`: forward finite
+        differences by default, exact AD when the element was built with
+        ``derivative_method="torch_ad"`` / ``"jax_ad"``.
         """
+        params = self._params(to)
+
         # Forward-difference scale for pc: tied to pc itself + pc0 floor
         pc_scale = to.clamp(to.abs(self.pc), min=1.0)
         eps_pc = self._SQRT_FLOAT64_EPS * pc_scale  # (N,)
 
-        # Forward-difference scale for stress (Pa) — same as MD
-        EPSILON_STRESS = 1e-1
+        def _isv_probe(xp, pc):
+            p = self._params(xp)
+            s = self._cast(xp, stress)
+            rate, _ = _rate_kernel(xp, s, pc, p)
+            r = _residue_kernel(xp, s, pc, self._cast(xp, self.pc_old), p)
+            return rate, r
 
-        # --- r, h, Q via pc perturbation -------------------------------- #
-        self.r = self.compute_residue(stress, self.pc, dt)
+        Q, self.h = self.derivative.d_d_isv(_isv_probe, self.pc, step=eps_pc)
+        self.r = _residue_kernel(to, stress, self.pc, self.pc_old, params)
 
-        pc_eps = self.pc + eps_pc
-        r_pc = self.compute_residue(stress, pc_eps, dt)
-        self.h = (r_pc - self.r) / eps_pc
-
-        eps_rate_ref = self.compute_eps_ne_rate(
-            stress, dt * theta_t, Temp, pc=self.pc, return_eps_ne=True
-        )
-        eps_rate_pc = self.compute_eps_ne_rate(
-            stress, dt * theta_t, Temp, pc=pc_eps, return_eps_ne=True
-        )
-        Q = (eps_rate_pc - eps_rate_ref) / eps_pc[:, None, None]
-
-        H_MIN = 1e-12
-        self.ind_h_small = to.where(to.abs(self.h) < H_MIN)[0]
+        self.ind_h_small = to.where(to.abs(self.h) < self.H_MIN)[0]
         if len(self.ind_h_small) > 0:
             self.h[self.ind_h_small] = 1.0
 
         B = (self.r / self.h)[:, None, None] * Q
 
-        # --- P = dr/dsigma via stress perturbation ---------------------- #
-        self.P = to.zeros_like(stress)
-        stress_eps = stress.clone()
-        for i, j in [(0, 0), (1, 1), (2, 2), (0, 1), (0, 2), (1, 2)]:
-            stress_eps[:, i, j] += EPSILON_STRESS
-            r_sig = self.compute_residue(stress_eps, self.pc, dt)
-            self.P[:, i, j] = (r_sig - self.r) / EPSILON_STRESS
-            self.P[:, j, i] = self.P[:, i, j]
-            stress_eps[:, i, j] -= EPSILON_STRESS
+        def _stress_probe(xp, s):
+            return _residue_kernel(
+                xp,
+                s,
+                self._cast(xp, self.pc),
+                self._cast(xp, self.pc_old),
+                self._params(xp),
+            )
 
-        H = self._compute_H(Q, self.P)
-        H_over_h = H / self.h[:, None, None]
+        self.P = self.derivative.d_scalar_d_stress(
+            _stress_probe,
+            stress,
+            step=self.EPSILON_STRESS_RESIDUE,
+            f0=self.r,
+        )
+
+        H_over_h = pack_H_voigt(Q, self.P) / self.h[:, None, None]
 
         if len(self.ind_h_small) > 0:
             B[self.ind_h_small] = 0.0
@@ -322,56 +373,3 @@ class ModifiedCamClayViscoplastic(NonElasticElement):
             self.P[self.ind_h_small] = 0.0
 
         return B, H_over_h
-
-    def _compute_H(self, Q: to.Tensor, P: to.Tensor) -> to.Tensor:
-        """
-        Tensorial-Voigt 6x6 packing of Q (outer) P. Identical to
-        :meth:`MunsonDawsonCreep._compute_H` — shear rows/columns carry the
-        factor of 2 for tensorial Voigt storage of symmetric tensors.
-        """
-        n_elems = P.shape[0]
-        H = to.zeros((n_elems, 6, 6), dtype=to.float64)
-
-        H[:, 0, 0] = Q[:, 0, 0] * P[:, 0, 0]
-        H[:, 0, 1] = Q[:, 0, 0] * P[:, 1, 1]
-        H[:, 0, 2] = Q[:, 0, 0] * P[:, 2, 2]
-        H[:, 0, 3] = 2 * Q[:, 0, 0] * P[:, 0, 1]
-        H[:, 0, 4] = 2 * Q[:, 0, 0] * P[:, 0, 2]
-        H[:, 0, 5] = 2 * Q[:, 0, 0] * P[:, 1, 2]
-
-        H[:, 1, 0] = Q[:, 1, 1] * P[:, 0, 0]
-        H[:, 1, 1] = Q[:, 1, 1] * P[:, 1, 1]
-        H[:, 1, 2] = Q[:, 1, 1] * P[:, 2, 2]
-        H[:, 1, 3] = 2 * Q[:, 1, 1] * P[:, 0, 1]
-        H[:, 1, 4] = 2 * Q[:, 1, 1] * P[:, 0, 2]
-        H[:, 1, 5] = 2 * Q[:, 1, 1] * P[:, 1, 2]
-
-        H[:, 2, 0] = Q[:, 2, 2] * P[:, 0, 0]
-        H[:, 2, 1] = Q[:, 2, 2] * P[:, 1, 1]
-        H[:, 2, 2] = Q[:, 2, 2] * P[:, 2, 2]
-        H[:, 2, 3] = 2 * Q[:, 2, 2] * P[:, 0, 1]
-        H[:, 2, 4] = 2 * Q[:, 2, 2] * P[:, 0, 2]
-        H[:, 2, 5] = 2 * Q[:, 2, 2] * P[:, 1, 2]
-
-        H[:, 3, 0] = Q[:, 0, 1] * P[:, 0, 0]
-        H[:, 3, 1] = Q[:, 0, 1] * P[:, 1, 1]
-        H[:, 3, 2] = Q[:, 0, 1] * P[:, 2, 2]
-        H[:, 3, 3] = 2 * Q[:, 0, 1] * P[:, 0, 1]
-        H[:, 3, 4] = 2 * Q[:, 0, 1] * P[:, 0, 2]
-        H[:, 3, 5] = 2 * Q[:, 0, 1] * P[:, 1, 2]
-
-        H[:, 4, 0] = Q[:, 0, 2] * P[:, 0, 0]
-        H[:, 4, 1] = Q[:, 0, 2] * P[:, 1, 1]
-        H[:, 4, 2] = Q[:, 0, 2] * P[:, 2, 2]
-        H[:, 4, 3] = 2 * Q[:, 0, 2] * P[:, 0, 1]
-        H[:, 4, 4] = 2 * Q[:, 0, 2] * P[:, 0, 2]
-        H[:, 4, 5] = 2 * Q[:, 0, 2] * P[:, 1, 2]
-
-        H[:, 5, 0] = Q[:, 1, 2] * P[:, 0, 0]
-        H[:, 5, 1] = Q[:, 1, 2] * P[:, 1, 1]
-        H[:, 5, 2] = Q[:, 1, 2] * P[:, 2, 2]
-        H[:, 5, 3] = 2 * Q[:, 1, 2] * P[:, 0, 1]
-        H[:, 5, 4] = 2 * Q[:, 1, 2] * P[:, 0, 2]
-        H[:, 5, 5] = 2 * Q[:, 1, 2] * P[:, 1, 2]
-
-        return H
