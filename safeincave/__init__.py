@@ -58,6 +58,9 @@ from .Simulation.Simulators import (
     Simulator_TM,
     Simulator_T,
     Simulator_M,
+    GeostaticStep,
+    GeostaticReport,
+    check_equilibrium,
 )
 from .Output.Screen import ScreenPrinter
 from .Simulation.TimeControl import (
@@ -94,6 +97,9 @@ __all__ = [
     "Simulator_TM",
     "Simulator_T",
     "Simulator_M",
+    "GeostaticStep",
+    "GeostaticReport",
+    "check_equilibrium",
     "ScreenPrinter",
     "TimeControllerBase",
     "TimeController",

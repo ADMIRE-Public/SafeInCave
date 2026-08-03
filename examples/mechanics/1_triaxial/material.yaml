@@ -1,0 +1,19 @@
+density: 2000.0
+elastic:
+  - {type: Spring, E: 1.02e11, nu: 0.3, name: spring}
+non_elastic:
+  - {type: Viscoelastic, eta: 1.05e13, E: 1.0e10, nu: 0.32, name: kelvin}
+  - {type: DislocationCreep, A: 1.9e-20, Q: 51600, n: 3.0, name: creep}
+  - type: ViscoplasticDesai
+    name: desai
+    mu_1: 5.3665857009859815e-11
+    N_1: 3.1
+    a_1: 1.965018496922832e-05
+    eta: 0.8275682807874163
+    n: 3.0
+    beta_1: 0.0048
+    beta: 0.995
+    m: -0.5
+    gamma: 0.095
+    sigma_t: 5.0
+    alpha_0: 0.0022

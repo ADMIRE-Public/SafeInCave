@@ -40,6 +40,17 @@ jobs:
             libgl1 \
             libglu1-mesa
 
+      - name: Set conda packages cache directory
+        run: echo "CONDA_PKGS_DIRS=$RUNNER_TEMP/conda_pkgs_dir" >> "$GITHUB_ENV"
+
+      - name: Cache conda packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CONDA_PKGS_DIRS }}
+          key: conda-pkgs-${{ runner.os }}-${{ hashFiles('.github/workflows/tests.yml') }}
+          restore-keys: |
+            conda-pkgs-${{ runner.os }}-
+
       - name: Set up Python with FEniCSx 0.9.0
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -70,6 +81,14 @@ jobs:
                   f"Expected DOLFINx/FEniCSx {expected}, got {dolfinx.__version__}"
               )
           PY
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('.github/workflows/tests.yml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
 
       - name: Install Python package and test dependencies
         shell: bash -el {0}

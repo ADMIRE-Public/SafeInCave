@@ -242,12 +242,18 @@ class _ExtensionFinder(importlib.abc.MetaPathFinder):
             self.active[fullname] = (name, str(pyfile))
             return importlib.util.spec_from_file_location(fullname, pyfile)
 
-        # Package: merge search paths, extension directory first, so both plain
-        # imports and pkgutil auto-discovery prefer/see extension modules.
+        # Package: merge search paths from EVERY matching entry (not just the
+        # first) plus the public directory last, so pkgutil auto-discovery in
+        # a package's __init__.py (e.g. Materials/Constitutive's model
+        # auto-import) sees modules contributed by all of them — multiple
+        # entries are allowed to share one TARGET prefix as long as they don't
+        # collide on the same leaf filename (that case is still caught by the
+        # multi-match warning above, which fires per-module, not per-package).
+        pkg_bases = [b for _, b in matches if b.is_dir()]
         public_pkg_dir = self.public_dir.joinpath(*rel)
-        ext_init = base / "__init__.py"
+        ext_init = next((b / "__init__.py" for b in pkg_bases if (b / "__init__.py").is_file()), None)
         public_init = public_pkg_dir / "__init__.py"
-        if ext_init.is_file():
+        if ext_init is not None:
             init = ext_init
         elif public_init.is_file():
             init = public_init
@@ -259,12 +265,15 @@ class _ExtensionFinder(importlib.abc.MetaPathFinder):
                 RuntimeWarning,
             )
             return None
-        search = [str(base)]
+        search = [str(b) for b in pkg_bases]
         if public_pkg_dir.is_dir():
             search.append(str(public_pkg_dir))
-        # Record the extension directory (what the extension contributed), not
-        # the __init__.py actually used, which may be the public one.
-        self.active[fullname] = (name, str(base) + os.sep)
+        # Record every contributing entry (what actually fed the merged
+        # package), not just the first.
+        self.active[fullname] = (
+            ", ".join(n for n, b in matches if b.is_dir()),
+            str(base) + os.sep,
+        )
         return importlib.util.spec_from_file_location(
             fullname, init, submodule_search_locations=search
         )

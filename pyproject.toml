@@ -42,7 +42,11 @@ dependencies = [
   "scikit-learn==1.7.2",
   "CoolProp==7.2.0",
   "scipy==1.14.1",
+  "PyYAML==6.0.3",
 ]
+
+[project.scripts]
+sic = "safeincave.cli:main"
 
 [project.optional-dependencies]
 # Enables derivative_method="jax_ad". Pinned below 0.4.36, which requires
