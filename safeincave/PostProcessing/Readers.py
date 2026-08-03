@@ -2,8 +2,18 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import meshio as ms
+"""
+Format-agnostic readers for simulation output.
+
+The four ``read_*`` functions dispatch on the file extension to a backend module
+(:mod:`safeincave.PostProcessing.xdmf`, :mod:`safeincave.PostProcessing.vtkhdf`),
+so post-processing scripts work unchanged whichever format
+:class:`~safeincave.Output.SaveFields` wrote.
+"""
+
+from importlib import import_module
 import numpy as np
+import os
 from scipy.sparse import csr_matrix
 
 
@@ -186,14 +196,37 @@ def compute_cell_centroids(cells: np.ndarray, points: np.ndarray) -> np.ndarray:
     return centroids
 
 
-def read_cell_tensor(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+#: Reader backend module per file extension. A new format only needs a module
+#: exposing the four ``read_*`` functions and an entry here.
+_READER_BACKENDS = {".xdmf": "xdmf", ".vtkhdf": "vtkhdf"}
+
+
+def _backend_for(field_path: str):
     """
-    Read a time series of cell-centered 3x3 tensor fields from an XDMF file.
+    Return the reader backend module matching the extension of ``field_path``.
+
+    Raises
+    ------
+    ValueError
+        If the extension does not correspond to a supported format.
+    """
+    extension = os.path.splitext(field_path)[1].lower()
+    if extension not in _READER_BACKENDS:
+        raise ValueError(
+            f"Unsupported output format '{extension}' for file '{field_path}'. "
+            f"Supported extensions: {', '.join(sorted(_READER_BACKENDS))}."
+        )
+    return import_module(f".{_READER_BACKENDS[extension]}", __package__)
+
+
+def read_cell_tensor(field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Read a time series of cell-centered 3x3 tensor fields.
 
     Parameters
     ----------
-    xdmf_field_path : str
-        Path to the XDMF file containing cell data (``cells['tetra']``).
+    field_path : str
+        Path to an output file containing cell data (``.xdmf`` or ``.vtkhdf``).
 
     Returns
     -------
@@ -206,40 +239,20 @@ def read_cell_tensor(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.n
 
     Notes
     -----
-    The function assumes a single tensor field is present under
-    ``cell_data['tetra']`` at each time step, and reshapes it to (3, 3) per cell.
+    The function assumes a single tensor field is present at each time step,
+    and reshapes it to (3, 3) per cell.
     """
-    reader = ms.xdmf.TimeSeriesReader(xdmf_field_path)
-    points, cells = reader.read_points_cells()
-    n_cells = cells["tetra"].shape[0]
-    n_steps = reader.num_steps
-
-    centroids = compute_cell_centroids(cells["tetra"], points)
-    tensor_field = np.zeros((n_steps, n_cells, 3, 3))
-    time_list = np.zeros(n_steps)
-
-    for k in range(reader.num_steps):
-        # Read data
-        time, point_data, cell_data = reader.read_data(k)
-
-        # Add time
-        time_list[k] = time
-
-        # Add tensor
-        field_name = list(cell_data["tetra"].keys())[0]
-        tensor_field[k, :, :] = cell_data["tetra"][field_name].reshape((n_cells, 3, 3))
-
-    return centroids, time_list, tensor_field
+    return _backend_for(field_path).read_cell_tensor(field_path)
 
 
-def read_cell_scalar(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def read_cell_scalar(field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Read a time series of cell-centered scalar fields from an XDMF file.
+    Read a time series of cell-centered scalar fields.
 
     Parameters
     ----------
-    xdmf_field_path : str
-        Path to the XDMF file containing cell data (``cells['tetra']``).
+    field_path : str
+        Path to an output file containing cell data (``.xdmf`` or ``.vtkhdf``).
 
     Returns
     -------
@@ -252,41 +265,19 @@ def read_cell_scalar(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.n
 
     Notes
     -----
-    The function assumes a single scalar field is present under
-    ``cell_data['tetra']`` at each time step.
+    The function assumes a single scalar field is present at each time step.
     """
-    reader = ms.xdmf.TimeSeriesReader(xdmf_field_path)
-
-    points, cells = reader.read_points_cells()
-    n_cells = cells["tetra"].shape[0]
-    n_steps = reader.num_steps
-
-    centroids = compute_cell_centroids(cells["tetra"], points)
-    scalar_field = np.zeros((n_steps, n_cells))
-    time_list = np.zeros(n_steps)
-
-    for k in range(reader.num_steps):
-        # Read data
-        time, point_data, cell_data = reader.read_data(k)
-
-        # Add time
-        time_list[k] = time
-
-        # Add scalar
-        field_name = list(cell_data["tetra"].keys())[0]
-        scalar_field[k] = cell_data["tetra"][field_name].flatten()
-
-    return centroids, time_list, scalar_field
+    return _backend_for(field_path).read_cell_scalar(field_path)
 
 
-def read_node_scalar(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def read_node_scalar(field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Read a time series of node-based scalar fields from an XDMF file.
+    Read a time series of node-based scalar fields.
 
     Parameters
     ----------
-    xdmf_field_path : str
-        Path to the XDMF file containing point data.
+    field_path : str
+        Path to an output file containing point data (``.xdmf`` or ``.vtkhdf``).
 
     Returns
     -------
@@ -299,40 +290,19 @@ def read_node_scalar(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.n
 
     Notes
     -----
-    The function assumes a single scalar field exists in ``point_data`` at
-    each time step and flattens it to 1D per step.
+    The function assumes a single scalar field exists at each time step.
     """
-    reader = ms.xdmf.TimeSeriesReader(xdmf_field_path)
-
-    points, cells = reader.read_points_cells()
-    n_nodes = points.shape[0]
-    n_steps = reader.num_steps
-
-    scalar_field = np.zeros((n_steps, n_nodes))
-    time_list = np.zeros(n_steps)
-
-    for k in range(reader.num_steps):
-        # Read data
-        time, point_data, cell_data = reader.read_data(k)
-
-        # Add time
-        time_list[k] = time
-
-        # Add scalar
-        field_name = list(point_data.keys())[0]
-        scalar_field[k] = point_data[field_name].flatten()
-
-    return points, time_list, scalar_field
+    return _backend_for(field_path).read_node_scalar(field_path)
 
 
-def read_node_vector(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def read_node_vector(field_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Read a time series of node-based 3D vector fields from an XDMF file.
+    Read a time series of node-based 3D vector fields.
 
     Parameters
     ----------
-    xdmf_field_path : str
-        Path to the XDMF file containing point data.
+    field_path : str
+        Path to an output file containing point data (``.xdmf`` or ``.vtkhdf``).
 
     Returns
     -------
@@ -345,27 +315,7 @@ def read_node_vector(xdmf_field_path: str) -> tuple[np.ndarray, np.ndarray, np.n
 
     Notes
     -----
-    The function assumes a single vector field exists in ``point_data`` at
-    each time step with shape ``(n_nodes, 3)``.
+    The function assumes a single vector field exists at each time step with
+    shape ``(n_nodes, 3)``.
     """
-    reader = ms.xdmf.TimeSeriesReader(xdmf_field_path)
-
-    points, cells = reader.read_points_cells()
-    n_nodes = points.shape[0]
-    n_steps = reader.num_steps
-
-    vector_field = np.zeros((n_steps, n_nodes, 3))
-    time_list = np.zeros(n_steps)
-
-    for k in range(reader.num_steps):
-        # Read data
-        time, point_data, cell_data = reader.read_data(k)
-
-        # Add time
-        time_list[k] = time
-
-        # Add scalar
-        field_name = list(point_data.keys())[0]
-        vector_field[k, :, :] = point_data[field_name]
-
-    return points, time_list, vector_field
+    return _backend_for(field_path).read_node_vector(field_path)

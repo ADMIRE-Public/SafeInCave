@@ -4,9 +4,11 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
-import dolfinx as do
 import shutil
 import os
+
+from .xdmf import XdmfWriter
+from .vtkhdf import VtkhdfWriter
 
 if TYPE_CHECKING:
     from ..Equations.Momentum import LinearMomentum, LinearMomentumBase
@@ -15,20 +17,31 @@ if TYPE_CHECKING:
     EqType = LinearMomentum | HeatDiffusion
 
 
+# Available output formats. Each backend writes one file per registered field and
+# exposes the same interface (see safeincave.Output.xdmf for the protocol), so a
+# new format only needs a module here and an entry in this registry.
+WRITER_BACKENDS = {
+    XdmfWriter.extension: XdmfWriter,
+    VtkhdfWriter.extension: VtkhdfWriter,
+}
+
+
 # Module-level shared storage for merged output files to prevent HDF5 contention.
 # When multiple SaveFields instances write to the same output folder, they share
-# a single XDMFFile object for the merged solution file instead of each creating
+# a single writer object for the merged solution file instead of each creating
 # their own (which causes HDF5 file truncation conflicts).
 #
-# _shared_merged_outputs: dict[str, do.io.XDMFFile]
-#   Maps normalized output folder path → XDMFFile object for merged solution
+# All three are keyed by (normalized output folder path, output format), so that
+# instances writing different formats into one folder do not share a writer.
 #
-# _shared_merged_output_refs: dict[str, int]
+# _shared_merged_outputs: dict[key, writer]
+#   Maps key → writer backend object for the merged solution
+#
+# _shared_merged_output_refs: dict[key, int]
 #   Reference count: how many SaveFields instances are using each merged output
 #
-# _shared_merged_output_field_names: dict[str, set[str]]
-#   Tracks field names (labels) written to each merged output to detect duplicates.
-#   Maps normalized output folder path → set of field names written.
+# _shared_merged_output_field_names: dict[key, bool]
+#   Tracks whether the duplicate-label mapping has already been built for a key.
 #   Used to automatically rename duplicate field names by appending suffixes.
 _shared_merged_outputs = {}
 _shared_merged_output_refs = {}
@@ -36,13 +49,17 @@ _shared_merged_output_field_names = {}
 
 class SaveFields:
     """
-    Manage writing FEniCSx fields to XDMF over time.
+    Manage writing FEniCSx fields to disk over time.
 
     This helper collects references to fields stored on an equation object
     (either :class:`LinearMomentum` or :class:`HeatDiffusion`), opens one
-    XDMF writer per field, and writes time-stamped data during a simulation.
+    writer per field, and writes time-stamped data during a simulation.
     It can also copy the original Gmsh mesh file into the output directory
     for provenance.
+
+    The file format is selected with ``output_format``; the writing code itself
+    is format agnostic and lives in one module per format
+    (:mod:`safeincave.Output.xdmf`, :mod:`safeincave.Output.vtkhdf`).
 
     Parameters
     ----------
@@ -52,6 +69,9 @@ class SaveFields:
         - ``eq.grid.grid_folder`` (path where the original ``.msh`` lives),
         - ``eq.grid.geometry_name`` (base filename of the ``.msh``),
         - attributes for each field you register via :meth:`add_output_field`.
+    output_format : str, optional
+        Output file format, one of the keys of :data:`WRITER_BACKENDS`
+        (``"xdmf"``, the default, or ``"vtkhdf"``).
 
     Attributes
     ----------
@@ -60,12 +80,19 @@ class SaveFields:
     fields_data : list of dict
         Registered field descriptors, each with keys
         ``{"field_name": str, "label_name": str}``.
-    output_fields : list of dolfinx.io.XDMFFile
-        Open writers, in the same order as ``fields_data``.
+    output_fields : list
+        Open writer backend objects, in the same order as ``fields_data``.
     merged_solutions : bool
         Whether to create and write a merged solution file. Set by Simulator.
     output_folder : str
         Base directory for outputs (set via :meth:`set_output_folder`).
+    output_format : str
+        Selected output file format.
+
+    Raises
+    ------
+    ValueError
+        If ``output_format`` is not a known format.
 
     Notes
     -----
@@ -78,8 +105,15 @@ class SaveFields:
       created by :meth:`initialize`. Ensure they exist beforehand.
     """
 
-    def __init__(self, eq: LinearMomentumBase | HeatDiffusion):
+    def __init__(self, eq: LinearMomentumBase | HeatDiffusion, output_format: str = "xdmf"):
+        if output_format not in WRITER_BACKENDS:
+            raise ValueError(
+                f"Unknown output format '{output_format}'. "
+                f"Available formats: {', '.join(sorted(WRITER_BACKENDS))}."
+            )
         self.eq = eq
+        self.output_format = output_format
+        self._writer_cls = WRITER_BACKENDS[output_format]
         self.fields_data = []
         self.output_fields = []
         self.merged_output = None
@@ -95,7 +129,7 @@ class SaveFields:
         Parameters
         ----------
         output_folder : str
-            Path to the directory where subfolders and XDMF files will be placed.
+            Path to the directory where subfolders and output files will be placed.
 
         Returns
         -------
@@ -114,7 +148,7 @@ class SaveFields:
             :class:`dolfinx.fem.Function` (e.g., ``"u"``, ``"T"``, ``"sigma"``).
         label_name : str
             Human-readable name assigned to ``field.name`` when writing
-            (appears in XDMF/ParaView).
+            (appears in ParaView).
 
         Returns
         -------
@@ -132,10 +166,11 @@ class SaveFields:
 
     def initialize(self) -> None:
         """
-        Open one XDMF writer per registered field and write the mesh.
+        Open one writer per registered field and write the mesh.
 
-        For each entry in :attr:`fields_data`, opens an XDMF at
-        ``{output_folder}/{field_name}/{field_name}.xdmf`` and writes
+        For each entry in :attr:`fields_data`, opens a file at
+        ``{output_folder}/{field_name}/{field_name}.{ext}`` (where ``ext`` is the
+        extension of the selected :attr:`output_format`) and writes
         ``self.eq.grid.mesh`` once.
 
         Parameters
@@ -149,87 +184,90 @@ class SaveFields:
         Raises
         ------
         OSError
-            If the per-field output directory does not exist.
+            If the per-field output directory cannot be created.
 
         Notes
         -----
         - Files are opened in ``"w"`` mode (overwrite).
         """
+        extension = self._writer_cls.extension
         for field_data in self.fields_data:
             field_name = field_data["field_name"]
-            output_field = do.io.XDMFFile(
+            output_field = self._writer_cls(
                 self.eq.grid.mesh.comm,
-                os.path.join(self.output_folder, field_name, f"{field_name}.xdmf"),
-                "w",
+                os.path.join(self.output_folder, field_name, f"{field_name}.{extension}"),
+                self.eq.grid.mesh,
             )
-            output_field.write_mesh(self.eq.grid.mesh)
             self.output_fields.append(output_field)
 
         # Conditionally create merged solution file containing all fields
         # This behavior is controlled by the merged_solutions parameter
         if self.merged_solutions:
-            # IMPORTANT: Known limitations and behaviors of this merged XDMF file:
+            # WHEN TO USE THE MERGED FILE vs THE INDIVIDUAL FILES
             #
-            # 1. VTK COMPOSITE METADATA (Artifacts)
-            #    When multiple <Attribute> elements exist in the same XDMF <Grid>,
-            #    VTK interprets this as a composite dataset and AUTOMATICALLY ADDS:
-            #    - vtkCompositeIndex: Internal tracking field (not real data)
-            #    - vtkBlockColors: Internal visualization field (not real data)
-            #    These clutter the ParaView field list but are harmless.
-            #
-            # 2. WARP BY VECTOR FILTER FAILURE (Critical Limitation)
-            #    ParaView's "Warp by Vector" filter (for mesh deformation visualization)
-            #    FAILS or BEHAVES INCORRECTLY when multiple vector fields are present.
-            #    ROOT CAUSE: Filter input selection is ambiguous with composite metadata.
-            #
-            # 3. XDMF STRUCTURE LIMITATION (DOLFINx API)
-            #    DOLFINx's XDMFFile does not support external mesh references.
-            #    Result: Mesh geometry/topology is DUPLICATED in this file.
-            #    Impact: Larger file size (minor for most simulations).
-            #    Workaround: None; inherent to DOLFINx API design.
-            #
-            # 4. USE CASES FOR MERGED vs INDIVIDUAL FILES
-            #
-            #    USE MERGED (solution.xdmf) FOR:
+            #    USE MERGED (solution.*) FOR:
             #    - Post-processing analysis across all fields simultaneously
             #    - Correlation studies between fields
             #    - Statistical analysis and data export
             #    - Quick initial result verification
             #
             #    USE INDIVIDUAL FILES FOR:
-            #    - Mesh deformation visualization (Warp by Vector) → u/u.xdmf
+            #    - Mesh deformation visualization (Warp by Vector) → u/u.*
             #    - Field-specific analysis and filtering
             #    - Publication-quality visualizations
             #    - Large simulations (smaller file size per field)
             #
+            # KNOWN XDMF-SPECIFIC LIMITATIONS OF THE MERGED FILE
+            #
+            # 1. VTK COMPOSITE METADATA (Artifacts)
+            #    When multiple <Attribute> elements exist in the same XDMF <Grid>,
+            #    VTK interprets this as a composite dataset and AUTOMATICALLY ADDS
+            #    vtkCompositeIndex and vtkBlockColors. These clutter the ParaView
+            #    field list but are harmless.
+            #
+            # 2. WARP BY VECTOR FILTER FAILURE
+            #    ParaView's "Warp by Vector" filter (for mesh deformation visualization)
+            #    FAILS or BEHAVES INCORRECTLY when multiple vector fields are present,
+            #    because filter input selection is ambiguous with composite metadata.
+            #
+            # 3. DUPLICATED MESH
+            #    DOLFINx's XDMFFile does not support external mesh references, so the
+            #    mesh geometry/topology is duplicated in this file.
+            #
+            # The VTKHDF backend has none of these three limitations.
+            #
             # Use shared merged output to prevent HDF5 file contention
             # when multiple SaveFields instances write to the same output folder
-            merged_path = os.path.join(self.output_folder, "solution", "solution.xdmf")
-            os.makedirs(os.path.dirname(merged_path), exist_ok=True)
-            
-            # Normalize path to handle symlinks and relative paths consistently
-            normalized_path = os.path.normpath(os.path.abspath(self.output_folder))
-            
-            if normalized_path not in _shared_merged_outputs:
+            merged_path = os.path.join(
+                self.output_folder, "solution", f"solution.{extension}"
+            )
+
+            # Normalize path to handle symlinks and relative paths consistently.
+            # The format is part of the key so that instances writing different
+            # formats into one folder get one merged file each.
+            merged_key = (
+                os.path.normpath(os.path.abspath(self.output_folder)),
+                self.output_format,
+            )
+
+            if merged_key not in _shared_merged_outputs:
                 # First SaveFields instance for this output folder: create merged file
-                merged_output_file = do.io.XDMFFile(
+                _shared_merged_outputs[merged_key] = self._writer_cls(
                     self.eq.grid.mesh.comm,
                     merged_path,
-                    "w",
+                    self.eq.grid.mesh,
                 )
-                merged_output_file.write_mesh(self.eq.grid.mesh)
-                _shared_merged_outputs[normalized_path] = merged_output_file
-                _shared_merged_output_refs[normalized_path] = 1
+                _shared_merged_output_refs[merged_key] = 1
             else:
                 # Reuse existing merged output file and increment reference count
-                _shared_merged_output_refs[normalized_path] += 1
-            
+                _shared_merged_output_refs[merged_key] += 1
+
             # Store reference to shared merged output (may be created by this instance or reused)
-            self.merged_output = _shared_merged_outputs[normalized_path]
-            
+            self.merged_output = _shared_merged_outputs[merged_key]
+
             # Build field name mapping to handle duplicate field names in merged output.
             # Detect duplicates and rename them with node/element suffixes to avoid HDF5 errors.
-            if normalized_path not in _shared_merged_output_field_names:
+            if merged_key not in _shared_merged_output_field_names:
                 # Extract all field labels and detect field types (node/element)
                 name_to_indices_and_types = {}
                 for i, field_data in enumerate(self.fields_data):
@@ -276,7 +314,7 @@ class SaveFields:
                                 else:
                                     self._merged_field_name_map[field_index] = f"{label_name}_{idx}"
                 
-                _shared_merged_output_field_names[normalized_path] = True  # Mark as processed
+                _shared_merged_output_field_names[merged_key] = True  # Mark as processed
 
     def save_fields(self, t: float) -> None:
         """
@@ -298,8 +336,8 @@ class SaveFields:
         For each descriptor in :attr:`fields_data`:
         1. Fetches the field via ``getattr(self.eq, field_name)``.
         2. Sets ``field.name = label_name`` (used in visualization).
-        3. Calls ``XDMFFile.write_function(field, t)`` on individual writer.
-        4. Calls ``XDMFFile.write_function(field, t)`` on merged solution writer.
+        3. Calls ``write_function(field, t)`` on the individual writer.
+        4. Calls ``write_function(field, t)`` on the merged solution writer.
            If duplicate field names exist, automatically appends suffixes to unique-ify them.
         """
         for i, field_data in enumerate(self.fields_data):
@@ -330,7 +368,7 @@ class SaveFields:
 
     def close(self) -> None:
         """
-        Close all open XDMF output files.
+        Close all open output files.
 
         Ensures that all file handles opened during :meth:`initialize` are
         properly closed. This should be called at the end of a simulation to
@@ -358,15 +396,18 @@ class SaveFields:
         # Close merged output file only if this is the last SaveFields instance
         # for this output folder (reference counting) and if merged solutions are enabled
         if self.output_folder is not None and self.merged_output is not None and self.merged_solutions:
-            normalized_path = os.path.normpath(os.path.abspath(self.output_folder))
-            if normalized_path in _shared_merged_output_refs:
-                _shared_merged_output_refs[normalized_path] -= 1
-                if _shared_merged_output_refs[normalized_path] == 0:
+            merged_key = (
+                os.path.normpath(os.path.abspath(self.output_folder)),
+                self.output_format,
+            )
+            if merged_key in _shared_merged_output_refs:
+                _shared_merged_output_refs[merged_key] -= 1
+                if _shared_merged_output_refs[merged_key] == 0:
                     # Last SaveFields instance for this folder: close merged output
                     self.merged_output.close()
-                    del _shared_merged_outputs[normalized_path]
-                    del _shared_merged_output_refs[normalized_path]
-                    del _shared_merged_output_field_names[normalized_path]
+                    del _shared_merged_outputs[merged_key]
+                    del _shared_merged_output_refs[merged_key]
+                    del _shared_merged_output_field_names[merged_key]
                 # Clear reference to prevent accidental re-use
                 self.merged_output = None
 
