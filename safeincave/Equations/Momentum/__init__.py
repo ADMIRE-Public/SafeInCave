@@ -7,5 +7,6 @@
 from .base import LinearMomentumBase  # noqa: F401
 from .standard import LinearMomentum  # noqa: F401
 from .mixed import LinearMomentumMixed  # noqa: F401
+from .momentum_newton_solver import MomentumNewtonSolver  # noqa: F401
 
-__all__ = ["LinearMomentumBase", "LinearMomentum", "LinearMomentumMixed"]
+__all__ = ["LinearMomentumBase", "LinearMomentum", "LinearMomentumMixed", "MomentumNewtonSolver"]

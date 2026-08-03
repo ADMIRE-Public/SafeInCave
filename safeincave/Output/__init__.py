@@ -10,6 +10,11 @@ from .SimLogging import (
     get_variable,
     list_registered_variables,
 )
+from .field_utils import _QuadratureView  # noqa: F401
+from .yield_tracking import (  # noqa: F401
+    register_generic_yield,
+    register_yield_surface,
+)
 
 __all__ = [
     "SaveFields",
@@ -18,4 +23,7 @@ __all__ = [
     "register_variable",
     "get_variable",
     "list_registered_variables",
+    "_QuadratureView",
+    "register_generic_yield",
+    "register_yield_surface",
 ]
