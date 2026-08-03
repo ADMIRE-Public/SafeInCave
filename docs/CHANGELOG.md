@@ -28,6 +28,7 @@
 - Caching in CI test workflow.
 - Add sic CLI subcommand.
 - Made simulation output format agnostic and added a VTKHDF output backend.
+- Added YAML case definitions.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation

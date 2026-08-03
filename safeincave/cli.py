@@ -28,20 +28,59 @@ def _run_script(args: argparse.Namespace) -> None:
         print(f"sic run: no such file: {script_path}", file=sys.stderr)
         sys.exit(1)
 
-    result = subprocess.run([sys.executable, str(script_path), *args.script_args])
+    if script_path.suffix.lower() in (".yaml", ".yml"):
+        # YAML case definition: transpile to Python and run (safeincave.Transpiler)
+        command = [sys.executable, "-m", "safeincave.Transpiler", str(script_path), *args.script_args]
+    else:
+        command = [sys.executable, str(script_path), *args.script_args]
+    result = subprocess.run(command)
     sys.exit(result.returncode)
 
 
 def _register_run(subparsers: argparse._SubParsersAction) -> None:
-    parser = subparsers.add_parser("run", help="Run <name>.py from the current directory (default: main.py)")
+    parser = subparsers.add_parser(
+        "run",
+        help="Run <name>.py or <name>.yaml from the current directory (default: main.py)",
+    )
     parser.add_argument(
         "name",
         nargs="?",
         default="main.py",
-        help="Script filename, including the .py extension (default: 'main.py')",
+        help="Case filename: a .py script or a .yaml case definition (default: 'main.py')",
     )
     parser.add_argument("script_args", nargs=argparse.REMAINDER, help="Extra arguments forwarded to the script")
     parser.set_defaults(func=_run_script)
+
+
+def _y2p_case(args: argparse.Namespace) -> None:
+    case_path = Path.cwd() / args.name
+    if not case_path.is_file():
+        print(f"sic y2p: no such file: {case_path}", file=sys.stderr)
+        sys.exit(1)
+
+    # Options must precede the positional: everything after the case path is
+    # captured as script_args by the transpiler's argument parser.
+    command = [sys.executable, "-m", "safeincave.Transpiler", "--convert"]
+    if args.output:
+        command += ["-o", args.output]
+    if args.force:
+        command += ["--force"]
+    command += [str(case_path)]
+    result = subprocess.run(command)
+    sys.exit(result.returncode)
+
+
+def _register_y2p(subparsers: argparse._SubParsersAction) -> None:
+    parser = subparsers.add_parser(
+        "y2p",
+        help="Convert a .yaml case definition to an equivalent Python script",
+    )
+    parser.add_argument("name", help="YAML case filename")
+    parser.add_argument("-o", "--output", help="Output .py path (default: <case>.py)")
+    parser.add_argument(
+        "--force", action="store_true", help="Overwrite an existing non-generated file"
+    )
+    parser.set_defaults(func=_y2p_case)
 
 
 def _load_plugin_commands(subparsers: argparse._SubParsersAction) -> None:
@@ -58,6 +97,7 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     _register_run(subparsers)
+    _register_y2p(subparsers)
     _load_plugin_commands(subparsers)
 
     args = parser.parse_args(sys.argv[1:])

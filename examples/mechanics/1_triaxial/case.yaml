@@ -1,0 +1,77 @@
+# Triaxial test defined in YAML.
+#
+# This is the declarative counterpart of main.py in this folder. Run it with
+#
+#     sic run case.yaml
+#
+# or export the equivalent Python script with
+#
+#     sic y2p case.yaml -o case.py
+#
+# Every 'type' below is a real safeincave class and every key under it is a
+# real constructor parameter. All values are plain SI numbers: stresses in
+# Pa, times in seconds, temperatures in K.
+#
+# The material definition lives in material.yaml (same directory) and is
+# pulled in below with '!include', to show how a case can be split across
+# files.
+#
+# Note: main.py subclasses LinearMomentum to also write the per-mechanism
+# strains (eps_ve, eps_cr, eps_vp, Fvp). Custom subclasses are outside the
+# scope of a YAML case, so this file outputs the standard fields only.
+
+grid:
+  type: GridHandlerGMSH
+  geometry_name: geom
+  grid_folder: ../../../grids/cube
+
+equations:
+  momentum:
+    type: LinearMomentum
+    theta: 0.5
+
+material: !include material.yaml
+
+body_force: [0.0, 0.0, 0.0]
+initial_temperature: 293
+
+stages:
+  - name: triaxial
+    time:
+      type: TimeController
+      dt: 0.5
+      initial_time: 0.0
+      final_time: 24
+      time_unit: hour
+
+    bcs:
+      momentum:
+        - {type: DirichletBC, boundary_name: WEST, component: 0,
+           values: [0.0, 0.0], time_values: [0.0, 86400.0]}
+        - {type: DirichletBC, boundary_name: SOUTH, component: 1,
+           values: [0.0, 0.0], time_values: [0.0, 86400.0]}
+        - {type: DirichletBC, boundary_name: BOTTOM, component: 2,
+           values: [0.0, 0.0], time_values: [0.0, 86400.0]}
+        - {type: NeumannBC, boundary_name: EAST, direction: 2, density: 0.0,
+           ref_pos: 0.0, g: 0.0,
+           values: [4.0e6, 4.0e6], time_values: [0.0, 86400.0]}
+        - {type: NeumannBC, boundary_name: NORTH, direction: 2, density: 0.0,
+           ref_pos: 0.0, g: 0.0,
+           values: [4.0e6, 4.0e6], time_values: [0.0, 86400.0]}
+        - {type: NeumannBC, boundary_name: TOP, direction: 2, density: 0.0,
+           ref_pos: 0.0, g: 0.0,
+           values: [4.1e6, 1.6e7, 1.6e7, 6.0e6, 6.0e6],
+           time_values: [0.0, 7200.0, 50400.0, 57600.0, 86400.0]}
+
+    outputs:
+      - equation: momentum
+        output_format: xdmf
+        folder: output/case_0/yaml
+        fields:
+          u: "Displacement (m)"
+          eps_tot: "Total strain (-)"
+          sig: "Stress (Pa)"
+
+    simulator:
+      type: Simulator_M
+      compute_elastic_response: true
