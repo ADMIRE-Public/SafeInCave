@@ -52,10 +52,10 @@ def _register_run(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=_run_script)
 
 
-def _convert_case(args: argparse.Namespace) -> None:
+def _y2p_case(args: argparse.Namespace) -> None:
     case_path = Path.cwd() / args.name
     if not case_path.is_file():
-        print(f"sic convert: no such file: {case_path}", file=sys.stderr)
+        print(f"sic y2p: no such file: {case_path}", file=sys.stderr)
         sys.exit(1)
 
     # Options must precede the positional: everything after the case path is
@@ -70,9 +70,9 @@ def _convert_case(args: argparse.Namespace) -> None:
     sys.exit(result.returncode)
 
 
-def _register_convert(subparsers: argparse._SubParsersAction) -> None:
+def _register_y2p(subparsers: argparse._SubParsersAction) -> None:
     parser = subparsers.add_parser(
-        "convert",
+        "y2p",
         help="Convert a .yaml case definition to an equivalent Python script",
     )
     parser.add_argument("name", help="YAML case filename")
@@ -80,7 +80,7 @@ def _register_convert(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument(
         "--force", action="store_true", help="Overwrite an existing non-generated file"
     )
-    parser.set_defaults(func=_convert_case)
+    parser.set_defaults(func=_y2p_case)
 
 
 def _load_plugin_commands(subparsers: argparse._SubParsersAction) -> None:
@@ -97,7 +97,7 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     _register_run(subparsers)
-    _register_convert(subparsers)
+    _register_y2p(subparsers)
     _load_plugin_commands(subparsers)
 
     args = parser.parse_args(sys.argv[1:])

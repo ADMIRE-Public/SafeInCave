@@ -6,11 +6,15 @@
 #
 # or export the equivalent Python script with
 #
-#     sic convert case.yaml -o case.py
+#     sic y2p case.yaml -o case.py
 #
 # Every 'type' below is a real safeincave class and every key under it is a
-# real constructor parameter (see 'sic keywords'). All values are plain SI
-# numbers: stresses in Pa, times in seconds, temperatures in K.
+# real constructor parameter. All values are plain SI numbers: stresses in
+# Pa, times in seconds, temperatures in K.
+#
+# The material definition lives in material.yaml (same directory) and is
+# pulled in below with '!include', to show how a case can be split across
+# files.
 #
 # Note: main.py subclasses LinearMomentum to also write the per-mechanism
 # strains (eps_ve, eps_cr, eps_vp, Fvp). Custom subclasses are outside the
@@ -26,26 +30,7 @@ equations:
     type: LinearMomentum
     theta: 0.5
 
-material:
-  density: 2000.0
-  elastic:
-    - {type: Spring, E: 1.02e11, nu: 0.3, name: spring}
-  non_elastic:
-    - {type: Viscoelastic, eta: 1.05e13, E: 1.0e10, nu: 0.32, name: kelvin}
-    - {type: DislocationCreep, A: 1.9e-20, Q: 51600, n: 3.0, name: creep}
-    - type: ViscoplasticDesai
-      name: desai
-      mu_1: 5.3665857009859815e-11
-      N_1: 3.1
-      a_1: 1.965018496922832e-05
-      eta: 0.8275682807874163
-      n: 3.0
-      beta_1: 0.0048
-      beta: 0.995
-      m: -0.5
-      gamma: 0.095
-      sigma_t: 5.0
-      alpha_0: 0.0022
+material: !include material.yaml
 
 body_force: [0.0, 0.0, 0.0]
 initial_temperature: 293

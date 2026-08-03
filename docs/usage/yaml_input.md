@@ -6,7 +6,7 @@ public SafeInCave API, and that script is what runs:
 
 ```bash
 sic run case.yaml          # convert and run
-sic convert case.yaml      # write the equivalent case.py and stop
+sic y2p case.yaml          # write the equivalent case.py and stop
 ```
 
 Python case scripts keep working exactly as before — `sic run main.py` is
@@ -219,7 +219,7 @@ reported as a circular include rather than looping.
 
 This is a good way to share one material definition or one loading schedule
 between several cases. The generated script lists the files it was built from
-in its header, and `sic convert` still produces a single self-contained
+in its header, and `sic y2p` still produces a single self-contained
 script.
 
 ## Limitations, and the way around them
@@ -233,7 +233,7 @@ file.
 For those cases, export the script and continue in Python:
 
 ```bash
-sic convert case.yaml -o main.py
+sic y2p case.yaml -o main.py
 ```
 
 The exported script is exactly what `sic run case.yaml` executes, so nothing

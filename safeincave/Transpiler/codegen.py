@@ -7,7 +7,7 @@
 The generated script mirrors the structure of the hand-written example
 scripts (grid → equations → material → initial state → per-stage BCs,
 outputs, simulator) and depends only on the public safeincave API, so it can
-be exported with ``sic convert`` and edited like any other case script.
+be exported with ``sic y2p`` and edited like any other case script.
 """
 
 from __future__ import annotations

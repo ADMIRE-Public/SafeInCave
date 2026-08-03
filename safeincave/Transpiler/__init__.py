@@ -6,7 +6,7 @@
 
 A YAML case file is converted into a standalone Python script that only uses
 the public safeincave API, and that script is what runs — there is no second,
-object-building code path, so ``sic run case.yaml`` and ``sic convert``
+object-building code path, so ``sic run case.yaml`` and ``sic y2p case.yaml``
 cannot diverge.
 
 The YAML schema is reflection-driven: ``type:`` values are real class names
@@ -18,7 +18,7 @@ auto-discovery become legal YAML keywords automatically.
 Usage::
 
     sic run case.yaml            # transpile + run
-    sic convert case.yaml        # export the generated Python script
+    sic y2p case.yaml            # export the generated Python script
 """
 
 from __future__ import annotations

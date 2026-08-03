@@ -363,7 +363,7 @@ def _check_simulator_wiring(simulator: ObjectSpec, equations: dict,
 _INITIAL_TEMPERATURE_HELP = (
     "initial_temperature: {problem}. It must be a uniform value in Kelvin; "
     "spatially varying initial fields cannot be expressed in YAML. Use "
-    "'sic convert' and set the field in the generated Python script instead."
+    "'sic y2p' and set the field in the generated Python script instead."
 )
 
 _TOP_LEVEL_KEYS = (
