@@ -6,3 +6,4 @@
 from .IO import *  # noqa: F401, F403
 from .MeshParameter import Element, ModelML  # noqa: F401
 from .mandel import mandel_to_tensor3x3, p_q_from_mandel, principal_from_tensor  # noqa: F401
+from .InSituStress import ElementSet, build_uniform_stress, build_geostatic_gradient_stress  # noqa: F401
