@@ -22,6 +22,7 @@ from pathlib import Path
 
 from . import include, registry, signatures
 from .errors import TranspileError
+from .suggest import closest
 
 
 # --------------------------------------------------------------------------- IR
@@ -47,6 +48,7 @@ class OutputSpec:
 
 @dataclass
 class MaterialSpec:
+    name: str | None = None
     properties: dict = field(default_factory=dict)  # {setter_suffix: scalar|region map}
     elastic: list = field(default_factory=list)
     non_elastic: list = field(default_factory=list)
@@ -137,14 +139,12 @@ def _region_map(node: dict, context: str) -> dict:
 
 # ------------------------------------------------------------------ object specs
 
-def build_object(section_key: str, node, context: str, tensor_aware: bool = False) -> ObjectSpec:
-    """Resolve and validate one ``{type: ..., <kwargs>}`` YAML block."""
-    node = dict(_require_mapping(node, context))
-    type_name = node.pop("type", None)
-    if not isinstance(type_name, str):
-        raise TranspileError(f"{context}: a 'type' key naming a class is required.")
+def _finalize_object(section_key: str, type_name: str, cls: type, node: dict, context: str,
+                      tensor_aware: bool = False, aliases: dict | None = None) -> ObjectSpec:
+    """Validate a resolved ``(cls, kwargs)`` pair and build its :class:`ObjectSpec`."""
+    if aliases:
+        node = {aliases.get(key.lower(), key): value for key, value in node.items()}
 
-    cls = registry.resolve(section_key, type_name, context)
     signatures.validate_kwargs(cls, node, context)
 
     tensor_names = signatures.constitutive_tensor_params(cls) if tensor_aware else set()
@@ -166,6 +166,17 @@ def build_object(section_key: str, node, context: str, tensor_aware: bool = Fals
 
     return ObjectSpec(section=section_key, type_name=type_name, cls=cls,
                       kwargs=kwargs, tensor_kwargs=tensor_kwargs)
+
+
+def build_object(section_key: str, node, context: str, tensor_aware: bool = False) -> ObjectSpec:
+    """Resolve and validate one ``{type: ..., <kwargs>}`` YAML block."""
+    node = dict(_require_mapping(node, context))
+    type_name = node.pop("type", None)
+    if not isinstance(type_name, str):
+        raise TranspileError(f"{context}: a 'type' key naming a class is required.")
+
+    cls = registry.resolve(section_key, type_name, context)
+    return _finalize_object(section_key, type_name, cls, node, context, tensor_aware=tensor_aware)
 
 
 # --------------------------------------------------------------------- sections
@@ -193,31 +204,101 @@ def _material_property_names() -> list:
 
 _ELEMENT_GROUPS = ("elastic", "non_elastic", "thermoelastic")
 
+# Descriptive spellings accepted for constructor parameters whose real names
+# are terse (matches the real safeincave API, case-insensitively).
+_MATERIAL_ELEMENT_ALIASES = {
+    "youngs_modulus": "E",
+    "poissons_ratio": "nu",
+}
+
+
+def _merge_mapping_list(node, context: str) -> dict:
+    """Merge a list of one-or-more-key mappings into a single flat dict."""
+    merged = {}
+    for i, item in enumerate(_require_list(node, context)):
+        item = _require_mapping(item, f"{context}[{i}]")
+        for key, value in item.items():
+            if key in merged:
+                raise TranspileError(f"{context}[{i}]: duplicate key {key!r}.")
+            merged[key] = value
+    return merged
+
+
+def _resolve_material_element(key: str, context: str):
+    """Resolve a material key (e.g. ``plasticDPR`` or ``elastic``) to its class.
+
+    Direct, case-insensitive type names (``plasticDPR`` -> ``PlasticDPR``) are
+    tried first; a bare category name (``elastic``) is accepted as shorthand
+    only when that category has exactly one legal type (currently true for
+    'elastic' -> Spring and 'thermoelastic' -> Thermoelastic).
+    """
+    matches = []
+    for category in _ELEMENT_GROUPS:
+        for legal in registry.legal_names(f"material.{category}"):
+            if legal.lower() == key.lower():
+                matches.append((category, legal))
+    if len(matches) == 1:
+        category, type_name = matches[0]
+        return category, type_name, registry.resolve(f"material.{category}", type_name, context)
+    if len(matches) > 1:
+        options = ", ".join(f"{cat}.{name}" for cat, name in matches)
+        raise TranspileError(f"{context}: '{key}' is ambiguous ({options}).")
+
+    if key in _ELEMENT_GROUPS:
+        legal = registry.legal_names(f"material.{key}")
+        if len(legal) == 1:
+            type_name = legal[0]
+            return key, type_name, registry.resolve(f"material.{key}", type_name, context)
+        raise TranspileError(
+            f"{context}: '{key}' has {len(legal)} legal types ({', '.join(legal)}); "
+            f"use the specific type name as the key instead, e.g. '{legal[0]}'."
+        )
+
+    all_legal = sorted(
+        {name for cat in _ELEMENT_GROUPS for name in registry.legal_names(f"material.{cat}")}
+        | set(_ELEMENT_GROUPS)
+    )
+    lines = [f"{context}: unknown material key '{key}'."]
+    suggestions = closest(key, all_legal, n=3)
+    if suggestions:
+        lines.append(f"Did you mean: {', '.join(suggestions)}?")
+    lines.append(f"Legal keys: {', '.join(all_legal)}.")
+    raise TranspileError("\n".join(lines))
+
 
 def _parse_material(node, equations: dict) -> MaterialSpec:
     node = _require_mapping(node, "material")
     properties_allowed = _material_property_names()
-    _check_keys(node, list(_ELEMENT_GROUPS) + properties_allowed, "material")
-
     spec = MaterialSpec()
-    for prop in properties_allowed:
-        if prop in node:
-            value = node[prop]
-            context = f"material.{prop}"
+
+    if "name" in node:
+        name = node["name"]
+        if not isinstance(name, str):
+            raise TranspileError("material.name: expected a string.")
+        spec.name = name
+
+    for key, value in node.items():
+        if key == "name":
+            continue
+
+        context = f"material.{key}"
+        if key in properties_allowed:
             if isinstance(value, dict):
-                spec.properties[prop] = _region_map(value, context)
+                spec.properties[key] = _region_map(value, context)
             else:
-                spec.properties[prop] = _require_number(value, context)
+                spec.properties[key] = _require_number(value, context)
+            continue
 
-    for group in _ELEMENT_GROUPS:
-        for i, elem_node in enumerate(_require_list(node.get(group, []), f"material.{group}")):
-            elem = build_object(
-                f"material.{group}", elem_node, f"material.{group}[{i}]", tensor_aware=True
-            )
-            getattr(spec, group).append(elem)
+        category, type_name, cls = _resolve_material_element(key, context)
+        raw_kwargs = _merge_mapping_list(value, context)
+        elem = _finalize_object(
+            f"material.{category}", type_name, cls, raw_kwargs, context,
+            tensor_aware=True, aliases=_MATERIAL_ELEMENT_ALIASES,
+        )
+        getattr(spec, category).append(elem)
 
-    if "density" not in spec.properties:
-        raise TranspileError("material: 'density' is required.")
+    spec.properties.setdefault("density", 0.0)
+
     if "momentum" in equations and not spec.elastic:
         raise TranspileError(
             "material: at least one 'elastic' element is required for a momentum equation."
@@ -368,12 +449,49 @@ _INITIAL_TEMPERATURE_HELP = (
 
 _TOP_LEVEL_KEYS = (
     "grid",
+    "mesh",
     "equations",
     "material",
     "body_force",
     "initial_temperature",
     "stages",
 )
+
+
+def _parse_grid(root: dict, context: str) -> ObjectSpec:
+    """Build the grid ObjectSpec from either 'grid' (full form) or 'mesh' (shorthand).
+
+    'mesh: path/to/name.msh' is sugar for a GridHandlerGMSH block, splitting
+    the path into grid_folder and geometry_name.
+    """
+    if "grid" in root and "mesh" in root:
+        raise TranspileError(f"{context}: specify either 'grid' or 'mesh', not both.")
+    if "mesh" in root:
+        mesh_path = root["mesh"]
+        if not isinstance(mesh_path, str):
+            raise TranspileError(f"{context}.mesh: expected a string path, got {mesh_path!r}.")
+        grid_folder, filename = _posixpath_split(mesh_path)
+        geometry_name, ext = _posixpath_splitext(filename)
+        if ext.lower() != ".msh":
+            raise TranspileError(f"{context}.mesh: expected a '.msh' file, got {mesh_path!r}.")
+        cls = registry.resolve("grid", "GridHandlerGMSH", f"{context}.mesh")
+        return ObjectSpec(
+            section="grid", type_name="GridHandlerGMSH", cls=cls,
+            kwargs={"geometry_name": geometry_name, "grid_folder": grid_folder or "."},
+        )
+    return build_object("grid", root["grid"], "grid")
+
+
+def _posixpath_split(path: str) -> tuple[str, str]:
+    head, _, tail = path.rpartition("/")
+    return head, tail
+
+
+def _posixpath_splitext(name: str) -> tuple[str, str]:
+    stem, dot, ext = name.rpartition(".")
+    if not dot:
+        return name, ""
+    return stem, f".{ext}"
 
 
 def parse(yaml_path) -> CaseModel:
@@ -383,11 +501,15 @@ def parse(yaml_path) -> CaseModel:
 
     root = _require_mapping(root, str(yaml_path))
     _check_keys(root, _TOP_LEVEL_KEYS, str(yaml_path))
-    for key in ("grid", "equations", "material", "stages"):
+    if "grid" not in root and "mesh" not in root:
+        raise TranspileError(
+            f"{yaml_path}: top-level section 'grid' (or its 'mesh' shorthand) is required."
+        )
+    for key in ("equations", "material", "stages"):
         if key not in root:
             raise TranspileError(f"{yaml_path}: top-level section '{key}' is required.")
 
-    grid = build_object("grid", root["grid"], "grid")
+    grid = _parse_grid(root, str(yaml_path))
     equations = _parse_equations(root["equations"])
     material = _parse_material(root["material"], equations)
 
@@ -397,11 +519,9 @@ def parse(yaml_path) -> CaseModel:
         raise TranspileError("body_force: expected exactly three components [gx, gy, gz].")
     body_force = [_require_number(v, f"body_force[{i}]") for i, v in enumerate(body_force)]
 
-    if "initial_temperature" not in root:
-        raise TranspileError(_INITIAL_TEMPERATURE_HELP.format(problem="is required"))
     try:
         initial_temperature = _require_number(
-            root["initial_temperature"], "initial_temperature"
+            root.get("initial_temperature", 293.0), "initial_temperature"
         )
     except TranspileError:
         raise TranspileError(

@@ -22,32 +22,24 @@ from importlib.metadata import entry_points
 from pathlib import Path
 
 
-def _discover_default_script() -> Path:
-    """Find the file ``sic run`` should use when called with no argument.
+_DEFAULT_CANDIDATES = ("m.yaml", "main.yaml", "main.py")
 
-    Tries ``main.yaml`` first, then ``main.py``, in the current directory.
-    """
-    cwd = Path.cwd()
-    for name in ("main.yaml", "main.py"):
-        path = cwd / name
+
+def _default_script() -> Path:
+    for candidate in _DEFAULT_CANDIDATES:
+        path = Path.cwd() / candidate
         if path.is_file():
             return path
-
-    print(
-        f"sic run: no main.yaml or main.py found in {cwd}; pass a file explicitly.",
-        file=sys.stderr,
-    )
+    candidates = ", ".join(_DEFAULT_CANDIDATES)
+    print(f"sic run: no name given and none of {candidates} found in {Path.cwd()}", file=sys.stderr)
     sys.exit(1)
 
 
 def _run_script(args: argparse.Namespace) -> None:
-    if args.name is None:
-        script_path = _discover_default_script()
-    else:
-        script_path = Path.cwd() / args.name
-        if not script_path.is_file():
-            print(f"sic run: no such file: {script_path}", file=sys.stderr)
-            sys.exit(1)
+    script_path = Path.cwd() / args.name if args.name else _default_script()
+    if not script_path.is_file():
+        print(f"sic run: no such file: {script_path}", file=sys.stderr)
+        sys.exit(1)
 
     if script_path.suffix.lower() in (".yaml", ".yml"):
         # YAML case definition: transpile to Python and run (safeincave.Transpiler)
@@ -61,15 +53,16 @@ def _run_script(args: argparse.Namespace) -> None:
 def _register_run(subparsers: argparse._SubParsersAction) -> None:
     parser = subparsers.add_parser(
         "run",
-        help="Run <name>.py or <name>.yaml from the current directory "
-        "(default: main.yaml, then main.py)",
+        help="Run <name>.py or <name>.yaml from the current directory (default: m.yaml, main.yaml, or main.py)",
     )
     parser.add_argument(
         "name",
         nargs="?",
         default=None,
-        help="Case filename: a .py script or a .yaml case definition. "
-        "If omitted: uses 'main.yaml' if it exists, else 'main.py'.",
+        help=(
+            "Case filename: a .py script or a .yaml case definition "
+            "(default: first of 'm.yaml', 'main.yaml', 'main.py' found in the current directory)"
+        ),
     )
     parser.add_argument("script_args", nargs=argparse.REMAINDER, help="Extra arguments forwarded to the script")
     parser.set_defaults(func=_run_script)
