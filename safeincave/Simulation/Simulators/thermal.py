@@ -7,7 +7,7 @@
 from __future__ import annotations
 from typing import Any
 from .base import Simulator
-from ...Output.SimLogging import SimulationLogging
+from ...Output.DataExtract import SimulationLogging
 from ...Output.Screen import ScreenPrinter
 from ...Cavern import CavernHandler
 

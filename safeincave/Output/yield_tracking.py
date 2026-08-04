@@ -6,7 +6,7 @@
 Generic yield tracking for multi-mechanism plasticity models.
 
 Registers a configurable ``Yield`` variable in
-:mod:`safeincave.Output.SimLogging`'s variable registry: indicates whether
+:mod:`safeincave.Output.DataExtract`'s variable registry: indicates whether
 any active yield surface (Drucker-Prager, Mohr-Coulomb, Rankine, etc.) is
 active, regardless of which one.
 

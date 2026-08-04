@@ -35,6 +35,7 @@ class Section:
     bases: tuple = ()   # dotted paths of accepted base classes (any match)
     name_prefixes: tuple = ()  # accepted class-name prefixes when no base fits
     exclude: tuple = () # class names that resolve but are not concrete choices
+    aliases: dict = None  # friendlier YAML spelling -> real class name
 
 
 SECTIONS = {
@@ -50,6 +51,7 @@ SECTIONS = {
         prefix="sf.",
         bases=("safeincave.LinearMomentumBase",),
         exclude=("LinearMomentumBase",),
+        aliases={"momentum_newton": "LinearMomentumNewton"},
     ),
     "equations.heat": Section(
         key="equations.heat",
@@ -84,6 +86,7 @@ SECTIONS = {
         prefix="sf.",
         bases=("safeincave.TimeControllerBase",),
         exclude=("TimeControllerBase",),
+        aliases={"adaptive": "TimeControllerAdaptive"},
     ),
     "bcs.momentum": Section(
         key="bcs.momentum",
@@ -117,6 +120,11 @@ SECTIONS = {
         module="safeincave",
         prefix="sf.",
         bases=("safeincave.Simulation.Simulators.base.Simulator",),
+        aliases={
+            "quasi_static": "Simulator_MNewton",
+            "thermo_mechanical_newton": "Simulator_TMNewton",
+            "geostatic": "GeostaticStep",
+        },
     ),
 }
 
@@ -155,20 +163,27 @@ def legal_names(section_key: str) -> list:
         obj = getattr(module, name, None)
         if _accepts(section, name, obj):
             names.append(name)
+    if section.aliases:
+        names.extend(section.aliases)
     return sorted(set(names))
 
 
 def resolve(section_key: str, type_name: str, context: str):
     """Resolve ``type_name`` in the section's namespace, or raise.
 
+    ``type_name`` may be the real class name or one of the section's
+    friendlier YAML aliases (see :attr:`Section.aliases`); aliases are
+    resolved to their real class name before the usual lookup.
+
     Raises :class:`TranspileError` with the list of legal names and a
     closest-match suggestion when the name is unknown or of the wrong
     category.
     """
     section = SECTIONS[section_key]
+    real_name = (section.aliases or {}).get(type_name, type_name)
     module = importlib.import_module(section.module)
-    obj = getattr(module, type_name, None)
-    if obj is not None and _accepts(section, type_name, obj):
+    obj = getattr(module, real_name, None)
+    if obj is not None and _accepts(section, real_name, obj):
         return obj
 
     legal = legal_names(section_key)

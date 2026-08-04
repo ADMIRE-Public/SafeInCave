@@ -27,6 +27,11 @@ from .suggest import closest
 
 # --------------------------------------------------------------------------- IR
 
+class RawCode(str):
+    """A kwarg value that is already valid Python source (e.g. a class
+    reference), emitted verbatim by codegen instead of via ``repr()``."""
+
+
 @dataclass
 class ObjectSpec:
     """One YAML block that instantiates a class of the safeincave API."""
@@ -57,12 +62,38 @@ class MaterialSpec:
 
 
 @dataclass
+class ExtractSpec:
+    """One point-wise recording profile: what to record, where from, and how.
+
+    The two `kind`s are the two ``outputs:`` entry types and the two CSV
+    layouts (see :mod:`safeincave.Output.DataExtract`) --
+    ``extract_fixed_point`` is one point with many variables,
+    ``extract_fixed_variable`` is one variable at many points -- and
+    `while_simulating` picks which of the two implementations produces it:
+    a live `SimulationLogging` (`logger` is set) or an after-the-fact
+    `safeincave.Output.DataExtract.extract_point`/`extract_variable` call
+    over the saved fields.
+
+    "raw" is the low-level `stages:` schema's `logging:` block, which names
+    a logger class and its kwargs directly instead of being described by
+    kind/points/variables; it is always live.
+    """
+
+    name: str
+    kind: str                        # "extract_fixed_point" | "extract_fixed_variable" | "raw"
+    while_simulating: bool
+    points: list = field(default_factory=list)     # one entry for kind "extract_fixed_point"
+    variables: list = field(default_factory=list)  # one entry for kind "extract_fixed_variable"
+    logger: ObjectSpec | None = None               # live entries only
+
+
+@dataclass
 class StageSpec:
     name: str
     time: ObjectSpec
     bcs: dict              # {"momentum": [ObjectSpec], "heat": [ObjectSpec]}
     caverns: list
-    logging: ObjectSpec | None
+    extracts: list         # [ExtractSpec]
     outputs: list
     simulator: ObjectSpec
 
@@ -150,7 +181,11 @@ def _finalize_object(section_key: str, type_name: str, cls: type, node: dict, co
     kwargs, tensor_kwargs = {}, {}
     for key, value in node.items():
         key_context = f"{context}.{key}"
-        if key in tensor_names:
+        if section_key == "simulator" and key == "simulator_cls" and isinstance(value, str):
+            ref_cls = registry.resolve("simulator", value, key_context)
+            prefix = registry.SECTIONS["simulator"].prefix
+            kwargs[key] = RawCode(f"{prefix}{ref_cls.__name__}")
+        elif key in tensor_names:
             if isinstance(value, dict):
                 tensor_kwargs[key] = _region_map(value, key_context)
             else:
@@ -175,7 +210,7 @@ def build_object(section_key: str, node, context: str, tensor_aware: bool = Fals
         raise TranspileError(f"{context}: a 'type' key naming a class is required.")
 
     cls = registry.resolve(section_key, type_name, context)
-    return _finalize_object(section_key, type_name, cls, node, context, tensor_aware=tensor_aware)
+    return _finalize_object(section_key, cls.__name__, cls, node, context, tensor_aware=tensor_aware)
 
 
 # --------------------------------------------------------------------- sections
@@ -602,6 +637,78 @@ def _parse_loads(node, context: str = "loads") -> dict:
     return parsed
 
 
+def _require_point(value, context: str) -> list:
+    coords = _require_list(value, context)
+    if not 2 <= len(coords) <= 3:
+        raise TranspileError(f"{context}: expected [x, y] or [x, y, z].")
+    point = [_require_number(c, f"{context}[{i}]") for i, c in enumerate(coords)]
+    return point + [0.0] * (3 - len(point))
+
+
+def _default_extract_variables() -> list:
+    from safeincave.Output.DataExtract import DEFAULT_VARIABLES
+
+    return list(DEFAULT_VARIABLES)
+
+
+def _parse_extract_entry(name: str, kind: str, entry: dict, context: str) -> "ExtractSpec":
+    """
+    Parse one ``extract_fixed_point``/``extract_fixed_variable`` entry of the
+    ``outputs:`` collection -- a point-wise recording profile, either live
+    (`while_simulating: true`, driven by `SimulationLogging` as the run
+    proceeds) or after the fact (the default, read back from the saved
+    fields by `safeincave.Output.DataExtract`).
+    """
+    if kind == "extract_fixed_point":
+        _check_keys(entry, ("point", "variables", "while_simulating"), context)
+    else:
+        _check_keys(entry, ("variable", "points", "while_simulating"), context)
+    while_simulating = bool(entry.get("while_simulating", False))
+
+    if kind == "extract_fixed_point":
+        if "point" not in entry:
+            raise TranspileError(f"{context}: 'point' is required.")
+        points = [_require_point(entry["point"], f"{context}.point")]
+        variables = (
+            [str(v) for v in _require_list(entry["variables"], f"{context}.variables")]
+            if "variables" in entry
+            else _default_extract_variables()
+        )
+    else:
+        if "variable" not in entry:
+            raise TranspileError(f"{context}: 'variable' is required.")
+        variables = [str(entry["variable"])]
+        raw_points = _require_list(entry.get("points", []), f"{context}.points")
+        if not raw_points:
+            raise TranspileError(f"{context}: 'points' must not be empty.")
+        points = [
+            _require_point(p, f"{context}.points[{i}]")
+            for i, p in enumerate(raw_points)
+        ]
+
+    if not variables:
+        raise TranspileError(f"{context}: 'variables' must not be empty.")
+
+    logger = None
+    if while_simulating:
+        logger_node = {
+            "type": "SimulationLogging",
+            "variables_to_track": variables,
+            "layout": "per_point" if kind == "extract_fixed_point" else "per_variable",
+            "name": name,
+        }
+        if kind == "extract_fixed_point":
+            logger_node["target_point"] = points[0]
+        else:
+            logger_node["target_points"] = points
+        logger = build_object("logging", logger_node, context)
+
+    return ExtractSpec(
+        name=name, kind=kind, while_simulating=while_simulating,
+        points=points, variables=variables, logger=logger,
+    )
+
+
 def _parse_outputs_defs(node, context: str = "outputs") -> dict:
     parsed = {}
     for name, entry in _by_name(node, context).items():
@@ -630,17 +737,23 @@ def _parse_outputs_defs(node, context: str = "outputs") -> dict:
                 "merged_solutions": bool(entry.get("merged_solutions", False)),
                 "smooth_output": bool(entry.get("smooth_output", False)),
             }
-        elif kind == "logging":
-            _check_keys(entry, ("target_point", "variables_to_track"), entry_context)
-            logging_node = dict(entry)
-            logging_node["type"] = "SimulationLogging"
+        elif kind in ("extract_fixed_point", "extract_fixed_variable"):
             parsed[name] = {
-                "kind": "logging",
-                "spec": build_object("logging", logging_node, entry_context),
+                "kind": kind,
+                "extract": _parse_extract_entry(name, kind, entry, entry_context),
             }
+        elif kind == "logging":
+            raise TranspileError(
+                f"{entry_context}.type: point-wise logging is now declared "
+                f"directly under 'outputs' as 'type: extract_fixed_point' "
+                f"(one point, several variables) or "
+                f"'type: extract_fixed_variable' (one variable, several "
+                f"points)."
+            )
         else:
             raise TranspileError(
-                f"{entry_context}.type: expected 'results' or 'logging', got {kind!r}."
+                f"{entry_context}.type: expected 'results', 'extract_fixed_point' "
+                f"or 'extract_fixed_variable', got {kind!r}."
             )
     return parsed
 
@@ -700,15 +813,15 @@ def _load_bcs(names: list, loads: dict, start: float, end: float, context: str) 
     return specs
 
 
-def _parse_solvers(node, context: str = "solvers") -> dict:
+def _parse_procedures(node, context: str = "procedures") -> dict:
     parsed = {}
     for name, entry in _by_name(node, context).items():
         entry_context = f"{context}.{name}"
         entry = dict(entry)
         entry.pop("name")
 
-        solver_type = entry.pop("type", None)
-        if not isinstance(solver_type, str):
+        procedure_type = entry.pop("type", None)
+        if not isinstance(procedure_type, str):
             raise TranspileError(f"{entry_context}: a 'type' key is required.")
 
         if "time" not in entry:
@@ -725,7 +838,7 @@ def _parse_solvers(node, context: str = "solvers") -> dict:
             mom_type, mom_kwargs = _type_and_kwargs(entry.pop("momentum"), mom_context)
             mom_cls = registry.resolve("equations.momentum", mom_type, mom_context)
             momentum_spec = _finalize_object(
-                "equations.momentum", mom_type, mom_cls, mom_kwargs, mom_context
+                "equations.momentum", mom_cls.__name__, mom_cls, mom_kwargs, mom_context
             )
 
         time_type, time_overrides = _type_and_kwargs(
@@ -735,57 +848,58 @@ def _parse_solvers(node, context: str = "solvers") -> dict:
         time_kwargs.update(time_overrides)
         time_cls = registry.resolve("time", time_type, f"{entry_context}.time_step")
         time_spec = _finalize_object(
-            "time", time_type, time_cls, time_kwargs, f"{entry_context}.time_step"
+            "time", time_cls.__name__, time_cls, time_kwargs, f"{entry_context}.time_step"
         )
 
         parsed[name] = {
-            "type": solver_type, "kwargs": entry,
+            "type": procedure_type, "kwargs": entry,
             "start": start, "end": end,
             "momentum": momentum_spec, "time_spec": time_spec,
         }
     return parsed
 
 
-def _resolve_equations(solvers: dict, steps_node, context: str = "steps") -> dict:
-    """Determine the momentum equation from the solvers actually referenced by steps.
+def _resolve_equations(procedures: dict, steps_node, context: str = "steps") -> dict:
+    """Determine the momentum equation from the procedures actually referenced by steps.
 
     Equations are built once, before any step runs (the real API always
     constructs the momentum equation once and passes it by reference into
-    every stage's simulator), so every solver referenced across all steps
-    (inheriting a step's 'solver:' name forward when omitted) must agree.
+    every stage's simulator), so every procedure referenced across all steps
+    (inheriting a step's 'procedure:' name forward when omitted) must agree.
     """
     steps_list = _require_list(steps_node, context)
-    carried_solver = None
+    carried_procedure = None
     referenced = []
     for i, step_node in enumerate(steps_list):
         step_node = _require_mapping(step_node, f"{context}[{i}]")
-        if "solver" in step_node:
-            carried_solver = step_node["solver"]
-        if carried_solver is not None and carried_solver not in referenced:
-            referenced.append(carried_solver)
+        if "procedure" in step_node:
+            carried_procedure = step_node["procedure"]
+        if carried_procedure is not None and carried_procedure not in referenced:
+            referenced.append(carried_procedure)
 
     momentum_spec = None
-    for solver_name in referenced:
-        if solver_name not in solvers:
+    for procedure_name in referenced:
+        if procedure_name not in procedures:
             raise TranspileError(
-                f"{context}: unknown solver {solver_name!r}. "
-                f"Defined: {', '.join(sorted(solvers)) or '(none)'}."
+                f"{context}: unknown procedure {procedure_name!r}. "
+                f"Defined: {', '.join(sorted(procedures)) or '(none)'}."
             )
-        spec = solvers[solver_name]["momentum"]
+        spec = procedures[procedure_name]["momentum"]
         if spec is None:
             continue
         if momentum_spec is None:
             momentum_spec = spec
         elif (spec.type_name, spec.kwargs) != (momentum_spec.type_name, momentum_spec.kwargs):
             raise TranspileError(
-                f"{context}: solvers referenced across steps define different 'momentum' "
+                f"{context}: procedures referenced across steps define different 'momentum' "
                 f"specs; the momentum equation is built once and must be identical."
             )
     return {"momentum": momentum_spec} if momentum_spec is not None else {}
 
 
 def _parse_steps(node, equations: dict, materials: dict, boundaries: dict, loads: dict,
-                 outputs_defs: dict, solvers: dict, context: str = "steps") -> tuple:
+                 outputs_defs: dict, procedures: dict,
+                 context: str = "steps") -> tuple:
     steps_list = _require_list(node, context)
     if not steps_list:
         raise TranspileError(f"{context}: at least one step is required.")
@@ -802,22 +916,23 @@ def _parse_steps(node, equations: dict, materials: dict, boundaries: dict, loads
             raise TranspileError(f"{context}[{i}]: a string 'name' is required.")
         step_context = f"{context}.{step_name}"
         _check_keys(
-            step_node, ("name", "materials", "boundaries", "loads", "solver", "outputs"),
+            step_node,
+            ("name", "materials", "boundaries", "loads", "procedure", "outputs"),
             step_context,
         )
         merged = {**carried, **{k: v for k, v in step_node.items() if k != "name"}}
         carried = merged
 
-        if "solver" not in merged:
-            raise TranspileError(f"{step_context}: 'solver' is required (directly or inherited).")
-        solver_name = merged["solver"]
-        if solver_name not in solvers:
+        if "procedure" not in merged:
+            raise TranspileError(f"{step_context}: 'procedure' is required (directly or inherited).")
+        procedure_name = merged["procedure"]
+        if procedure_name not in procedures:
             raise TranspileError(
-                f"{step_context}.solver: unknown solver {solver_name!r}. "
-                f"Defined: {', '.join(sorted(solvers)) or '(none)'}."
+                f"{step_context}.procedure: unknown procedure {procedure_name!r}. "
+                f"Defined: {', '.join(sorted(procedures)) or '(none)'}."
             )
-        solver_def = solvers[solver_name]
-        start, end, time_spec = solver_def["start"], solver_def["end"], solver_def["time_spec"]
+        procedure_def = procedures[procedure_name]
+        start, end, time_spec = procedure_def["start"], procedure_def["end"], procedure_def["time_spec"]
 
         material_names = (
             _select_names(merged["materials"], f"{step_context}.materials")
@@ -871,42 +986,38 @@ def _parse_steps(node, equations: dict, materials: dict, boundaries: dict, loads
         fields = {}
         merged_solutions_values = set()
         smooth_output_values = set()
-        logging_specs = []
+        extracts = []
         for odef in output_defs:
             if odef["kind"] == "results":
                 fields.update(odef["fields"])
                 merged_solutions_values.add(odef["merged_solutions"])
                 smooth_output_values.add(odef["smooth_output"])
             else:
-                logging_specs.append(odef["spec"])
+                extracts.append(odef["extract"])
         if len(merged_solutions_values) > 1 or len(smooth_output_values) > 1:
             raise TranspileError(
                 f"{step_context}.outputs: combined output profiles disagree on "
                 f"'merged_solutions'/'smooth_output'."
             )
-        if len(logging_specs) > 1:
-            raise TranspileError(
-                f"{step_context}.outputs: only one logging profile per step is supported."
-            )
         if not fields:
             raise TranspileError(f"{step_context}.outputs: no 'results'-type output referenced.")
-        logging = logging_specs[0] if logging_specs else None
+
         outputs = [OutputSpec(
             equation="momentum" if "momentum" in equations else next(iter(equations)),
             output_format="xdmf", folder=f"output/{step_name}", fields=fields,
         )]
 
-        solver_kwargs = dict(solver_def["kwargs"])
-        solver_kwargs["merged_solutions"] = merged_solutions_values.pop() if merged_solutions_values else False
-        solver_kwargs["smooth_output"] = smooth_output_values.pop() if smooth_output_values else False
-        solver_cls = registry.resolve("simulator", solver_def["type"], f"{step_context}.solver")
+        procedure_kwargs = dict(procedure_def["kwargs"])
+        procedure_kwargs["merged_solutions"] = merged_solutions_values.pop() if merged_solutions_values else False
+        procedure_kwargs["smooth_output"] = smooth_output_values.pop() if smooth_output_values else False
+        procedure_cls = registry.resolve("simulator", procedure_def["type"], f"{step_context}.procedure")
         simulator = _finalize_object(
-            "simulator", solver_def["type"], solver_cls, solver_kwargs, f"{step_context}.solver"
+            "simulator", procedure_cls.__name__, procedure_cls, procedure_kwargs, f"{step_context}.procedure"
         )
-        _check_simulator_wiring(simulator, equations, [], logging, f"{step_context}.solver")
+        _check_simulator_wiring(simulator, equations, [], extracts, f"{step_context}.procedure")
 
         stages.append(StageSpec(
-            name=step_name, time=time_spec, bcs=bcs, caverns=[], logging=logging,
+            name=step_name, time=time_spec, bcs=bcs, caverns=[], extracts=extracts,
             outputs=outputs, simulator=simulator,
         ))
 
@@ -995,9 +1106,14 @@ def _parse_stage(node, index: int, equations: dict) -> StageSpec:
         )
     ]
 
-    logging = None
+    # The low-level schema names the logger class and its kwargs directly,
+    # rather than describing the profile as an 'extract' entry does.
+    extracts = []
     if "logging" in node:
-        logging = build_object("logging", node["logging"], f"{context}.logging")
+        extracts.append(ExtractSpec(
+            name="log", kind="raw", while_simulating=True,
+            logger=build_object("logging", node["logging"], f"{context}.logging"),
+        ))
 
     outputs = [
         _parse_output(out_node, equations, f"{context}.outputs[{i}]")
@@ -1011,14 +1127,14 @@ def _parse_stage(node, index: int, equations: dict) -> StageSpec:
     if "simulator" not in node:
         raise TranspileError(f"{context}: a 'simulator' block is required.")
     simulator = build_object("simulator", node["simulator"], f"{context}.simulator")
-    _check_simulator_wiring(simulator, equations, caverns, logging, f"{context}.simulator")
+    _check_simulator_wiring(simulator, equations, caverns, extracts, f"{context}.simulator")
 
     return StageSpec(name=name, time=time, bcs=bcs, caverns=caverns,
-                     logging=logging, outputs=outputs, simulator=simulator)
+                     extracts=extracts, outputs=outputs, simulator=simulator)
 
 
 def _check_simulator_wiring(simulator: ObjectSpec, equations: dict,
-                            caverns: list, logging, context: str) -> None:
+                            caverns: list, extracts: list, context: str) -> None:
     """The simulator's auto-wired parameters define what the stage needs."""
     params = signatures.init_parameters(simulator.cls)
     for param_name, eq_name in (("eq_mom", "momentum"), ("eq_heat", "heat")):
@@ -1033,10 +1149,13 @@ def _check_simulator_wiring(simulator: ObjectSpec, equations: dict,
             f"{context}: {simulator.type_name} does not accept caverns, "
             f"but the stage defines some."
         )
-    if logging is not None and "simulation_logger" not in params:
+    # Post-run extraction runs against the saved files, so it works with any
+    # simulator; only the live profiles need the logger hook.
+    live = [e for e in extracts if e.while_simulating]
+    if live and "simulation_logger" not in params:
         raise TranspileError(
             f"{context}: {simulator.type_name} does not accept a simulation logger, "
-            f"but the stage defines one."
+            f"but {', '.join(repr(e.name) for e in live)} sets 'while_simulating: true'."
         )
 
 
@@ -1059,7 +1178,7 @@ _TOP_LEVEL_KEYS = (
     "materials",
     "boundaries",
     "loads",
-    "solvers",
+    "procedures",
     "outputs",
     "steps",
 )
@@ -1128,10 +1247,10 @@ def parse(yaml_path) -> CaseModel:
         if "equations" in root:
             raise TranspileError(
                 f"{yaml_path}: top-level 'equations' is not used with the 'steps' schema; "
-                f"define a 'solvers' entry's 'momentum:' field instead."
+                f"define a 'procedures' entry's 'momentum:' field instead."
             )
-        solvers = _parse_solvers(root.get("solvers", []))
-        equations = _resolve_equations(solvers, root["steps"])
+        procedures = _parse_procedures(root.get("procedures", []))
+        equations = _resolve_equations(procedures, root["steps"])
         if not equations:
             raise TranspileError(
                 f"{yaml_path}: at least one step must define 'momentum' "
@@ -1163,7 +1282,7 @@ def parse(yaml_path) -> CaseModel:
         if "stages" in root or "material" in root:
             raise TranspileError(
                 f"{yaml_path}: specify either the legacy 'material'/'stages' schema or the "
-                f"'materials'/'boundaries'/'loads'/'solvers'/'outputs'/'steps' schema, not a "
+                f"'materials'/'boundaries'/'loads'/'procedures'/'outputs'/'steps' schema, not a "
                 f"mix of both."
             )
         materials = _parse_materials(root.get("materials", []), equations)
@@ -1171,7 +1290,8 @@ def parse(yaml_path) -> CaseModel:
         loads = _parse_loads(root.get("loads", []))
         outputs_defs = _parse_outputs_defs(root.get("outputs", []))
         stages, material = _parse_steps(
-            root["steps"], equations, materials, boundaries, loads, outputs_defs, solvers
+            root["steps"], equations, materials, boundaries, loads, outputs_defs,
+            procedures,
         )
     else:
         if "material" not in root:

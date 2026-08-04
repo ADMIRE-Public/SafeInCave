@@ -39,11 +39,14 @@ from .Materials.Material import Material
 from .Materials.Constitutive import *  # noqa: F403, F405
 from .Materials.Constitutive import __all__ as _CONSTITUTIVE_ALL
 from .Output.SaveFields import SaveFields
-from .Output.SimLogging import (
+from .Output.DataExtract import (
     SimulationLogging,
+    CompositeLogger,
     register_variable,
     get_variable,
     list_registered_variables,
+    extract_point,
+    extract_variable,
 )
 from .Thermo.CavernThermodynamics import CavernThermodynamics
 from .Simulation.Convergence import (
@@ -91,9 +94,12 @@ __all__ = [
     "Material",
     "SaveFields",
     "SimulationLogging",
+    "CompositeLogger",
     "register_variable",
     "get_variable",
     "list_registered_variables",
+    "extract_point",
+    "extract_variable",
     "Simulator_TM",
     "Simulator_T",
     "Simulator_M",
