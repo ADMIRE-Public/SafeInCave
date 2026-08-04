@@ -20,10 +20,7 @@
 # strains (eps_ve, eps_cr, eps_vp, Fvp). Custom subclasses are outside the
 # scope of a YAML case, so this file outputs the standard fields only.
 
-grid:
-  type: GridHandlerGMSH
-  geometry_name: geom
-  grid_folder: ../../../grids/cube
+mesh: ../../../grids/cube/geom.msh
 
 equations:
   momentum:

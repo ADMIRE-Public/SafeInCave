@@ -183,6 +183,8 @@ def generate(model: CaseModel) -> str:
 
     # ---- material
     w.line("# --- Material ---")
+    if model.material.name:
+        w.line(f"# {model.material.name}")
     w.line("mat = sf.Material(grid.n_elems)")
     for prop, value in model.material.properties.items():
         w.call("", f"mat.set_{prop}", [_tensor_expr(value, f"material.{prop}")])
