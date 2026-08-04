@@ -28,6 +28,7 @@ variable's time series across points back out of that file.
 
 import os
 import csv
+import re
 import sys
 from typing import Any, Callable, Dict, List, Optional
 
@@ -42,6 +43,15 @@ from mpi4py import MPI
 
 # Global registry for variable definitions
 VARIABLE_REGISTRY: Dict[str, tuple] = {}
+
+
+def _strip_unit_suffix(header: str) -> str:
+    """Drop a trailing ' (unit)' annotation from a CSV column header.
+
+    E.g. 'sxx (Pa)' -> 'sxx', 'exx (-)' -> 'exx'. Headers without one are
+    returned unchanged.
+    """
+    return re.sub(r"\s*\([^)]*\)\s*$", "", header)
 
 
 def register_variable(name: str, header: str, extractor: Callable) -> None:
@@ -234,28 +244,6 @@ def _extract_plastic_multiplier():
     return extractor
 
 
-def _extract_yield_indicator():
-    """Create extractor for yield indicator (boolean)."""
-    def extractor(elem_id: int, **kwargs) -> int:
-        """Extract yield indicator for given element."""
-        yield_indicator = kwargs.get('yield_indicator')
-        if yield_indicator is None:
-            return 0
-        return int(yield_indicator[elem_id].item())
-    return extractor
-
-
-def _extract_yield_indicator_h():
-    """Create extractor for the tension-cutoff (Rankine) yield indicator."""
-    def extractor(elem_id: int, **kwargs) -> int:
-        """Extract Rankine yield indicator for given element."""
-        yield_indicator_h = kwargs.get('yield_indicator_h')
-        if yield_indicator_h is None:
-            return 0
-        return int(yield_indicator_h[elem_id].item())
-    return extractor
-
-
 def _extract_generic_yield():
     """Create extractor for a generic yield indicator: 1 if any active yield
     surface (Drucker-Prager, Mohr-Coulomb, Rankine tension cutoff, ...) is
@@ -294,8 +282,6 @@ def _register_default_variables():
     register_variable('e3', 'e3 (-)', _extract_principal_strain(2))
     register_variable('F', 'F (Pa)', _extract_yield_function())
     register_variable('dl', 'dl (-)', _extract_plastic_multiplier())
-    register_variable('YieldR', 'YieldR', _extract_yield_indicator_h())
-    register_variable('YieldDP', 'YieldDP', _extract_yield_indicator())
     register_variable('Yield', 'Yield', _extract_generic_yield())
 
 
@@ -303,10 +289,11 @@ def _register_default_variables():
 _register_default_variables()
 
 #: Variables tracked when `variables_to_track` is omitted. Deliberately
-#: leaner than "every registered variable": `sm`, `svM`, `F`, `dl`, `YieldR`,
-#: `YieldDP` remain available on request but are no longer defaults, in
-#: favor of the generic `Yield` indicator (works identically on both the
-#: push and pull backends).
+#: leaner than "every registered variable": `sm`, `svM`, `F`, `dl` remain
+#: available on request but are no longer defaults, in favor of the generic
+#: `Yield` indicator (works identically on both the push and pull backends;
+#: the mechanism-specific `YieldDP`/`YieldR` indicators it superseded have
+#: been removed).
 DEFAULT_VARIABLES: List[str] = [
     "sxx", "syy", "szz", "exx", "eyy", "ezz", "Yield",
 ]
@@ -316,7 +303,7 @@ DEFAULT_VARIABLES: List[str] = [
 #: single generic committed-yield field, no per-mechanism yield function or
 #: plastic multiplier. Requesting these in pull mode logs 0.0 (falls out of
 #: the per-variable try/except in `log_step`) after a one-time notice.
-_PULL_UNSUPPORTED_VARIABLES = frozenset({"F", "dl", "YieldR"})
+_PULL_UNSUPPORTED_VARIABLES = frozenset({"F", "dl"})
 
 
 def _resolve_owner(local_min_dist: float, local_cell_id: int) -> tuple:
@@ -595,9 +582,9 @@ class SimulationLogging:
             if folder:
                 os.makedirs(folder, exist_ok=True)
 
-            header = ['Step', 't (h)', 'dt (h)', 't/t_final', 'Iters', 'NL_Error']
+            header = ['Step', 't', 'dt', 't/t_final', 'Iters', 'NL_Error']
             for var_name, (var_header, _) in self.variables.items():
-                header.append(var_header)
+                header.append(_strip_unit_suffix(var_header))
 
             with open(self._log_file, 'w', newline='') as f:
                 writer = csv.writer(f)
@@ -866,7 +853,7 @@ class SimulationLogging:
             )
 
     @staticmethod
-    def extract_yield_variables(material) -> dict:
+    def extract_yield_variables(material, cell_average=None) -> dict:
         """
         Extract yield-related variables from material for logging.
 
@@ -874,6 +861,14 @@ class SimulationLogging:
         ----------
         material : Material
             Material object with non-elastic elements.
+        cell_average : callable, optional
+            Reduces a per-state-point tensor to per-cell (e.g.
+            `mom_eq.cell_average`), for solvers whose non-elastic elements
+            are sized by quadrature/state point rather than by cell (e.g.
+            the Newton P2 path) -- the logger's `elem_id` is a cell index,
+            matching the already-cell-averaged `stress`/`strain` it also
+            receives. Omit when the material's non-elastic elements are
+            already sized per cell (true here for the DG0 path).
 
         Returns
         -------
@@ -886,22 +881,28 @@ class SimulationLogging:
         if not hasattr(material, 'elems_ne'):
             return log_kwargs
 
+        def _reduce(values, is_indicator):
+            if cell_average is None:
+                return values
+            reduced = cell_average(values.to(to.float64))
+            return reduced > 0 if is_indicator else reduced
+
         # Try to extract yield indicators from non-elastic elements
         for elem_ne in material.elems_ne:
             if hasattr(elem_ne, 'F') and hasattr(elem_ne, 'delta_lambda'):
-                log_kwargs['yield_function'] = elem_ne.F
-                log_kwargs['plastic_multiplier'] = elem_ne.delta_lambda
+                log_kwargs['yield_function'] = _reduce(elem_ne.F, False)
+                log_kwargs['plastic_multiplier'] = _reduce(elem_ne.delta_lambda, False)
                 if hasattr(elem_ne, 'YieldDP'):
-                    log_kwargs['yield_indicator'] = elem_ne.YieldDP
+                    log_kwargs['yield_indicator'] = _reduce(elem_ne.YieldDP, True)
                 elif hasattr(elem_ne, 'is_plastic'):
-                    log_kwargs['yield_indicator'] = elem_ne.is_plastic
+                    log_kwargs['yield_indicator'] = _reduce(elem_ne.is_plastic, True)
                 break
 
         # Tension-cutoff (Rankine) indicator lives on its own model, which may
         # not be the element that supplied F/delta_lambda above.
         for elem_ne in material.elems_ne:
             if hasattr(elem_ne, 'YieldR'):
-                log_kwargs['yield_indicator_h'] = elem_ne.YieldR
+                log_kwargs['yield_indicator_h'] = _reduce(elem_ne.YieldR, True)
                 break
 
         return log_kwargs

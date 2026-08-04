@@ -8,6 +8,13 @@ Every YAML block is checked against ``inspect.signature`` of the class it
 instantiates: missing required parameters and unknown keywords are reported
 with the full real signature, Abaqus-keyword style. There is no schema to
 maintain — the code *is* the schema.
+
+The small exceptions are ``KEYWORD_ALIASES``/``TYPE_ALIASES``/``FIELD_ALIASES``
+below: a handful of friendlier YAML spellings for real constructor
+parameter/class/output-field names, translated to the real name before
+validation (or, for output fields, before use) runs. Everything above still
+applies to the *translated* name -- these are not a parallel schema, just
+spelling sugar for a few names that read poorly verbatim in YAML.
 """
 
 from __future__ import annotations
@@ -16,6 +23,55 @@ import inspect
 
 from .errors import TranspileError
 from .suggest import closest
+
+# Friendly YAML keyword -> real constructor parameter name.
+KEYWORD_ALIASES: dict = {
+    "youngs_modulus": "E",
+    "poissons_ratio": "nu",
+}
+
+# Friendly YAML type name -> real class name.
+TYPE_ALIASES: dict = {
+    "plastic_drucker_prager": "PlasticDPR",
+}
+
+# Friendly YAML output field name -> real field name (e.g. on the momentum
+# equation / SaveFields), used as the default label when so aliased.
+FIELD_ALIASES: dict = {
+    "displacements": "u",
+}
+
+
+def alias_kwargs(node: dict, cls) -> dict:
+    """Translate ``KEYWORD_ALIASES`` keys in ``node`` to their real names.
+
+    Only translates a key when ``cls``'s real signature actually uses the
+    alias's target name and *not* the alias itself (e.g. ``Spring`` takes
+    ``E``, so ``youngs_modulus`` -> ``E``; ``PlasticDPR`` already takes
+    ``youngs_modulus`` natively, so it is left alone there) -- otherwise a
+    class that happens to use the long name as its real parameter would get
+    it silently renamed to something it doesn't accept.
+    """
+    real_params = init_parameters(cls)
+    result = {}
+    for key, value in node.items():
+        target = KEYWORD_ALIASES.get(key)
+        if target is not None and key not in real_params and target in real_params:
+            result[target] = value
+        else:
+            result[key] = value
+    return result
+
+
+def resolve_field_alias(name: str) -> str:
+    """Translate ``name`` through ``FIELD_ALIASES`` if it is a known alias."""
+    return FIELD_ALIASES.get(name, name)
+
+
+def resolve_type_alias(name: str) -> str:
+    """Translate ``name`` through ``TYPE_ALIASES`` if it is a known alias."""
+    return TYPE_ALIASES.get(name, name)
+
 
 # Parameters supplied by the transpiler itself (wired to objects built from
 # other YAML sections). They are not legal YAML keywords.

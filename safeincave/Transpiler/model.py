@@ -53,6 +53,7 @@ class MaterialSpec:
     elastic: list = field(default_factory=list)
     non_elastic: list = field(default_factory=list)
     thermoelastic: list = field(default_factory=list)
+    sets: list = field(default_factory=lambda: ["all_elements"])  # element regions this spec covers
 
 
 @dataclass
@@ -142,6 +143,7 @@ def _region_map(node: dict, context: str) -> dict:
 def _finalize_object(section_key: str, type_name: str, cls: type, node: dict, context: str,
                       tensor_aware: bool = False) -> ObjectSpec:
     """Validate a resolved ``(cls, kwargs)`` pair and build its :class:`ObjectSpec`."""
+    node = signatures.alias_kwargs(node, cls)
     signatures.validate_kwargs(cls, node, context)
 
     tensor_names = signatures.constitutive_tensor_params(cls) if tensor_aware else set()
@@ -227,8 +229,11 @@ def _resolve_material_element(key: str, context: str):
     Direct, case-insensitive type names (``plasticDPR`` -> ``PlasticDPR``) are
     tried first; a bare category name (``elastic``) is accepted as shorthand
     only when that category has exactly one legal type (currently true for
-    'elastic' -> Spring and 'thermoelastic' -> Thermoelastic).
+    'elastic' -> Spring and 'thermoelastic' -> Thermoelastic). ``key`` is
+    first translated through ``signatures.TYPE_ALIASES`` (e.g.
+    ``plastic_drucker_prager`` -> ``PlasticDPR``), if it matches one.
     """
+    key = signatures.resolve_type_alias(key)
     matches = []
     for category in _ELEMENT_GROUPS:
         for legal in registry.legal_names(f"material.{category}"):
@@ -386,16 +391,12 @@ def _parse_materials(node, equations: dict, context: str = "materials") -> dict:
         entry_context = f"{context}.{name}"
         entry = dict(entry)
         entry.pop("name")
-        sets = entry.pop("sets", ["ALL"])
-        if sets != ["ALL"]:
-            raise TranspileError(
-                f"{entry_context}.sets: only ['ALL'] is currently supported "
-                f"(region-scoped materials are not yet implemented)."
-            )
+        sets_raw = entry.pop("sets", ["all_elements"])
+        sets = [str(s) for s in _require_list(sets_raw, f"{entry_context}.sets")]
         models = _require_list(entry.pop("models", []), f"{entry_context}.models")
         _check_keys(entry, (), entry_context)
 
-        spec = MaterialSpec(name=name)
+        spec = MaterialSpec(name=name, sets=sets)
         for i, model in enumerate(models):
             model_context = f"{entry_context}.models[{i}]"
             model = dict(_require_mapping(model, model_context))
@@ -416,6 +417,121 @@ def _parse_materials(node, equations: dict, context: str = "materials") -> dict:
         spec.properties.setdefault("density", 0.0)
         parsed[name] = spec
     return parsed
+
+
+def _merge_material_specs(named_specs: list, context: str) -> "MaterialSpec":
+    """Combine several region-scoped :class:`MaterialSpec`\\ s into one.
+
+    Each input material's per-parameter values are turned into a
+    ``{region: value}`` tensor map (or kept a plain scalar, when every
+    combined material happens to agree on that parameter's value) -- the
+    same region-map shape ``_finalize_object``/codegen already understand
+    for a single material's parameters, just built automatically here from
+    several named, region-scoped materials instead of by hand.
+
+    ``named_specs`` is a list of ``(name, sets, MaterialSpec)`` tuples. All
+    of them must define the same elastic/non_elastic/thermoelastic model
+    types, in the same order, and the same set of properties -- only the
+    *values* may differ by region -- and no two may claim the same region
+    (nor use the ``ALL`` sentinel, which cannot be combined with real
+    region names).
+    """
+    first_name, _, first_spec = named_specs[0]
+    seen_regions: dict = {}
+    for name, sets, spec in named_specs:
+        for group in _ELEMENT_GROUPS:
+            types = [e.type_name for e in getattr(spec, group)]
+            first_types = [e.type_name for e in getattr(first_spec, group)]
+            if types != first_types:
+                raise TranspileError(
+                    f"{context}: materials {first_name!r} and {name!r} must define the "
+                    f"same {group} model(s) in the same order to be combined by region "
+                    f"(got {first_types} vs {types})."
+                )
+        if set(spec.properties) != set(first_spec.properties):
+            raise TranspileError(
+                f"{context}: materials {first_name!r} and {name!r} must define the same "
+                f"properties (got {sorted(first_spec.properties)} vs {sorted(spec.properties)})."
+            )
+        for region in sets:
+            if region == "ALL":
+                raise TranspileError(
+                    f"{context}: material {name!r} uses sets: ['ALL'], which cannot be "
+                    f"combined with other region-scoped materials; give it explicit "
+                    f"region names instead."
+                )
+            if region in seen_regions:
+                raise TranspileError(
+                    f"{context}: region {region!r} is claimed by both material "
+                    f"{seen_regions[region]!r} and {name!r}."
+                )
+            seen_regions[region] = name
+
+    def _region_value(values_by_region: dict):
+        distinct = set(values_by_region.values())
+        return next(iter(distinct)) if len(distinct) == 1 else dict(values_by_region)
+
+    merged = MaterialSpec(name="+".join(name for name, _, _ in named_specs))
+    for prop in first_spec.properties:
+        values_by_region = {
+            region: spec.properties[prop]
+            for name, sets, spec in named_specs for region in sets
+        }
+        merged.properties[prop] = _region_value(values_by_region)
+
+    for group in _ELEMENT_GROUPS:
+        for idx in range(len(getattr(first_spec, group))):
+            elems = [getattr(spec, group)[idx] for _, _, spec in named_specs]
+            type_name = elems[0].type_name
+            all_keys = {key for elem in elems for key in (*elem.kwargs, *elem.tensor_kwargs)}
+            merged_kwargs, merged_tensor_kwargs = {}, {}
+            for key in all_keys:
+                # A key is a tensor (constitutive, per-element) parameter for
+                # this class if _finalize_object put it in tensor_kwargs for
+                # *any* elem -- that's a property of the class, not of the
+                # individual call, so it is consistent across all of them.
+                # Its value there may be a plain scalar (the common case,
+                # mergeable below) or already a {region: value} map (not
+                # mergeable further -- rejected below).
+                is_tensor_key = any(key in elem.tensor_kwargs for elem in elems)
+                values_by_region = {}
+                for (name, sets, _), elem in zip(named_specs, elems):
+                    bucket = elem.tensor_kwargs if is_tensor_key else elem.kwargs
+                    if key not in bucket:
+                        raise TranspileError(
+                            f"{context}: {type_name}.{key} is given in some but not all "
+                            f"combined materials (missing from {name!r}); give it "
+                            f"explicitly everywhere being combined, even if to the same "
+                            f"value."
+                        )
+                    value = bucket[key]
+                    if isinstance(value, dict):
+                        raise TranspileError(
+                            f"{context}: {type_name}.{key} in material {name!r} is "
+                            f"already a per-region map; combining region-scoped "
+                            f"materials that also use per-parameter region maps is not "
+                            f"supported."
+                        )
+                    for region in sets:
+                        values_by_region[region] = value
+                resolved = _region_value(values_by_region)
+                if is_tensor_key:
+                    merged_tensor_kwargs[key] = resolved
+                elif isinstance(resolved, dict):
+                    raise TranspileError(
+                        f"{context}: {type_name}.{key} differs by region but is not a "
+                        f"per-element (constitutive tensor) parameter; only those can "
+                        f"vary by region."
+                    )
+                else:
+                    merged_kwargs[key] = resolved
+            merged_elem = ObjectSpec(
+                section=elems[0].section, type_name=type_name, cls=elems[0].cls,
+                kwargs=merged_kwargs, tensor_kwargs=merged_tensor_kwargs,
+            )
+            getattr(merged, group).append(merged_elem)
+
+    return merged
 
 
 def _parse_boundaries(node, context: str = "boundaries") -> dict:
@@ -497,10 +613,13 @@ def _parse_outputs_defs(node, context: str = "outputs") -> dict:
             _check_keys(entry, ("fields", "merged_solutions", "smooth_output"), entry_context)
             fields_raw = entry.get("fields")
             if isinstance(fields_raw, dict):
-                fields = {str(k): str(v) for k, v in fields_raw.items()}
+                fields = {
+                    signatures.resolve_field_alias(str(k)): str(v)
+                    for k, v in fields_raw.items()
+                }
             else:
                 fields = {
-                    str(f): str(f)
+                    signatures.resolve_field_alias(str(f)): str(f)
                     for f in _require_list(fields_raw, f"{entry_context}.fields")
                 }
             if not fields:
@@ -711,13 +830,13 @@ def _parse_steps(node, equations: dict, materials: dict, boundaries: dict, loads
         if material_names:
             step_materials = _lookup_all(material_names, materials, f"{step_context}.materials")
             if len(step_materials) > 1:
-                raise TranspileError(
-                    f"{step_context}.materials: combining multiple materials in one step "
-                    f"is not yet supported."
-                )
+                named_specs = list(zip(material_names, (m.sets for m in step_materials), step_materials))
+                combined_material = _merge_material_specs(named_specs, f"{step_context}.materials")
+            else:
+                combined_material = step_materials[0]
             if resolved_material_names is None:
                 resolved_material_names = material_names
-                material_spec = step_materials[0]
+                material_spec = combined_material
             elif resolved_material_names != material_names:
                 raise TranspileError(
                     f"{step_context}.materials: changing the material between steps "

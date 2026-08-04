@@ -127,7 +127,7 @@ class Material:
         Side Effects
         ------------
         - Updates `C`, `C_inv`, `C_tilde`, `C_tilde_inv` by addition.
-        - Stores `K`, `E`, and shear modulus estimate `ShearMod`.
+        - Stores `K`, `E`, `nu`, and shear modulus estimate `ShearMod`.
         - Appends `elem` to `elems_e`.
         """
         elem.initialize()
@@ -138,6 +138,7 @@ class Material:
         self.elems_e.append(elem)
         self.K = elem.K
         self.E = elem.E
+        self.nu = elem.nu
         self.ShearMod = 3 * self.K * self.E / (9 * self.K - self.E)
 
     def add_to_non_elastic(self, elem) -> None:
@@ -147,8 +148,23 @@ class Material:
         Parameters
         ----------
         elem : NonElasticElement
-            Inelastic mechanism (e.g., creep, viscoplasticity).
+            Inelastic mechanism (e.g., creep, viscoplasticity). If it
+            defines a `bind_elastic(E, nu)` method, it is called here with
+            this material's elastic parameters (requires `add_to_elastic`
+            to have been called first) -- lets elements that need the
+            elastic modulus/Poisson's ratio (e.g. plasticity return
+            mapping) pull them from the material instead of duplicating
+            them in their own constructor.
         """
+        bind = getattr(elem, "bind_elastic", None)
+        if callable(bind):
+            if not hasattr(self, "E"):
+                raise RuntimeError(
+                    "add_to_elastic must be called before add_to_non_elastic: "
+                    f"{type(elem).__name__} needs the material's elastic "
+                    "parameters."
+                )
+            bind(self.E, self.nu)
         self.elems_ne.append(elem)
 
     def add_to_thermoelastic(self, elem: Thermoelastic) -> None:
