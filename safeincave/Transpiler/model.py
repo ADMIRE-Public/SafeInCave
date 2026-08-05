@@ -589,9 +589,22 @@ def _parse_boundaries(node, context: str = "boundaries") -> dict:
                 f"got {list(value_node)}."
             )
         axis = axes[0]
-        value = _require_number(value_node[axis], f"{entry_context}.value.{axis}")
+        raw_value = value_node[axis]
+        if isinstance(raw_value, list):
+            if len(raw_value) != 2:
+                raise TranspileError(
+                    f"{entry_context}.value.{axis}: expected a number or a "
+                    f"[start, end] ramp, got a list of length {len(raw_value)}."
+                )
+            values = [
+                _require_number(v, f"{entry_context}.value.{axis}[{i}]")
+                for i, v in enumerate(raw_value)
+            ]
+        else:
+            scalar = _require_number(raw_value, f"{entry_context}.value.{axis}")
+            values = [scalar, scalar]
         sets = _boundary_names(entry.get("sets"), f"{entry_context}.sets")
-        parsed[name] = {"sets": sets, "component": _DIRECTION_COMPONENTS[axis], "value": value}
+        parsed[name] = {"sets": sets, "component": _DIRECTION_COMPONENTS[axis], "values": values}
     return parsed
 
 
@@ -784,7 +797,7 @@ def _boundary_bcs(names: list, boundaries: dict, start: float, end: float, conte
             kwargs = {
                 "boundary_name": boundary_name,
                 "component": bdef["component"],
-                "values": [bdef["value"], bdef["value"]],
+                "values": bdef["values"],
                 "time_values": [start, end],
             }
             specs.append(_finalize_object("bcs.momentum", "DirichletBC", cls, kwargs, context))

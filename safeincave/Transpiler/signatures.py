@@ -33,6 +33,7 @@ KEYWORD_ALIASES: dict = {
 # Friendly YAML type name -> real class name.
 TYPE_ALIASES: dict = {
     "plastic_drucker_prager": "PlasticDPR",
+    "plastic_mohr_coulomb": "PlasticMCR",
 }
 
 # Friendly YAML output field name -> real field name (e.g. on the momentum
