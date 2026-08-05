@@ -37,8 +37,8 @@ This is the single home for both halves of the YAML `outputs:` entry types
   (JAX path) -- both write per-field files at the identical
   ``{output_folder}/{field_name}/{field_name}.xdmf`` convention -- needs no
   backend-specific branching at all. The flip side is that solver state
-  never written as a field (yield functions, plastic multipliers) can only
-  be recorded live; see `_VARIABLE_MAP`.
+  never written as a field can only be recorded live; see each variable's
+  `post_run` mapping in the registry (`VARIABLE_REGISTRY`).
 
 Both halves write the same two CSV layouts, so a plotting script never has
 to know which one produced a given file:
@@ -57,7 +57,7 @@ import csv
 import os
 import re
 import sys
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence
 
 import numpy as np
 import torch as to
@@ -87,7 +87,7 @@ from ..PostProcessing.MergedFieldReaders import (
 # ============================================================================
 
 #: Header of the leading time column in every post-run extracted CSV.
-TIME_HEADER = "t (s)"
+TIME_HEADER = "t"
 
 
 def point_label(point: Sequence[float]) -> str:
@@ -116,9 +116,23 @@ def variable_file_name(name: str, variable: str) -> str:
 # ============================================================================
 # Variable Registry System
 # ============================================================================
+#
+# Single source of truth for every name a YAML `variables:`/`fields:` list
+# can contain: how to pull it live during a run (`extractor`, used by
+# `SimulationLogging`), and -- if it's ever written as a saved XDMF field --
+# how to read it back after the run (`post_run`, used by `extract_point`/
+# `extract_variable`). A variable with `post_run=None` is solver-only state
+# that can only ever be recorded live.
 
-# Global registry for variable definitions
-VARIABLE_REGISTRY: Dict[str, tuple] = {}
+
+class VariableSpec(NamedTuple):
+    header: str
+    extractor: Callable
+    post_run: Optional[tuple] = None  # (field_name, shape_kind, component)
+
+
+# Global registry for variable definitions.
+VARIABLE_REGISTRY: Dict[str, VariableSpec] = {}
 
 
 def _strip_unit_suffix(header: str) -> str:
@@ -130,7 +144,9 @@ def _strip_unit_suffix(header: str) -> str:
     return re.sub(r"\s*\([^)]*\)\s*$", "", header)
 
 
-def register_variable(name: str, header: str, extractor: Callable) -> None:
+def register_variable(
+    name: str, header: str, extractor: Callable, post_run: Optional[tuple] = None
+) -> None:
     """
     Register a new variable in the global registry.
 
@@ -146,6 +162,12 @@ def register_variable(name: str, header: str, extractor: Callable) -> None:
         Function that extracts the variable value. Signature:
         def extractor(elem_id: int, **kwargs) -> float:
             ...
+    post_run : tuple, optional
+        `(field_name, shape_kind, component)` if this variable is also
+        readable from a saved XDMF field via `extract_point`/
+        `extract_variable` (see `_VARIABLE_SPECS` usage below for the
+        meaning of `shape_kind`/`component`). Omit for solver-only state
+        that's never persisted as a field.
 
     Examples
     --------
@@ -154,7 +176,7 @@ def register_variable(name: str, header: str, extractor: Callable) -> None:
     ...     return T[elem_id].item() if T is not None else 0.0
     >>> register_variable('T', 'Temperature (K)', extract_temperature)
     """
-    VARIABLE_REGISTRY[name] = (header, extractor)
+    VARIABLE_REGISTRY[name] = VariableSpec(header, extractor, post_run)
 
 
 def get_variable(name: str) -> Optional[tuple]:
@@ -171,7 +193,8 @@ def get_variable(name: str) -> Optional[tuple]:
     tuple or None
         (header, extractor) tuple if found, None otherwise.
     """
-    return VARIABLE_REGISTRY.get(name)
+    spec = VARIABLE_REGISTRY.get(name)
+    return None if spec is None else (spec.header, spec.extractor)
 
 
 def list_registered_variables() -> List[str]:
@@ -184,6 +207,18 @@ def list_registered_variables() -> List[str]:
         Names of all registered variables.
     """
     return list(VARIABLE_REGISTRY.keys())
+
+
+def _post_run_spec(name: str) -> Optional[tuple]:
+    """`(field_name, shape_kind, component)` for `name` if it's readable
+    from a saved XDMF field, else None."""
+    spec = VARIABLE_REGISTRY.get(name)
+    return None if spec is None else spec.post_run
+
+
+def _post_run_names() -> List[str]:
+    """Names of every registered variable that's readable post-run."""
+    return sorted(n for n, spec in VARIABLE_REGISTRY.items() if spec.post_run is not None)
 
 
 # ============================================================================
@@ -298,26 +333,16 @@ def _extract_principal_strain(index: int):
     return extractor
 
 
-def _extract_yield_function():
-    """Create extractor for yield function value."""
-    def extractor(elem_id: int, **kwargs) -> float:
-        """Extract yield function value for given element."""
-        F = kwargs.get('yield_function')
-        if F is None:
-            return 0.0
-        return F[elem_id].item()
-    return extractor
+#: kwargs names `_extract_generic_yield` checks for an active yield surface.
+#: Extend via `register_yield_surface` for a custom mechanism's indicator.
+_YIELD_SURFACE_KWARGS = {"yield_indicator", "yield_indicator_h"}
 
 
-def _extract_plastic_multiplier():
-    """Create extractor for plastic multiplier."""
-    def extractor(elem_id: int, **kwargs) -> float:
-        """Extract plastic multiplier for given element."""
-        delta_lambda = kwargs.get('plastic_multiplier')
-        if delta_lambda is None:
-            return 0.0
-        return delta_lambda[elem_id].item()
-    return extractor
+def register_yield_surface(name: str) -> None:
+    """Register an additional kwargs name for `_extract_generic_yield` (the
+    `yield_flag` variable) to check for an active yield surface, alongside
+    the built-in `yield_indicator`/`yield_indicator_h`."""
+    _YIELD_SURFACE_KWARGS.add(name.lower())
 
 
 def _extract_generic_yield():
@@ -325,14 +350,11 @@ def _extract_generic_yield():
     surface (Drucker-Prager, Mohr-Coulomb, Rankine tension cutoff, ...) is
     yielding, regardless of which one."""
     def extractor(elem_id: int, **kwargs) -> int:
-        yielding = 0
-        yield_indicator = kwargs.get('yield_indicator')
-        if yield_indicator is not None and int(yield_indicator[elem_id].item()):
-            yielding = 1
-        yield_indicator_h = kwargs.get('yield_indicator_h')
-        if yield_indicator_h is not None and int(yield_indicator_h[elem_id].item()):
-            yielding = 1
-        return yielding
+        for surface_name in _YIELD_SURFACE_KWARGS:
+            indicator = kwargs.get(surface_name)
+            if indicator is not None and int(indicator[elem_id].item()):
+                return 1
+        return 0
     return extractor
 
 
@@ -342,44 +364,63 @@ def _extract_generic_yield():
 
 def _register_default_variables():
     """Register the default set of variables."""
-    register_variable('sxx', 'sxx (Pa)', _extract_stress_component('xx'))
-    register_variable('syy', 'syy (Pa)', _extract_stress_component('yy'))
-    register_variable('szz', 'szz (Pa)', _extract_stress_component('zz'))
-    register_variable('sm', 'sm (Pa)', _extract_mean_stress())
-    register_variable('svM', 'svM (Pa)', _extract_von_mises_stress())
-    register_variable('s1', 's1 (Pa)', _extract_principal_stress(0))
-    register_variable('s2', 's2 (Pa)', _extract_principal_stress(1))
-    register_variable('s3', 's3 (Pa)', _extract_principal_stress(2))
-    register_variable('exx', 'exx (-)', _extract_strain_component('xx'))
-    register_variable('eyy', 'eyy (-)', _extract_strain_component('yy'))
-    register_variable('ezz', 'ezz (-)', _extract_strain_component('zz'))
-    register_variable('e1', 'e1 (-)', _extract_principal_strain(0))
-    register_variable('e2', 'e2 (-)', _extract_principal_strain(1))
-    register_variable('e3', 'e3 (-)', _extract_principal_strain(2))
-    register_variable('F', 'F (Pa)', _extract_yield_function())
-    register_variable('dl', 'dl (-)', _extract_plastic_multiplier())
-    register_variable('Yield', 'Yield', _extract_generic_yield())
+    register_variable('sxx', 'sxx (Pa)', _extract_stress_component('xx'),
+                       post_run=("sig", "tensor", (0, 0)))
+    register_variable('syy', 'syy (Pa)', _extract_stress_component('yy'),
+                       post_run=("sig", "tensor", (1, 1)))
+    register_variable('szz', 'szz (Pa)', _extract_stress_component('zz'),
+                       post_run=("sig", "tensor", (2, 2)))
+    register_variable('sxy', 'sxy (Pa)', _extract_stress_component('xy'),
+                       post_run=("sig", "tensor", (0, 1)))
+    register_variable('syz', 'syz (Pa)', _extract_stress_component('yz'),
+                       post_run=("sig", "tensor", (1, 2)))
+    register_variable('sxz', 'sxz (Pa)', _extract_stress_component('xz'),
+                       post_run=("sig", "tensor", (0, 2)))
+    register_variable('sm', 'sm (Pa)', _extract_mean_stress(),
+                       post_run=("p_elems", "scalar", None))
+    register_variable('svM', 'svM (Pa)', _extract_von_mises_stress(),
+                       post_run=("q_elems", "scalar", None))
+    register_variable('s1', 's1 (Pa)', _extract_principal_stress(0),
+                       post_run=("principal_stresses", "vector", 0))
+    register_variable('s2', 's2 (Pa)', _extract_principal_stress(1),
+                       post_run=("principal_stresses", "vector", 1))
+    register_variable('s3', 's3 (Pa)', _extract_principal_stress(2),
+                       post_run=("principal_stresses", "vector", 2))
+    register_variable('exx', 'exx (-)', _extract_strain_component('xx'),
+                       post_run=("eps_tot", "tensor", (0, 0)))
+    register_variable('eyy', 'eyy (-)', _extract_strain_component('yy'),
+                       post_run=("eps_tot", "tensor", (1, 1)))
+    register_variable('ezz', 'ezz (-)', _extract_strain_component('zz'),
+                       post_run=("eps_tot", "tensor", (2, 2)))
+    register_variable('exy', 'exy (-)', _extract_strain_component('xy'),
+                       post_run=("eps_tot", "tensor", (0, 1)))
+    register_variable('eyz', 'eyz (-)', _extract_strain_component('yz'),
+                       post_run=("eps_tot", "tensor", (1, 2)))
+    register_variable('exz', 'exz (-)', _extract_strain_component('xz'),
+                       post_run=("eps_tot", "tensor", (0, 2)))
+    register_variable('e1', 'e1 (-)', _extract_principal_strain(0),
+                       post_run=("principal_strains", "vector", 0))
+    register_variable('e2', 'e2 (-)', _extract_principal_strain(1),
+                       post_run=("principal_strains", "vector", 1))
+    register_variable('e3', 'e3 (-)', _extract_principal_strain(2),
+                       post_run=("principal_strains", "vector", 2))
+    register_variable('yield_flag', 'yield_flag', _extract_generic_yield(),
+                       post_run=("yield_flag", "scalar", None))
 
 
 # Register default variables when module is loaded
 _register_default_variables()
 
 #: Variables tracked when `variables_to_track` is omitted. Deliberately
-#: leaner than "every registered variable": `sm`, `svM`, `F`, `dl` remain
-#: available on request but are no longer defaults, in favor of the generic
-#: `Yield` indicator (works identically on both the push and pull backends;
-#: the mechanism-specific `YieldDP`/`YieldR` indicators it superseded have
-#: been removed).
+#: leaner than "every registered variable": `sm`, `svM` remain available on
+#: request but are no longer defaults, in favor of the generic `yield_flag`
+#: indicator (works identically on both the push and pull backends; the
+#: mechanism-specific `YieldDP`/`YieldR` indicators it superseded have been
+#: removed). Name matches the saved XDMF field (`fields: {yield_flag: ...}`)
+#: one-for-one, so there's a single spelling across both namespaces.
 DEFAULT_VARIABLES: List[str] = [
-    "sxx", "syy", "szz", "exx", "eyy", "ezz", "Yield",
+    "sxx", "syy", "szz", "exx", "eyy", "ezz", "yield_flag",
 ]
-
-#: Variables the pull (JAX/dolfinx) backend can never derive: the
-#: external-operator `PlasticityProblem` only persists a stress field and a
-#: single generic committed-yield field, no per-mechanism yield function or
-#: plastic multiplier. Requesting these in pull mode logs 0.0 (falls out of
-#: the per-variable try/except in `log_step`) after a one-time notice.
-_PULL_UNSUPPORTED_VARIABLES = frozenset({"F", "dl"})
 
 
 def _resolve_owner(local_min_dist: float, local_cell_id: int) -> tuple:
@@ -529,15 +570,6 @@ class SimulationLogging:
                 self.variables[var_name] = var_def
             else:
                 print(f"WARNING: Variable '{var_name}' not found in registry. Skipping.")
-
-        if self._backend == "pull" and MPI.COMM_WORLD.rank == 0:
-            unsupported = sorted(set(self.variables) & _PULL_UNSUPPORTED_VARIABLES)
-            if unsupported:
-                print(
-                    f"NOTE: variable(s) {unsupported} are not derivable from "
-                    "the JAX/dolfinx pull-mode problem state; column(s) will "
-                    "read 0.0."
-                )
 
     # ------------------------------------------------------------- setup
 
@@ -878,9 +910,8 @@ class SimulationLogging:
         strain : torch.Tensor, optional
             Total strain tensor, shape (N, 3, 3). Push backend only.
         **kwargs : dict
-            Additional variables for extractors (e.g., yield_function,
-            plastic_multiplier, yield_indicator, temperature, etc.). Push
-            backend only.
+            Additional variables for extractors (e.g., yield_indicator,
+            yield_indicator_h, temperature, etc.). Push backend only.
         """
         if self._output_folder is None:
             return
@@ -1014,8 +1045,9 @@ class SimulationLogging:
         Returns
         -------
         dict
-            Dictionary with yield_function, plastic_multiplier, and yield_indicator
-            if available, otherwise empty dict.
+            Dictionary with yield_indicator (and yield_indicator_h, for a
+            separate tension-cutoff mechanism) if available, otherwise
+            empty dict.
         """
         log_kwargs = {}
 
@@ -1028,15 +1060,13 @@ class SimulationLogging:
             reduced = cell_average(values.to(to.float64))
             return reduced > 0 if is_indicator else reduced
 
-        # Try to extract yield indicators from non-elastic elements
+        # Try to extract a generic yield indicator from non-elastic elements
         for elem_ne in material.elems_ne:
-            if hasattr(elem_ne, 'F') and hasattr(elem_ne, 'delta_lambda'):
-                log_kwargs['yield_function'] = _reduce(elem_ne.F, False)
-                log_kwargs['plastic_multiplier'] = _reduce(elem_ne.delta_lambda, False)
-                if hasattr(elem_ne, 'YieldDP'):
-                    log_kwargs['yield_indicator'] = _reduce(elem_ne.YieldDP, True)
-                elif hasattr(elem_ne, 'is_plastic'):
-                    log_kwargs['yield_indicator'] = _reduce(elem_ne.is_plastic, True)
+            if hasattr(elem_ne, 'YieldDP'):
+                log_kwargs['yield_indicator'] = _reduce(elem_ne.YieldDP, True)
+                break
+            elif hasattr(elem_ne, 'is_plastic'):
+                log_kwargs['yield_indicator'] = _reduce(elem_ne.is_plastic, True)
                 break
 
         # Tension-cutoff (Rankine) indicator lives on its own model, which may
@@ -1102,40 +1132,12 @@ class CompositeLogger:
 # Post-run extraction (from saved fields)
 # ============================================================================
 
-#: variable name -> (field_name, shape_kind, component)
-#: shape_kind is "tensor" (component = (i, j)), "vector" (component = index),
-#: or "scalar" (component unused). Deliberately excludes yield/plastic-state
-#: names (F, dl, YieldR, YieldDP, Yield, T): none of these are ever written
-#: as an XDMF field on either backend, so they can only be recorded with
-#: 'while_simulating: true'.
-_VARIABLE_MAP: Dict[str, tuple] = {
-    "sxx": ("sig", "tensor", (0, 0)),
-    "syy": ("sig", "tensor", (1, 1)),
-    "szz": ("sig", "tensor", (2, 2)),
-    "sxy": ("sig", "tensor", (0, 1)),
-    "syz": ("sig", "tensor", (1, 2)),
-    "sxz": ("sig", "tensor", (0, 2)),
-    "exx": ("eps_tot", "tensor", (0, 0)),
-    "eyy": ("eps_tot", "tensor", (1, 1)),
-    "ezz": ("eps_tot", "tensor", (2, 2)),
-    "exy": ("eps_tot", "tensor", (0, 1)),
-    "eyz": ("eps_tot", "tensor", (1, 2)),
-    "exz": ("eps_tot", "tensor", (0, 2)),
-    "sm": ("p_elems", "scalar", None),
-    "svM": ("q_elems", "scalar", None),
-    "principal_stress_1": ("principal_stresses", "vector", 0),
-    "principal_stress_2": ("principal_stresses", "vector", 1),
-    "principal_stress_3": ("principal_stresses", "vector", 2),
-    "s1": ("principal_stresses", "vector", 0),
-    "s2": ("principal_stresses", "vector", 1),
-    "s3": ("principal_stresses", "vector", 2),
-    "principal_strain_1": ("principal_strains", "vector", 0),
-    "principal_strain_2": ("principal_strains", "vector", 1),
-    "principal_strain_3": ("principal_strains", "vector", 2),
-    "e1": ("principal_strains", "vector", 0),
-    "e2": ("principal_strains", "vector", 1),
-    "e3": ("principal_strains", "vector", 2),
-}
+# variable name -> (field_name, shape_kind, component) for post-run
+# extraction now lives on each variable's `VariableSpec.post_run` in the
+# registry above (`_post_run_spec`/`_post_run_names`); shape_kind is
+# "tensor" (component = (i, j)), "vector" (component = index), or "scalar"
+# (component unused). A variable with no `post_run` (e.g. previously F, dl)
+# is solver-only state that can only be recorded with 'while_simulating: true'.
 
 _CELL_READERS = {
     "tensor": read_cell_tensor,
@@ -1352,13 +1354,14 @@ def _write_csv(output_file: str, headers: Sequence[str], time_list, columns) -> 
 
 
 def _require_known(variable: str, caller: str) -> tuple:
-    if variable not in _VARIABLE_MAP:
+    spec = _post_run_spec(variable)
+    if spec is None:
         raise ValueError(
             f"Unknown variable '{variable}' for {caller}; it is not written as "
             f"a field by SaveFields, so it can only be recorded while "
-            f"simulating. Known: {sorted(_VARIABLE_MAP)}"
+            f"simulating. Known: {_post_run_names()}"
         )
-    return _VARIABLE_MAP[variable]
+    return spec
 
 
 def _extract_variable_in_folder(
@@ -1392,9 +1395,9 @@ def _extract_point_in_folder(
 ) -> str:
     """
     Every variable whose field was actually saved by this run is read as
-    usual. A variable that either isn't in `_VARIABLE_MAP` at all
-    (solver-only state such as ``Yield``, ``F``, ``dl``) or whose field
-    just wasn't among this step's saved ``outputs`` gets a column of NaN
+    usual. A variable that either has no `post_run` mapping at all
+    (solver-only state) or whose field just wasn't among this step's saved
+    ``outputs`` gets a column of NaN
     instead of failing the whole profile, sized to match the time axis
     established by whichever variable is read first. If *no* requested
     variable is readable, the time axis/point location falls back to
@@ -1408,10 +1411,11 @@ def _extract_point_in_folder(
     columns = []
     for variable in variables:
         headers.append(variable)
-        if variable not in _VARIABLE_MAP:
+        spec = _post_run_spec(variable)
+        if spec is None:
             columns.append(None)  # filled with NaN once time_list is known
             continue
-        field_name, shape_kind, component = _VARIABLE_MAP[variable]
+        field_name, shape_kind, component = spec
         try:
             centroids, times, field_data = _read_field(folder, field_name, shape_kind)
         except FileNotFoundError:
@@ -1468,7 +1472,8 @@ def extract_variable(
         Target points; each is resolved to its nearest cell via
         `find_closest_point`.
     variable : str
-        One of the names registered in `_VARIABLE_MAP`, e.g. "sxx".
+        A name with a `post_run` mapping in the variable registry, e.g.
+        "sxx".
     name : str, optional
         File-name stem, so several extraction profiles can write into the
         same folder without colliding. Default "extract".
@@ -1523,11 +1528,11 @@ def extract_point(
     variables' own saved field, falling back to any folder with any saved
     output at all when none of them are found anywhere (e.g. every
     requested variable is solver-only, or this run just didn't save the
-    relevant fields). A variable with no data to read -- whether it isn't
-    in `_VARIABLE_MAP` at all (solver-only state such as ``Yield``, ``F``,
-    ``dl``) or its field simply wasn't saved by this run -- gets a column
-    of NaN instead of failing the whole profile; only a folder with no
-    saved output whatsoever raises.
+    relevant fields). A variable with no data to read -- whether it has no
+    `post_run` mapping at all (solver-only state) or its field simply
+    wasn't saved by this run -- gets a column of NaN instead of failing
+    the whole profile; only a folder with no saved output whatsoever
+    raises.
 
     Parameters
     ----------
@@ -1537,8 +1542,8 @@ def extract_point(
     point : (x, y, z)
         Target point, resolved to its nearest cell via `find_closest_point`.
     variables : sequence of str
-        Names registered in `_VARIABLE_MAP`, e.g. ["sxx", "syy"]. Each
-        becomes one column.
+        Names with a `post_run` mapping in the variable registry, e.g.
+        ["sxx", "syy"]. Each becomes one column.
     name : str, optional
         File-name stem. Default "extract".
     output_file : str, optional
@@ -1560,7 +1565,7 @@ def extract_point(
     variables = list(variables)
     if not variables:
         raise ValueError("extract_point requires at least one variable.")
-    known = [v for v in variables if v in _VARIABLE_MAP]
+    known = [v for v in variables if _post_run_spec(v) is not None]
 
     # A folder is a candidate if it holds *any* requested variable's field
     # -- not necessarily the same one for every phase subfolder, and not
@@ -1569,7 +1574,7 @@ def extract_point(
     fields_tried = []
     folders, seen = [], set()
     for variable in known:
-        field_name = _VARIABLE_MAP[variable][0]
+        field_name = _post_run_spec(variable)[0]
         if field_name in fields_tried:
             continue
         fields_tried.append(field_name)

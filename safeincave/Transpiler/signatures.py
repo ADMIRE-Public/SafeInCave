@@ -39,6 +39,8 @@ TYPE_ALIASES: dict = {
 # equation / SaveFields), used as the default label when so aliased.
 FIELD_ALIASES: dict = {
     "displacements": "u",
+    "stress_tensors": "sig",
+    "strain_tensors": "eps_tot",
 }
 
 

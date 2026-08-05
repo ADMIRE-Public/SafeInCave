@@ -10,6 +10,7 @@ from .DataExtract import (
     register_variable,
     get_variable,
     list_registered_variables,
+    register_yield_surface,
     extract_point,
     extract_variable,
     TIME_HEADER,
@@ -18,10 +19,6 @@ from .DataExtract import (
     variable_file_name,
 )
 from .field_utils import _QuadratureView  # noqa: F401
-from .yield_tracking import (  # noqa: F401
-    register_generic_yield,
-    register_yield_surface,
-)
 
 __all__ = [
     "SaveFields",
@@ -31,6 +28,7 @@ __all__ = [
     "register_variable",
     "get_variable",
     "list_registered_variables",
+    "register_yield_surface",
     "extract_point",
     "extract_variable",
     "TIME_HEADER",
@@ -38,6 +36,4 @@ __all__ = [
     "point_file_name",
     "variable_file_name",
     "_QuadratureView",
-    "register_generic_yield",
-    "register_yield_surface",
 ]
