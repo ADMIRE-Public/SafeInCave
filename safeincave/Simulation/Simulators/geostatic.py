@@ -79,7 +79,7 @@ from __future__ import annotations
 
 import inspect
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Sequence
 
 import numpy as np
@@ -614,28 +614,20 @@ class GeostaticStep(Simulator):
         non-convergence the solve report is returned unchanged and nothing
         is committed -- inspect ``converged`` and ``failure_reason``.
         """
-        pre = self.check()
-        solved = self.solve(_pre=pre)
+        solved = self.solve(_pre=self.check())
         if not solved.converged or not commit:
-            report = solved
-        else:
-            post = self.commit_as_reference()
-            report = GeostaticReport(
-                r_norm=post.r_norm,
-                ref_norm=post.ref_norm,
-                ratio=post.ratio,
-                in_equilibrium=post.in_equilibrium,
-                tolerance=self.tolerance,
-                stage="solve",
-                iterations=solved.iterations,
-                converged=True,
-                # commit_as_reference() zeros u, so the pre-commit solved
-                # value is the informative one to report here.
-                u_max=solved.u_max,
-                initial_ratio=pre.ratio,
-                degenerate_scale=post.degenerate_scale,
-            )
+            return solved
 
-        if self.eq_mom.grid.mesh.comm.rank == 0:
-            print(report.summary())
-        return report
+        # commit_as_reference() zeros u, so solved's pre-commit u_max/iterations/
+        # initial_ratio are the informative values to keep; only the stress-side
+        # fields (verdict at the now-committed state) come from the post-commit
+        # check.
+        post = self.commit_as_reference()
+        return replace(
+            solved,
+            r_norm=post.r_norm,
+            ref_norm=post.ref_norm,
+            ratio=post.ratio,
+            in_equilibrium=post.in_equilibrium,
+            degenerate_scale=post.degenerate_scale,
+        )

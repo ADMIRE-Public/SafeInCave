@@ -27,6 +27,11 @@ from .suggest import closest
 
 # --------------------------------------------------------------------------- IR
 
+class RawCode(str):
+    """A kwarg value that is already valid Python source (e.g. a class
+    reference), emitted verbatim by codegen instead of via ``repr()``."""
+
+
 @dataclass
 class ObjectSpec:
     """One YAML block that instantiates a class of the safeincave API."""
@@ -53,6 +58,33 @@ class MaterialSpec:
     elastic: list = field(default_factory=list)
     non_elastic: list = field(default_factory=list)
     thermoelastic: list = field(default_factory=list)
+    sets: list = field(default_factory=lambda: ["all_elements"])  # element regions this spec covers
+
+
+@dataclass
+class ExtractSpec:
+    """One point-wise recording profile: what to record, where from, and how.
+
+    The two `kind`s are the two ``outputs:`` entry types and the two CSV
+    layouts (see :mod:`safeincave.Output.DataExtract`) --
+    ``extract_fixed_point`` is one point with many variables,
+    ``extract_fixed_variable`` is one variable at many points -- and
+    `while_simulating` picks which of the two implementations produces it:
+    a live `SimulationLogging` (`logger` is set) or an after-the-fact
+    `safeincave.Output.DataExtract.extract_point`/`extract_variable` call
+    over the saved fields.
+
+    "raw" is the low-level `stages:` schema's `logging:` block, which names
+    a logger class and its kwargs directly instead of being described by
+    kind/points/variables; it is always live.
+    """
+
+    name: str
+    kind: str                        # "extract_fixed_point" | "extract_fixed_variable" | "raw"
+    while_simulating: bool
+    points: list = field(default_factory=list)     # one entry for kind "extract_fixed_point"
+    variables: list = field(default_factory=list)  # one entry for kind "extract_fixed_variable"
+    logger: ObjectSpec | None = None               # live entries only
 
 
 @dataclass
@@ -61,7 +93,7 @@ class StageSpec:
     time: ObjectSpec
     bcs: dict              # {"momentum": [ObjectSpec], "heat": [ObjectSpec]}
     caverns: list
-    logging: ObjectSpec | None
+    extracts: list         # [ExtractSpec]
     outputs: list
     simulator: ObjectSpec
 
@@ -140,18 +172,20 @@ def _region_map(node: dict, context: str) -> dict:
 # ------------------------------------------------------------------ object specs
 
 def _finalize_object(section_key: str, type_name: str, cls: type, node: dict, context: str,
-                      tensor_aware: bool = False, aliases: dict | None = None) -> ObjectSpec:
+                      tensor_aware: bool = False) -> ObjectSpec:
     """Validate a resolved ``(cls, kwargs)`` pair and build its :class:`ObjectSpec`."""
-    if aliases:
-        node = {aliases.get(key.lower(), key): value for key, value in node.items()}
-
+    node = signatures.alias_kwargs(node, cls)
     signatures.validate_kwargs(cls, node, context)
 
     tensor_names = signatures.constitutive_tensor_params(cls) if tensor_aware else set()
     kwargs, tensor_kwargs = {}, {}
     for key, value in node.items():
         key_context = f"{context}.{key}"
-        if key in tensor_names:
+        if section_key == "simulator" and key == "simulator_cls" and isinstance(value, str):
+            ref_cls = registry.resolve("simulator", value, key_context)
+            prefix = registry.SECTIONS["simulator"].prefix
+            kwargs[key] = RawCode(f"{prefix}{ref_cls.__name__}")
+        elif key in tensor_names:
             if isinstance(value, dict):
                 tensor_kwargs[key] = _region_map(value, key_context)
             else:
@@ -176,7 +210,7 @@ def build_object(section_key: str, node, context: str, tensor_aware: bool = Fals
         raise TranspileError(f"{context}: a 'type' key naming a class is required.")
 
     cls = registry.resolve(section_key, type_name, context)
-    return _finalize_object(section_key, type_name, cls, node, context, tensor_aware=tensor_aware)
+    return _finalize_object(section_key, cls.__name__, cls, node, context, tensor_aware=tensor_aware)
 
 
 # --------------------------------------------------------------------- sections
@@ -204,16 +238,16 @@ def _material_property_names() -> list:
 
 _ELEMENT_GROUPS = ("elastic", "non_elastic", "thermoelastic")
 
-# Descriptive spellings accepted for constructor parameters whose real names
-# are terse (matches the real safeincave API, case-insensitively).
-_MATERIAL_ELEMENT_ALIASES = {
-    "youngs_modulus": "E",
-    "poissons_ratio": "nu",
-}
-
 
 def _merge_mapping_list(node, context: str) -> dict:
-    """Merge a list of one-or-more-key mappings into a single flat dict."""
+    """Merge a list of one-or-more-key mappings into a single flat dict.
+
+    Also accepts a single mapping directly (already "merged"), so both
+    ``elastic: [{Youngs_modulus: ...}, {Poissons_ratio: ...}]`` and
+    ``elastic: {Youngs_modulus: ..., Poissons_ratio: ...}`` are legal.
+    """
+    if isinstance(node, dict):
+        return dict(node)
     merged = {}
     for i, item in enumerate(_require_list(node, context)):
         item = _require_mapping(item, f"{context}[{i}]")
@@ -230,8 +264,11 @@ def _resolve_material_element(key: str, context: str):
     Direct, case-insensitive type names (``plasticDPR`` -> ``PlasticDPR``) are
     tried first; a bare category name (``elastic``) is accepted as shorthand
     only when that category has exactly one legal type (currently true for
-    'elastic' -> Spring and 'thermoelastic' -> Thermoelastic).
+    'elastic' -> Spring and 'thermoelastic' -> Thermoelastic). ``key`` is
+    first translated through ``signatures.TYPE_ALIASES`` (e.g.
+    ``plastic_drucker_prager`` -> ``PlasticDPR``), if it matches one.
     """
+    key = signatures.resolve_type_alias(key)
     matches = []
     for category in _ELEMENT_GROUPS:
         for legal in registry.legal_names(f"material.{category}"):
@@ -292,8 +329,7 @@ def _parse_material(node, equations: dict) -> MaterialSpec:
         category, type_name, cls = _resolve_material_element(key, context)
         raw_kwargs = _merge_mapping_list(value, context)
         elem = _finalize_object(
-            f"material.{category}", type_name, cls, raw_kwargs, context,
-            tensor_aware=True, aliases=_MATERIAL_ELEMENT_ALIASES,
+            f"material.{category}", type_name, cls, raw_kwargs, context, tensor_aware=True,
         )
         getattr(spec, category).append(elem)
 
@@ -310,6 +346,695 @@ def _parse_material(node, equations: dict) -> MaterialSpec:
                     f"material: '{prop}' is required for a heat equation."
                 )
     return spec
+
+
+# ------------------------------------------------------- named-block schema
+#
+# An alternate top-level schema (selected by the presence of a 'steps' key):
+# 'materials'/'boundaries'/'loads'/'outputs'/'logging' are named collections
+# defined once, and 'steps' (an ordered mapping, replacing 'stages') composes
+# them by name. A step that omits a field inherits it verbatim from the
+# previous step, so only genuine deltas need to be restated.
+#
+# Kept in sync with the identical schema in the
+# extensions/FullNewtonRaphsonSolver/Transpiler/model.py overlay, which adds
+# 'initial_stress'-kind loads (a Newton-path-only feature core does not have
+# a CaseModel field for) on top of this.
+
+_DIRECTION_COMPONENTS = {"x": 0, "y": 1, "z": 2}
+
+
+def _by_name(items, context: str) -> dict:
+    """A list of ``{name: ..., ...}`` blocks, keyed by their 'name'."""
+    parsed = {}
+    for i, item in enumerate(_require_list(items, context)):
+        item = _require_mapping(item, f"{context}[{i}]")
+        name = item.get("name")
+        if not isinstance(name, str):
+            raise TranspileError(f"{context}[{i}]: a string 'name' is required.")
+        if name in parsed:
+            raise TranspileError(f"{context}: duplicate name {name!r}.")
+        parsed[name] = item
+    return parsed
+
+
+def _select_names(value, context: str) -> list:
+    """A step reference field: a bare name, or a list of names."""
+    if isinstance(value, str):
+        return [value]
+    return _require_list(value, context)
+
+
+def _lookup_all(names: list, collection: dict, context: str) -> list:
+    missing = [name for name in names if name not in collection]
+    if missing:
+        raise TranspileError(
+            f"{context}: unknown name(s) {', '.join(map(repr, missing))}. "
+            f"Defined: {', '.join(sorted(collection)) or '(none)'}."
+        )
+    return [collection[name] for name in names]
+
+
+def _boundary_names(value, context: str) -> list:
+    """'sets:' on a boundary/load block: a single boundary name or a list.
+
+    Unlike 'materials.sets', 'ALL' has no meaning here (there is no "every
+    boundary" concept) so it is rejected with a clear message instead of
+    silently doing nothing.
+    """
+    if value == "ALL":
+        raise TranspileError(f"{context}: 'ALL' is not valid here; list specific boundary names.")
+    if isinstance(value, str):
+        return [value]
+    return _require_list(value, context)
+
+
+def _type_and_kwargs(value, context: str) -> tuple:
+    """A bare type name, or a dict of {type: ..., **kwargs}."""
+    if isinstance(value, str):
+        return value, {}
+    node = dict(_require_mapping(value, context))
+    type_name = node.pop("type", None)
+    if not isinstance(type_name, str):
+        raise TranspileError(f"{context}: a 'type' key naming a class is required.")
+    return type_name, node
+
+
+def _parse_materials(node, equations: dict, context: str = "materials") -> dict:
+    parsed = {}
+    for name, entry in _by_name(node, context).items():
+        entry_context = f"{context}.{name}"
+        entry = dict(entry)
+        entry.pop("name")
+        sets_raw = entry.pop("sets", ["all_elements"])
+        sets = [str(s) for s in _require_list(sets_raw, f"{entry_context}.sets")]
+        models = _require_list(entry.pop("models", []), f"{entry_context}.models")
+        _check_keys(entry, (), entry_context)
+
+        spec = MaterialSpec(name=name, sets=sets)
+        for i, model in enumerate(models):
+            model_context = f"{entry_context}.models[{i}]"
+            model = dict(_require_mapping(model, model_context))
+            model_type = model.pop("type", None)
+            if not isinstance(model_type, str):
+                raise TranspileError(f"{model_context}: a 'type' key is required.")
+            category, type_name, cls = _resolve_material_element(model_type, model_context)
+            elem = _finalize_object(
+                f"material.{category}", type_name, cls, model, model_context, tensor_aware=True,
+            )
+            getattr(spec, category).append(elem)
+
+        if "momentum" in equations and not spec.elastic:
+            raise TranspileError(
+                f"{entry_context}: at least one elastic model is required for a "
+                f"momentum equation."
+            )
+        spec.properties.setdefault("density", 0.0)
+        parsed[name] = spec
+    return parsed
+
+
+def _merge_material_specs(named_specs: list, context: str) -> "MaterialSpec":
+    """Combine several region-scoped :class:`MaterialSpec`\\ s into one.
+
+    Each input material's per-parameter values are turned into a
+    ``{region: value}`` tensor map (or kept a plain scalar, when every
+    combined material happens to agree on that parameter's value) -- the
+    same region-map shape ``_finalize_object``/codegen already understand
+    for a single material's parameters, just built automatically here from
+    several named, region-scoped materials instead of by hand.
+
+    ``named_specs`` is a list of ``(name, sets, MaterialSpec)`` tuples. All
+    of them must define the same elastic/non_elastic/thermoelastic model
+    types, in the same order, and the same set of properties -- only the
+    *values* may differ by region -- and no two may claim the same region
+    (nor use the ``ALL`` sentinel, which cannot be combined with real
+    region names).
+    """
+    first_name, _, first_spec = named_specs[0]
+    seen_regions: dict = {}
+    for name, sets, spec in named_specs:
+        for group in _ELEMENT_GROUPS:
+            types = [e.type_name for e in getattr(spec, group)]
+            first_types = [e.type_name for e in getattr(first_spec, group)]
+            if types != first_types:
+                raise TranspileError(
+                    f"{context}: materials {first_name!r} and {name!r} must define the "
+                    f"same {group} model(s) in the same order to be combined by region "
+                    f"(got {first_types} vs {types})."
+                )
+        if set(spec.properties) != set(first_spec.properties):
+            raise TranspileError(
+                f"{context}: materials {first_name!r} and {name!r} must define the same "
+                f"properties (got {sorted(first_spec.properties)} vs {sorted(spec.properties)})."
+            )
+        for region in sets:
+            if region == "ALL":
+                raise TranspileError(
+                    f"{context}: material {name!r} uses sets: ['ALL'], which cannot be "
+                    f"combined with other region-scoped materials; give it explicit "
+                    f"region names instead."
+                )
+            if region in seen_regions:
+                raise TranspileError(
+                    f"{context}: region {region!r} is claimed by both material "
+                    f"{seen_regions[region]!r} and {name!r}."
+                )
+            seen_regions[region] = name
+
+    def _region_value(values_by_region: dict):
+        distinct = set(values_by_region.values())
+        return next(iter(distinct)) if len(distinct) == 1 else dict(values_by_region)
+
+    merged = MaterialSpec(name="+".join(name for name, _, _ in named_specs))
+    for prop in first_spec.properties:
+        values_by_region = {
+            region: spec.properties[prop]
+            for name, sets, spec in named_specs for region in sets
+        }
+        merged.properties[prop] = _region_value(values_by_region)
+
+    for group in _ELEMENT_GROUPS:
+        for idx in range(len(getattr(first_spec, group))):
+            elems = [getattr(spec, group)[idx] for _, _, spec in named_specs]
+            type_name = elems[0].type_name
+            all_keys = {key for elem in elems for key in (*elem.kwargs, *elem.tensor_kwargs)}
+            merged_kwargs, merged_tensor_kwargs = {}, {}
+            for key in all_keys:
+                # A key is a tensor (constitutive, per-element) parameter for
+                # this class if _finalize_object put it in tensor_kwargs for
+                # *any* elem -- that's a property of the class, not of the
+                # individual call, so it is consistent across all of them.
+                # Its value there may be a plain scalar (the common case,
+                # mergeable below) or already a {region: value} map (not
+                # mergeable further -- rejected below).
+                is_tensor_key = any(key in elem.tensor_kwargs for elem in elems)
+                values_by_region = {}
+                for (name, sets, _), elem in zip(named_specs, elems):
+                    bucket = elem.tensor_kwargs if is_tensor_key else elem.kwargs
+                    if key not in bucket:
+                        raise TranspileError(
+                            f"{context}: {type_name}.{key} is given in some but not all "
+                            f"combined materials (missing from {name!r}); give it "
+                            f"explicitly everywhere being combined, even if to the same "
+                            f"value."
+                        )
+                    value = bucket[key]
+                    if isinstance(value, dict):
+                        raise TranspileError(
+                            f"{context}: {type_name}.{key} in material {name!r} is "
+                            f"already a per-region map; combining region-scoped "
+                            f"materials that also use per-parameter region maps is not "
+                            f"supported."
+                        )
+                    for region in sets:
+                        values_by_region[region] = value
+                resolved = _region_value(values_by_region)
+                if is_tensor_key:
+                    merged_tensor_kwargs[key] = resolved
+                elif isinstance(resolved, dict):
+                    raise TranspileError(
+                        f"{context}: {type_name}.{key} differs by region but is not a "
+                        f"per-element (constitutive tensor) parameter; only those can "
+                        f"vary by region."
+                    )
+                else:
+                    merged_kwargs[key] = resolved
+            merged_elem = ObjectSpec(
+                section=elems[0].section, type_name=type_name, cls=elems[0].cls,
+                kwargs=merged_kwargs, tensor_kwargs=merged_tensor_kwargs,
+            )
+            getattr(merged, group).append(merged_elem)
+
+    return merged
+
+
+def _parse_boundaries(node, context: str = "boundaries") -> dict:
+    parsed = {}
+    for name, entry in _by_name(node, context).items():
+        entry_context = f"{context}.{name}"
+        entry = dict(entry)
+        entry.pop("name")
+        _check_keys(entry, ("type", "value", "sets"), entry_context)
+        if entry.get("type") != "displacement":
+            raise TranspileError(
+                f"{entry_context}.type: only 'displacement' is currently supported, "
+                f"got {entry.get('type')!r}."
+            )
+        value_node = _require_mapping(entry.get("value"), f"{entry_context}.value")
+        axes = [axis for axis in ("x", "y", "z") if axis in value_node]
+        if len(axes) != 1:
+            raise TranspileError(
+                f"{entry_context}.value: expected exactly one of 'x'/'y'/'z', "
+                f"got {list(value_node)}."
+            )
+        axis = axes[0]
+        raw_value = value_node[axis]
+        if isinstance(raw_value, list):
+            if len(raw_value) != 2:
+                raise TranspileError(
+                    f"{entry_context}.value.{axis}: expected a number or a "
+                    f"[start, end] ramp, got a list of length {len(raw_value)}."
+                )
+            values = [
+                _require_number(v, f"{entry_context}.value.{axis}[{i}]")
+                for i, v in enumerate(raw_value)
+            ]
+        else:
+            scalar = _require_number(raw_value, f"{entry_context}.value.{axis}")
+            values = [scalar, scalar]
+        sets = _boundary_names(entry.get("sets"), f"{entry_context}.sets")
+        parsed[name] = {"sets": sets, "component": _DIRECTION_COMPONENTS[axis], "values": values}
+    return parsed
+
+
+def _parse_loads(node, context: str = "loads") -> dict:
+    parsed = {}
+    for name, entry in _by_name(node, context).items():
+        entry_context = f"{context}.{name}"
+        entry = dict(entry)
+        entry.pop("name")
+        load_type = entry.pop("type", None)
+        if load_type == "initial_stress":
+            raise TranspileError(
+                f"{entry_context}: 'initial_stress' loads require the Newton-path "
+                f"extension (extensions/FullNewtonRaphsonSolver), which adds "
+                f"'apply_initial_stress' support; core does not have it."
+            )
+        elif load_type == "pressure":
+            _check_keys(entry, ("value", "time", "sets"), entry_context)
+            sets = _boundary_names(entry.get("sets"), f"{entry_context}.sets")
+            value = entry.get("value")
+            if isinstance(value, list):
+                pressure = [
+                    _require_number(v, f"{entry_context}.value[{i}]")
+                    for i, v in enumerate(value)
+                ]
+            else:
+                scalar = _require_number(value, f"{entry_context}.value")
+                pressure = [scalar, scalar]
+            own_time = None
+            if "time" in entry:
+                time_raw = _require_list(entry["time"], f"{entry_context}.time")
+                if len(time_raw) != 2:
+                    raise TranspileError(f"{entry_context}.time: expected [start, end].")
+                own_time = (
+                    _require_number(time_raw[0], f"{entry_context}.time[0]"),
+                    _require_number(time_raw[1], f"{entry_context}.time[1]"),
+                )
+            parsed[name] = {
+                "kind": "pressure", "sets": sets, "pressure": pressure, "time": own_time,
+            }
+        else:
+            raise TranspileError(f"{entry_context}.type: expected 'pressure', got {load_type!r}.")
+    return parsed
+
+
+def _require_point(value, context: str) -> list:
+    coords = _require_list(value, context)
+    if not 2 <= len(coords) <= 3:
+        raise TranspileError(f"{context}: expected [x, y] or [x, y, z].")
+    point = [_require_number(c, f"{context}[{i}]") for i, c in enumerate(coords)]
+    return point + [0.0] * (3 - len(point))
+
+
+def _default_extract_variables() -> list:
+    from safeincave.Output.DataExtract import DEFAULT_VARIABLES
+
+    return list(DEFAULT_VARIABLES)
+
+
+def _parse_extract_entry(name: str, kind: str, entry: dict, context: str) -> "ExtractSpec":
+    """
+    Parse one ``extract_fixed_point``/``extract_fixed_variable`` entry of the
+    ``outputs:`` collection -- a point-wise recording profile, either live
+    (`while_simulating: true`, driven by `SimulationLogging` as the run
+    proceeds) or after the fact (the default, read back from the saved
+    fields by `safeincave.Output.DataExtract`).
+    """
+    if kind == "extract_fixed_point":
+        _check_keys(entry, ("point", "variables", "while_simulating"), context)
+    else:
+        _check_keys(entry, ("variable", "points", "while_simulating"), context)
+    while_simulating = bool(entry.get("while_simulating", False))
+
+    if kind == "extract_fixed_point":
+        if "point" not in entry:
+            raise TranspileError(f"{context}: 'point' is required.")
+        points = [_require_point(entry["point"], f"{context}.point")]
+        variables = (
+            [str(v) for v in _require_list(entry["variables"], f"{context}.variables")]
+            if "variables" in entry
+            else _default_extract_variables()
+        )
+    else:
+        if "variable" not in entry:
+            raise TranspileError(f"{context}: 'variable' is required.")
+        variables = [str(entry["variable"])]
+        raw_points = _require_list(entry.get("points", []), f"{context}.points")
+        if not raw_points:
+            raise TranspileError(f"{context}: 'points' must not be empty.")
+        points = [
+            _require_point(p, f"{context}.points[{i}]")
+            for i, p in enumerate(raw_points)
+        ]
+
+    if not variables:
+        raise TranspileError(f"{context}: 'variables' must not be empty.")
+
+    logger = None
+    if while_simulating:
+        logger_node = {
+            "type": "SimulationLogging",
+            "variables_to_track": variables,
+            "layout": "per_point" if kind == "extract_fixed_point" else "per_variable",
+            "name": name,
+        }
+        if kind == "extract_fixed_point":
+            logger_node["target_point"] = points[0]
+        else:
+            logger_node["target_points"] = points
+        logger = build_object("logging", logger_node, context)
+
+    return ExtractSpec(
+        name=name, kind=kind, while_simulating=while_simulating,
+        points=points, variables=variables, logger=logger,
+    )
+
+
+def _parse_outputs_defs(node, context: str = "outputs") -> dict:
+    parsed = {}
+    for name, entry in _by_name(node, context).items():
+        entry_context = f"{context}.{name}"
+        entry = dict(entry)
+        entry.pop("name")
+        kind = entry.pop("type", None)
+        if kind == "results":
+            _check_keys(entry, ("fields", "merged_solutions", "smooth_output"), entry_context)
+            fields_raw = entry.get("fields")
+            if isinstance(fields_raw, dict):
+                fields = {
+                    signatures.resolve_field_alias(str(k)): str(v)
+                    for k, v in fields_raw.items()
+                }
+            else:
+                fields = {
+                    signatures.resolve_field_alias(str(f)): str(f)
+                    for f in _require_list(fields_raw, f"{entry_context}.fields")
+                }
+            if not fields:
+                raise TranspileError(f"{entry_context}: 'fields' must not be empty.")
+            parsed[name] = {
+                "kind": "results",
+                "fields": fields,
+                "merged_solutions": bool(entry.get("merged_solutions", False)),
+                "smooth_output": bool(entry.get("smooth_output", False)),
+            }
+        elif kind in ("extract_fixed_point", "extract_fixed_variable"):
+            parsed[name] = {
+                "kind": kind,
+                "extract": _parse_extract_entry(name, kind, entry, entry_context),
+            }
+        elif kind == "logging":
+            raise TranspileError(
+                f"{entry_context}.type: point-wise logging is now declared "
+                f"directly under 'outputs' as 'type: extract_fixed_point' "
+                f"(one point, several variables) or "
+                f"'type: extract_fixed_variable' (one variable, several "
+                f"points)."
+            )
+        else:
+            raise TranspileError(
+                f"{entry_context}.type: expected 'results', 'extract_fixed_point' "
+                f"or 'extract_fixed_variable', got {kind!r}."
+            )
+    return parsed
+
+
+def _default_time_controller_kwargs(start: float, end: float) -> dict:
+    span = end - start
+    return {
+        "initial_time": start,
+        "final_time": end,
+        "time_unit": "second",
+        "initial_dt": span / 10.0,
+        "dt_min": span / 1000.0,
+        "dt_max": span / 2.0,
+        "shrink_factor": 0.5,
+        "growth_factor": 1.5,
+        "easy_ratio_threshold": 0.25,
+        "hard_ratio_threshold": 0.5,
+        "max_bisections": 10,
+    }
+
+
+def _boundary_bcs(names: list, boundaries: dict, start: float, end: float, context: str) -> list:
+    defs = _lookup_all(names, boundaries, context)
+    cls = registry.resolve("bcs.momentum", "DirichletBC", context)
+    specs = []
+    for bdef in defs:
+        for boundary_name in bdef["sets"]:
+            kwargs = {
+                "boundary_name": boundary_name,
+                "component": bdef["component"],
+                "values": bdef["values"],
+                "time_values": [start, end],
+            }
+            specs.append(_finalize_object("bcs.momentum", "DirichletBC", cls, kwargs, context))
+    return specs
+
+
+def _load_bcs(names: list, loads: dict, start: float, end: float, context: str) -> list:
+    """Fan out 'pressure' loads to NeumannBCs.
+
+    A pressure load's own 'time:' (if given) overrides the containing step's
+    (start, end) for that load's NeumannBC time_values.
+    """
+    defs = _lookup_all(names, loads, context)
+    cls = registry.resolve("bcs.momentum", "NeumannBC", context)
+    specs = []
+    for ldef in defs:
+        load_start, load_end = ldef["time"] or (start, end)
+        for boundary_name in ldef["sets"]:
+            kwargs = {
+                "boundary_name": boundary_name,
+                "direction": 2,
+                "values": ldef["pressure"],
+                "time_values": [load_start, load_end],
+            }
+            specs.append(_finalize_object("bcs.momentum", "NeumannBC", cls, kwargs, context))
+    return specs
+
+
+def _parse_procedures(node, context: str = "procedures") -> dict:
+    parsed = {}
+    for name, entry in _by_name(node, context).items():
+        entry_context = f"{context}.{name}"
+        entry = dict(entry)
+        entry.pop("name")
+
+        procedure_type = entry.pop("type", None)
+        if not isinstance(procedure_type, str):
+            raise TranspileError(f"{entry_context}: a 'type' key is required.")
+
+        if "time" not in entry:
+            raise TranspileError(f"{entry_context}: 'time' is required.")
+        time_raw = _require_list(entry.pop("time"), f"{entry_context}.time")
+        if len(time_raw) != 2:
+            raise TranspileError(f"{entry_context}.time: expected [start, end].")
+        start = _require_number(time_raw[0], f"{entry_context}.time[0]")
+        end = _require_number(time_raw[1], f"{entry_context}.time[1]")
+
+        momentum_spec = None
+        if "momentum" in entry:
+            mom_context = f"{entry_context}.momentum"
+            mom_type, mom_kwargs = _type_and_kwargs(entry.pop("momentum"), mom_context)
+            mom_cls = registry.resolve("equations.momentum", mom_type, mom_context)
+            momentum_spec = _finalize_object(
+                "equations.momentum", mom_cls.__name__, mom_cls, mom_kwargs, mom_context
+            )
+
+        time_type, time_overrides = _type_and_kwargs(
+            entry.pop("time_step", "TimeControllerAdaptive"), f"{entry_context}.time_step"
+        )
+        time_kwargs = _default_time_controller_kwargs(start, end)
+        time_kwargs.update(time_overrides)
+        time_cls = registry.resolve("time", time_type, f"{entry_context}.time_step")
+        time_spec = _finalize_object(
+            "time", time_cls.__name__, time_cls, time_kwargs, f"{entry_context}.time_step"
+        )
+
+        parsed[name] = {
+            "type": procedure_type, "kwargs": entry,
+            "start": start, "end": end,
+            "momentum": momentum_spec, "time_spec": time_spec,
+        }
+    return parsed
+
+
+def _resolve_equations(procedures: dict, steps_node, context: str = "steps") -> dict:
+    """Determine the momentum equation from the procedures actually referenced by steps.
+
+    Equations are built once, before any step runs (the real API always
+    constructs the momentum equation once and passes it by reference into
+    every stage's simulator), so every procedure referenced across all steps
+    (inheriting a step's 'procedure:' name forward when omitted) must agree.
+    """
+    steps_list = _require_list(steps_node, context)
+    carried_procedure = None
+    referenced = []
+    for i, step_node in enumerate(steps_list):
+        step_node = _require_mapping(step_node, f"{context}[{i}]")
+        if "procedure" in step_node:
+            carried_procedure = step_node["procedure"]
+        if carried_procedure is not None and carried_procedure not in referenced:
+            referenced.append(carried_procedure)
+
+    momentum_spec = None
+    for procedure_name in referenced:
+        if procedure_name not in procedures:
+            raise TranspileError(
+                f"{context}: unknown procedure {procedure_name!r}. "
+                f"Defined: {', '.join(sorted(procedures)) or '(none)'}."
+            )
+        spec = procedures[procedure_name]["momentum"]
+        if spec is None:
+            continue
+        if momentum_spec is None:
+            momentum_spec = spec
+        elif (spec.type_name, spec.kwargs) != (momentum_spec.type_name, momentum_spec.kwargs):
+            raise TranspileError(
+                f"{context}: procedures referenced across steps define different 'momentum' "
+                f"specs; the momentum equation is built once and must be identical."
+            )
+    return {"momentum": momentum_spec} if momentum_spec is not None else {}
+
+
+def _parse_steps(node, equations: dict, materials: dict, boundaries: dict, loads: dict,
+                 outputs_defs: dict, procedures: dict,
+                 context: str = "steps") -> tuple:
+    steps_list = _require_list(node, context)
+    if not steps_list:
+        raise TranspileError(f"{context}: at least one step is required.")
+
+    stages = []
+    resolved_material_names = None
+    material_spec = MaterialSpec()
+    carried: dict = {}
+
+    for i, step_node in enumerate(steps_list):
+        step_node = _require_mapping(step_node, f"{context}[{i}]")
+        step_name = step_node.get("name")
+        if not isinstance(step_name, str):
+            raise TranspileError(f"{context}[{i}]: a string 'name' is required.")
+        step_context = f"{context}.{step_name}"
+        _check_keys(
+            step_node,
+            ("name", "materials", "boundaries", "loads", "procedure", "outputs"),
+            step_context,
+        )
+        merged = {**carried, **{k: v for k, v in step_node.items() if k != "name"}}
+        carried = merged
+
+        if "procedure" not in merged:
+            raise TranspileError(f"{step_context}: 'procedure' is required (directly or inherited).")
+        procedure_name = merged["procedure"]
+        if procedure_name not in procedures:
+            raise TranspileError(
+                f"{step_context}.procedure: unknown procedure {procedure_name!r}. "
+                f"Defined: {', '.join(sorted(procedures)) or '(none)'}."
+            )
+        procedure_def = procedures[procedure_name]
+        start, end, time_spec = procedure_def["start"], procedure_def["end"], procedure_def["time_spec"]
+
+        material_names = (
+            _select_names(merged["materials"], f"{step_context}.materials")
+            if "materials" in merged else []
+        )
+        if "momentum" in equations and not material_names:
+            raise TranspileError(
+                f"{step_context}: 'materials' is required (directly or inherited)."
+            )
+        if material_names:
+            step_materials = _lookup_all(material_names, materials, f"{step_context}.materials")
+            if len(step_materials) > 1:
+                named_specs = list(zip(material_names, (m.sets for m in step_materials), step_materials))
+                combined_material = _merge_material_specs(named_specs, f"{step_context}.materials")
+            else:
+                combined_material = step_materials[0]
+            if resolved_material_names is None:
+                resolved_material_names = material_names
+                material_spec = combined_material
+            elif resolved_material_names != material_names:
+                raise TranspileError(
+                    f"{step_context}.materials: changing the material between steps "
+                    f"is not yet supported (material is built once, before any step runs)."
+                )
+
+        bcs_momentum = []
+        if "momentum" in equations:
+            boundary_names = (
+                _select_names(merged["boundaries"], f"{step_context}.boundaries")
+                if "boundaries" in merged else []
+            )
+            bcs_momentum += _boundary_bcs(
+                boundary_names, boundaries, start, end, f"{step_context}.boundaries"
+            )
+
+            load_names = (
+                _select_names(merged["loads"], f"{step_context}.loads")
+                if "loads" in merged else []
+            )
+            bcs_momentum += _load_bcs(load_names, loads, start, end, f"{step_context}.loads")
+
+        bcs = {"momentum": bcs_momentum} if "momentum" in equations else {}
+
+        output_names = (
+            _select_names(merged["outputs"], f"{step_context}.outputs")
+            if "outputs" in merged else []
+        )
+        if not output_names:
+            raise TranspileError(f"{step_context}: 'outputs' is required (directly or inherited).")
+        output_defs = _lookup_all(output_names, outputs_defs, f"{step_context}.outputs")
+        fields = {}
+        merged_solutions_values = set()
+        smooth_output_values = set()
+        extracts = []
+        for odef in output_defs:
+            if odef["kind"] == "results":
+                fields.update(odef["fields"])
+                merged_solutions_values.add(odef["merged_solutions"])
+                smooth_output_values.add(odef["smooth_output"])
+            else:
+                extracts.append(odef["extract"])
+        if len(merged_solutions_values) > 1 or len(smooth_output_values) > 1:
+            raise TranspileError(
+                f"{step_context}.outputs: combined output profiles disagree on "
+                f"'merged_solutions'/'smooth_output'."
+            )
+        if not fields:
+            raise TranspileError(f"{step_context}.outputs: no 'results'-type output referenced.")
+
+        outputs = [OutputSpec(
+            equation="momentum" if "momentum" in equations else next(iter(equations)),
+            output_format="xdmf", folder=f"output/{step_name}", fields=fields,
+        )]
+
+        procedure_kwargs = dict(procedure_def["kwargs"])
+        procedure_kwargs["merged_solutions"] = merged_solutions_values.pop() if merged_solutions_values else False
+        procedure_kwargs["smooth_output"] = smooth_output_values.pop() if smooth_output_values else False
+        procedure_cls = registry.resolve("simulator", procedure_def["type"], f"{step_context}.procedure")
+        simulator = _finalize_object(
+            "simulator", procedure_cls.__name__, procedure_cls, procedure_kwargs, f"{step_context}.procedure"
+        )
+        _check_simulator_wiring(simulator, equations, [], extracts, f"{step_context}.procedure")
+
+        stages.append(StageSpec(
+            name=step_name, time=time_spec, bcs=bcs, caverns=[], extracts=extracts,
+            outputs=outputs, simulator=simulator,
+        ))
+
+    return stages, material_spec
 
 
 def _parse_output(node, equations: dict, context: str) -> OutputSpec:
@@ -394,9 +1119,14 @@ def _parse_stage(node, index: int, equations: dict) -> StageSpec:
         )
     ]
 
-    logging = None
+    # The low-level schema names the logger class and its kwargs directly,
+    # rather than describing the profile as an 'extract' entry does.
+    extracts = []
     if "logging" in node:
-        logging = build_object("logging", node["logging"], f"{context}.logging")
+        extracts.append(ExtractSpec(
+            name="log", kind="raw", while_simulating=True,
+            logger=build_object("logging", node["logging"], f"{context}.logging"),
+        ))
 
     outputs = [
         _parse_output(out_node, equations, f"{context}.outputs[{i}]")
@@ -410,14 +1140,14 @@ def _parse_stage(node, index: int, equations: dict) -> StageSpec:
     if "simulator" not in node:
         raise TranspileError(f"{context}: a 'simulator' block is required.")
     simulator = build_object("simulator", node["simulator"], f"{context}.simulator")
-    _check_simulator_wiring(simulator, equations, caverns, logging, f"{context}.simulator")
+    _check_simulator_wiring(simulator, equations, caverns, extracts, f"{context}.simulator")
 
     return StageSpec(name=name, time=time, bcs=bcs, caverns=caverns,
-                     logging=logging, outputs=outputs, simulator=simulator)
+                     extracts=extracts, outputs=outputs, simulator=simulator)
 
 
 def _check_simulator_wiring(simulator: ObjectSpec, equations: dict,
-                            caverns: list, logging, context: str) -> None:
+                            caverns: list, extracts: list, context: str) -> None:
     """The simulator's auto-wired parameters define what the stage needs."""
     params = signatures.init_parameters(simulator.cls)
     for param_name, eq_name in (("eq_mom", "momentum"), ("eq_heat", "heat")):
@@ -432,10 +1162,13 @@ def _check_simulator_wiring(simulator: ObjectSpec, equations: dict,
             f"{context}: {simulator.type_name} does not accept caverns, "
             f"but the stage defines some."
         )
-    if logging is not None and "simulation_logger" not in params:
+    # Post-run extraction runs against the saved files, so it works with any
+    # simulator; only the live profiles need the logger hook.
+    live = [e for e in extracts if e.while_simulating]
+    if live and "simulation_logger" not in params:
         raise TranspileError(
             f"{context}: {simulator.type_name} does not accept a simulation logger, "
-            f"but the stage defines one."
+            f"but {', '.join(repr(e.name) for e in live)} sets 'while_simulating: true'."
         )
 
 
@@ -455,21 +1188,35 @@ _TOP_LEVEL_KEYS = (
     "body_force",
     "initial_temperature",
     "stages",
+    "materials",
+    "boundaries",
+    "loads",
+    "procedures",
+    "outputs",
+    "steps",
 )
 
 
 def _parse_grid(root: dict, context: str) -> ObjectSpec:
     """Build the grid ObjectSpec from either 'grid' (full form) or 'mesh' (shorthand).
 
-    'mesh: path/to/name.msh' is sugar for a GridHandlerGMSH block, splitting
-    the path into grid_folder and geometry_name.
+    'mesh: path/to/name.msh' (or 'mesh: {file: path/to/name.msh}') is sugar
+    for a GridHandlerGMSH block, splitting the path into grid_folder and
+    geometry_name.
     """
     if "grid" in root and "mesh" in root:
         raise TranspileError(f"{context}: specify either 'grid' or 'mesh', not both.")
     if "mesh" in root:
-        mesh_path = root["mesh"]
+        mesh_value = root["mesh"]
+        if isinstance(mesh_value, dict):
+            _check_keys(mesh_value, ("file",), f"{context}.mesh")
+            mesh_path = mesh_value.get("file")
+        else:
+            mesh_path = mesh_value
         if not isinstance(mesh_path, str):
-            raise TranspileError(f"{context}.mesh: expected a string path, got {mesh_path!r}.")
+            raise TranspileError(
+                f"{context}.mesh: expected a string path (or {{file: path}}), got {mesh_path!r}."
+            )
         grid_folder, filename = _posixpath_split(mesh_path)
         geometry_name, ext = _posixpath_splitext(filename)
         if ext.lower() != ".msh":
@@ -505,13 +1252,27 @@ def parse(yaml_path) -> CaseModel:
         raise TranspileError(
             f"{yaml_path}: top-level section 'grid' (or its 'mesh' shorthand) is required."
         )
-    for key in ("equations", "material", "stages"):
-        if key not in root:
-            raise TranspileError(f"{yaml_path}: top-level section '{key}' is required.")
 
     grid = _parse_grid(root, str(yaml_path))
-    equations = _parse_equations(root["equations"])
-    material = _parse_material(root["material"], equations)
+
+    uses_new_schema = "steps" in root
+    if uses_new_schema:
+        if "equations" in root:
+            raise TranspileError(
+                f"{yaml_path}: top-level 'equations' is not used with the 'steps' schema; "
+                f"define a 'procedures' entry's 'momentum:' field instead."
+            )
+        procedures = _parse_procedures(root.get("procedures", []))
+        equations = _resolve_equations(procedures, root["steps"])
+        if not equations:
+            raise TranspileError(
+                f"{yaml_path}: at least one step must define 'momentum' "
+                f"(directly or inherited from an earlier step)."
+            )
+    else:
+        if "equations" not in root:
+            raise TranspileError(f"{yaml_path}: top-level section 'equations' is required.")
+        equations = _parse_equations(root["equations"])
 
     body_force = root.get("body_force", [0.0, 0.0, 0.0])
     body_force = _require_list(body_force, "body_force")
@@ -530,10 +1291,33 @@ def parse(yaml_path) -> CaseModel:
             )
         ) from None
 
-    stages_node = _require_list(root["stages"], "stages")
-    if not stages_node:
-        raise TranspileError("stages: at least one stage is required.")
-    stages = [_parse_stage(node, i, equations) for i, node in enumerate(stages_node)]
+    if uses_new_schema:
+        if "stages" in root or "material" in root:
+            raise TranspileError(
+                f"{yaml_path}: specify either the legacy 'material'/'stages' schema or the "
+                f"'materials'/'boundaries'/'loads'/'procedures'/'outputs'/'steps' schema, not a "
+                f"mix of both."
+            )
+        materials = _parse_materials(root.get("materials", []), equations)
+        boundaries = _parse_boundaries(root.get("boundaries", []))
+        loads = _parse_loads(root.get("loads", []))
+        outputs_defs = _parse_outputs_defs(root.get("outputs", []))
+        stages, material = _parse_steps(
+            root["steps"], equations, materials, boundaries, loads, outputs_defs,
+            procedures,
+        )
+    else:
+        if "material" not in root:
+            raise TranspileError(f"{yaml_path}: top-level section 'material' is required.")
+        if "stages" not in root:
+            raise TranspileError(f"{yaml_path}: top-level section 'stages' is required.")
+
+        material = _parse_material(root["material"], equations)
+
+        stages_node = _require_list(root["stages"], "stages")
+        if not stages_node:
+            raise TranspileError("stages: at least one stage is required.")
+        stages = [_parse_stage(node, i, equations) for i, node in enumerate(stages_node)]
 
     return CaseModel(
         source=yaml_path,
