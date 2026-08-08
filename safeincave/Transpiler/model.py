@@ -17,6 +17,7 @@ plain dict.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -77,6 +78,11 @@ class ExtractSpec:
     "raw" is the low-level `stages:` schema's `logging:` block, which names
     a logger class and its kwargs directly instead of being described by
     kind/points/variables; it is always live.
+
+    For "extract_fixed_variable", the point list can instead be generated:
+    exactly one of `points:` (a literal list), `line:` (`start`/`end`/`n`,
+    see `_generate_line_points`), or `arc:` (`center`/`radius`/`n`/`axis`/
+    `start_angle`/`end_angle`, see `_generate_arc_points`) is required.
     """
 
     name: str
@@ -658,6 +664,60 @@ def _require_point(value, context: str) -> list:
     return point + [0.0] * (3 - len(point))
 
 
+_DEFAULT_GENERATOR_N = 100
+
+
+def _require_count(value, minimum: int, context: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise TranspileError(f"{context}: expected an integer >= {minimum}, got {value!r}.")
+    return value
+
+
+def _generate_line_points(spec: dict, context: str) -> list:
+    """``n`` (default 100) points evenly spaced from ``start`` to ``end``, inclusive."""
+    spec = _require_mapping(spec, context)
+    _check_keys(spec, ("start", "end", "n"), context)
+    if "start" not in spec or "end" not in spec:
+        raise TranspileError(f"{context}: 'start' and 'end' are both required.")
+    start = _require_point(spec["start"], f"{context}.start")
+    end = _require_point(spec["end"], f"{context}.end")
+    n = _require_count(spec.get("n", _DEFAULT_GENERATOR_N), 2, f"{context}.n")
+    return [
+        [start[k] + (end[k] - start[k]) * i / (n - 1) for k in range(3)]
+        for i in range(n)
+    ]
+
+
+_CIRCLE_PLANE_AXES = {"x": (1, 2), "y": (0, 2), "z": (0, 1)}
+
+
+def _generate_arc_points(spec: dict, context: str) -> list:
+    """``n`` (default 100) points evenly spaced around a circle (or arc) in a coordinate plane."""
+    spec = _require_mapping(spec, context)
+    _check_keys(spec, ("center", "radius", "n", "axis", "start_angle", "end_angle"), context)
+    if "center" not in spec or "radius" not in spec:
+        raise TranspileError(f"{context}: 'center' and 'radius' are both required.")
+    center = _require_point(spec["center"], f"{context}.center")
+    radius = _require_number(spec["radius"], f"{context}.radius")
+    n = _require_count(spec.get("n", _DEFAULT_GENERATOR_N), 3, f"{context}.n")
+    axis = spec.get("axis", "z")
+    if axis not in _CIRCLE_PLANE_AXES:
+        raise TranspileError(f"{context}.axis: expected 'x', 'y' or 'z', got {axis!r}.")
+    i0, i1 = _CIRCLE_PLANE_AXES[axis]
+    start_angle = math.radians(_require_number(spec.get("start_angle", 0.0), f"{context}.start_angle"))
+    end_angle = math.radians(_require_number(spec.get("end_angle", 360.0), f"{context}.end_angle"))
+    full_turn = abs((end_angle - start_angle) - 2 * math.pi) < 1e-9
+    denom = n if full_turn else n - 1
+    points = []
+    for i in range(n):
+        theta = start_angle + (end_angle - start_angle) * i / denom
+        point = list(center)
+        point[i0] = center[i0] + radius * math.cos(theta)
+        point[i1] = center[i1] + radius * math.sin(theta)
+        points.append(point)
+    return points
+
+
 def _default_extract_variables() -> list:
     from safeincave.Output.DataExtract import DEFAULT_VARIABLES
 
@@ -675,7 +735,7 @@ def _parse_extract_entry(name: str, kind: str, entry: dict, context: str) -> "Ex
     if kind == "extract_fixed_point":
         _check_keys(entry, ("point", "variables", "while_simulating"), context)
     else:
-        _check_keys(entry, ("variable", "points", "while_simulating"), context)
+        _check_keys(entry, ("variable", "points", "line", "arc", "while_simulating"), context)
     while_simulating = bool(entry.get("while_simulating", False))
 
     if kind == "extract_fixed_point":
@@ -691,13 +751,24 @@ def _parse_extract_entry(name: str, kind: str, entry: dict, context: str) -> "Ex
         if "variable" not in entry:
             raise TranspileError(f"{context}: 'variable' is required.")
         variables = [str(entry["variable"])]
-        raw_points = _require_list(entry.get("points", []), f"{context}.points")
-        if not raw_points:
-            raise TranspileError(f"{context}: 'points' must not be empty.")
-        points = [
-            _require_point(p, f"{context}.points[{i}]")
-            for i, p in enumerate(raw_points)
-        ]
+        provided = [key for key in ("points", "line", "arc") if key in entry]
+        if len(provided) != 1:
+            raise TranspileError(
+                f"{context}: expected exactly one of 'points', 'line', 'arc', "
+                f"got {provided!r}."
+            )
+        if provided[0] == "points":
+            raw_points = _require_list(entry["points"], f"{context}.points")
+            if not raw_points:
+                raise TranspileError(f"{context}: 'points' must not be empty.")
+            points = [
+                _require_point(p, f"{context}.points[{i}]")
+                for i, p in enumerate(raw_points)
+            ]
+        elif provided[0] == "line":
+            points = _generate_line_points(entry["line"], f"{context}.line")
+        else:
+            points = _generate_arc_points(entry["arc"], f"{context}.arc")
 
     if not variables:
         raise TranspileError(f"{context}: 'variables' must not be empty.")
