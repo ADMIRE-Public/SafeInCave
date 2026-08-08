@@ -100,7 +100,7 @@ def point_label(point: Sequence[float]) -> str:
     the coordinates the user requested, so that the label always identifies
     the data that was actually extracted.
     """
-    return "_".join(f"{float(c):.2f}" for c in point[:3])
+    return "_".join(f"{int(round(c * 100))}" for c in point[:3])
 
 
 def point_file_name(name: str, point: Sequence[float]) -> str:
@@ -1306,7 +1306,7 @@ def _reference_axis(folder: str) -> tuple:
     return None, None
 
 
-def _resolve_indices(points, centroids, folder: str) -> List[int]:
+def _resolve_indices(points, centroids) -> List[int]:
     """
     Resolve every requested point to its nearest actual location up front,
     deduplicating before any extraction happens (several requested points
@@ -1320,12 +1320,6 @@ def _resolve_indices(points, centroids, folder: str) -> List[int]:
         if idx not in seen:
             seen.add(idx)
             unique_indices.append(idx)
-    if len(unique_indices) < len(points):
-        print(
-            f"NOTE: {len(points) - len(unique_indices)} requested point(s) "
-            f"resolved to a location already claimed by another point in "
-            f"'{folder}'; merged, {len(unique_indices)} unique point(s) processed."
-        )
     return unique_indices
 
 
@@ -1375,7 +1369,7 @@ def _extract_variable_in_folder(
     output_file: Optional[str],
 ) -> str:
     centroids, time_list, field_data = _read_field(folder, field_name, shape_kind)
-    indices = _resolve_indices(points, centroids, folder)
+    indices = _resolve_indices(points, centroids)
 
     headers = [point_label(centroids[idx]) for idx in indices]
     columns = [_series(field_data, idx, shape_kind, component) for idx in indices]
