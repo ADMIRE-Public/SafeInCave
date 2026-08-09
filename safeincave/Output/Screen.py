@@ -53,6 +53,18 @@ class ScreenPrinter:
         names/labels.
     time_unit : {"second", "minute", "hour", "day", "year"}, default="hour"
         Unit label used in the progress table headings (purely cosmetic).
+    progress_columns : list[str], optional
+        Override the live progress table's column headers. ``None`` (default)
+        gives the standard five: step counter, dt, t / t_final, iteration count
+        and a single "Non-linear error". A solver whose convergence measure is
+        not one relative error can replace the trailing column(s) -- see
+        ``Simulator_MNewton``, which reports the force and displacement errors
+        separately because its criterion's own error is already divided by the
+        tolerances. Must be the same length as ``progress_formats``, and every
+        :meth:`print_row` call must supply exactly this many values.
+    progress_formats : list[str], optional
+        C-printf format per progress column (e.g. ``"%.2e"``). ``None``
+        (default) pairs with the standard five columns.
 
     Attributes
     ----------
@@ -84,6 +96,8 @@ class ScreenPrinter:
         material: Material,
         outputs: list[SaveFields],
         time_unit: str = "hour",
+        progress_columns: list[str] | None = None,
+        progress_formats: list[str] | None = None,
     ):
         self.master_division_plus = "+-----------------------------------------------------------------------------------------------+"
         self.master_division = "-----------------------------------------------------------------------------------------------"
@@ -93,6 +107,10 @@ class ScreenPrinter:
         self.mat = material
         self.outputs = outputs
         self.time_unit = time_unit
+        # Solvers whose convergence measure is not a single relative error can
+        # replace the trailing column(s) of the progress table; see `begin`.
+        self._progress_columns = progress_columns
+        self._progress_formats = progress_formats
 
         self.set_welcome()
         self.print_welcome()
@@ -116,26 +134,27 @@ class ScreenPrinter:
         None
         """
         self.start_timer()
-        self.set_header_columns(
-            [
-                "Step counter",
-                f"dt ({self.time_unit})",
-                f"t / t_final ({self.time_unit})",
-                "# of iters",
-                "Non-linear error",
-            ],
-            "center",
-        )
-        self.set_row_formats(
-            [
-                "%i",
-                "%.3f",
-                "%s",
-                "%.i",
-                "%.4e",
-            ],
-            ["center" for i in range(5)],
-        )
+        columns = self._progress_columns or [
+            "Step counter",
+            f"dt ({self.time_unit})",
+            f"t / t_final ({self.time_unit})",
+            "# of iters",
+            "Non-linear error",
+        ]
+        formats = self._progress_formats or [
+            "%i",
+            "%.3f",
+            "%s",
+            "%.i",
+            "%.4e",
+        ]
+        if len(formats) != len(columns):
+            raise ValueError(
+                "progress_columns and progress_formats must have the same length; "
+                f"got {len(columns)} and {len(formats)}"
+            )
+        self.set_header_columns(columns, "center")
+        self.set_row_formats(formats, ["center" for _ in columns])
         self.print_header()
 
     def print_solver_info(self) -> None:
@@ -502,13 +521,17 @@ class ScreenPrinter:
             Conversion factor from seconds to display unit.
         """
         current_time = "%.3f" % (t / time_conversion)
-        self.print_row([
+        row = [
             0,
             0.0,
             f"{current_time} / {t_final / time_conversion}",
             0,
             0.0,
-        ])
+        ]
+        # Pad/trim to whatever the configured progress table asks for, so a
+        # solver that replaced the trailing error column(s) still prints step 0.
+        row += [0.0] * max(0, len(self.header_columns) - len(row))
+        self.print_row(row[: len(self.header_columns)])
 
     def print_header(self) -> None:
         """
@@ -546,12 +569,28 @@ class ScreenPrinter:
         Parameters
         ----------
         values : list[object]
-            One value per column.
+            One value per column. Must match the number of header columns.
+
+        Raises
+        ------
+        ValueError
+            If ``len(values)`` differs from the number of header columns. The
+            formatting below zips values against the column widths, so a short
+            row would otherwise print silently with the trailing columns simply
+            missing -- a misaligned table that looks plausible. That is exactly
+            how a 6-column header being fed 5 values went unnoticed, so this is
+            a hard error rather than a warning.
 
         Returns
         -------
         None
         """
+        if len(values) != len(self.header_columns):
+            raise ValueError(
+                f"print_row expected {len(self.header_columns)} values to match "
+                f"the header columns {list(self.header_columns)}, got "
+                f"{len(values)}: {list(values)}"
+            )
         row_line = "| " + " | ".join(
             self.format_cell(val, w, align, text_format)
             for val, w, align, text_format in zip(
