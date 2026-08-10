@@ -443,4 +443,7 @@ class SaveFields:
         mesh_destination_folder = os.path.join(self.output_folder, "mesh")
         if not os.path.exists(mesh_destination_folder):
             os.makedirs(mesh_destination_folder, exist_ok=True)
-        shutil.copy(mesh_origin_file, mesh_destination_folder)
+        
+        # Only copy if mesh file exists (may not exist for programmatically generated meshes)
+        if os.path.exists(mesh_origin_file):
+            shutil.copy(mesh_origin_file, mesh_destination_folder)

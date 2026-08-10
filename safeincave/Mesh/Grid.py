@@ -622,3 +622,347 @@ class GridHandlerGMSH(object):
             raise Exception(
                 "Size of parameter list does not match neither # of elements nor # of regions."
             )
+
+
+# ============================================================================
+# GridHandlerPythonScript: Generate mesh via external Python scripts
+# ============================================================================
+
+
+class GridHandlerPythonScript(GridHandlerGMSH):
+    """
+    Handler for generating mesh via external Python scripts and reading into DOLFINx.
+
+    This handler loads and executes a Python script containing a mesh generation
+    function, passes user-provided parameters to that function, and uses the
+    returned DOLFINx mesh objects to initialize the handler (compatible with
+    GridHandlerGMSH interface).
+
+    The script must define a `main(**kwargs)` function that returns a tuple of
+    (mesh, cell_tags, facet_tags), which are DOLFINx Mesh and MeshTags objects.
+
+    Parameters
+    ----------
+    script_path : str
+        Path to the Python script containing the mesh generation function.
+    parameters : dict, optional
+        Dictionary of keyword arguments to pass to main(). Default is empty dict {}.
+    function_name : str, optional
+        Deprecated; ignored. For compatibility only. The script must define main().
+
+    Attributes
+    ----------
+    script_path : str
+        Path to the mesh generation script.
+    parameters : dict
+        Parameters passed to main().
+    mesh : dolfinx.mesh.Mesh
+        Loaded DOLFINx mesh from the generated mesh.
+    subdomains : dolfinx.mesh.MeshTags
+        Cell (volume) tags from the generated mesh.
+    boundaries : dolfinx.mesh.MeshTags
+        Facet (surface) tags from the generated mesh.
+
+    Notes
+    -----
+    - Inherits from GridHandlerGMSH for compatibility with downstream code.
+    - No .msh file is read from disk; mesh is generated in-memory by the script.
+    - Script execution is isolated to avoid polluting the caller's namespace.
+    - Error handling provides detailed messages if script loading or main() execution fails.
+
+    Examples
+    --------
+    >>> handler = GridHandlerPythonScript(
+    ...     script_path="path/to/cavern2D_mesh_generation.py",
+    ...     parameters={"cavern_radius": 5.0}
+    ... )
+    >>> print(handler.mesh)  # Use like any GridHandlerGMSH
+    """
+
+    def __init__(self, script_path, parameters=None, function_name=None):
+        """Initialize GridHandlerPythonScript.
+        
+        Args:
+            script_path: Path to the mesh generation script.
+            parameters: Dictionary of parameters to pass to main().
+            function_name: Deprecated; ignored for backwards compatibility.
+        """
+        self.script_path = script_path
+        self.parameters = parameters or {}
+        self.comm = MPI.COMM_WORLD
+        self.rank = self.comm.rank
+        
+        # Set grid_folder for compatibility with downstream code
+        from pathlib import Path
+        script_path_obj = Path(script_path)
+        self.grid_folder = str(script_path_obj.parent)
+        self.geometry_name = script_path_obj.stem
+
+        # Generate mesh by executing the script
+        mesh, cell_tags, facet_tags = self._generate_mesh_from_script()
+
+        # Store DOLFINx objects (mimic GridHandlerGMSH interface)
+        self.mesh = mesh
+        self.subdomains = cell_tags
+        self.boundaries = facet_tags
+
+        # Extract metadata from mesh (compatible with GridHandlerGMSH)
+        self.domain_dim = self.mesh.topology.dim
+        self.boundary_dim = self.domain_dim - 1
+        self.n_elems = self.mesh.topology.index_map(self.domain_dim).size_local + len(
+            self.mesh.topology.index_map(self.domain_dim).ghosts
+        )
+        self.n_nodes = self.mesh.topology.index_map(0).size_local + len(
+            self.mesh.topology.index_map(0).ghosts
+        )
+
+        # Build metadata structures (reuse GridHandlerGMSH logic)
+        # Skip load_mesh() since we already have the mesh
+        self._build_tags_from_mesh()
+        self._load_boundaries_from_mesh()
+        self._build_dolfin_tags()
+        self.build_box_dimensions()
+        # Override __extract_grid_data to use our already-extracted tags
+        self._extract_grid_data_from_tags()
+        self.build_smoother()
+
+    def _build_tags_from_mesh(self):
+        """
+        Extract tags from already-loaded mesh objects with proper name mapping.
+        Uses boundary group metadata from the mesh generation script if available.
+        """
+        # Try to get boundary group names from the script module that was just executed
+        tag_value_to_name = {}
+        try:
+            import importlib
+            import sys
+            from pathlib import Path
+            
+            # Get the module name from the script path
+            script_module_name = Path(self.script_path).stem
+            
+            # Check if the module is in sys.modules (it should be after execution)
+            for module_name, module in sys.modules.items():
+                if script_module_name in module_name or module_name.endswith(script_module_name):
+                    if hasattr(module, "_MESH_METADATA"):
+                        tag_value_to_name = module._MESH_METADATA
+                        break
+        except Exception as e:
+            pass  # Fall back to generic names
+        
+        # Initialize tags dictionary from DOLFINx MeshTags
+        self.tags = {}
+        self.dolfin_tags = self.tags
+        self.subdomain_tags = {}
+        self.tags_dict = {}
+        
+        # Extract cell tags (3D)
+        if self.subdomains is not None:
+            cell_values = self.subdomains.values
+            cell_indices = self.subdomains.indices
+            
+            for i, tag_value in enumerate(sorted(set(cell_values))):
+                # Use boundary group name if available, otherwise generic name
+                if tag_value in tag_value_to_name:
+                    tag_name = tag_value_to_name[tag_value]
+                else:
+                    tag_name = f"region_{tag_value}"
+                self.subdomain_tags[tag_name] = list(cell_indices[cell_values == tag_value])
+                self.tags_dict[tag_value] = tag_name
+        
+        # Set up basic tag structure for compatibility
+        if 3 not in self.tags:
+            self.tags[3] = {}
+        for tag_value, tag_name in self.tags_dict.items():
+            self.tags[3][tag_name] = tag_value
+
+    def _load_boundaries_from_mesh(self):
+        """
+        Extract boundaries from already-loaded mesh objects with proper name mapping.
+        """
+        # Try to get boundary group names from the script module
+        tag_value_to_name = {}
+        try:
+            import sys
+            from pathlib import Path
+            
+            script_module_name = Path(self.script_path).stem
+            for module_name, module in sys.modules.items():
+                if script_module_name in module_name or module_name.endswith(script_module_name):
+                    if hasattr(module, "_MESH_METADATA"):
+                        tag_value_to_name = module._MESH_METADATA
+                        break
+        except Exception:
+            pass
+        
+        self.boundary_tags = {}
+        
+        # Extract facet tags (2D for 3D mesh)
+        if self.boundaries is not None:
+            facet_values = self.boundaries.values
+            facet_indices = self.boundaries.indices
+            
+            for tag_value in set(facet_values):
+                # Use boundary group name if available, otherwise generic name
+                if tag_value in tag_value_to_name:
+                    tag_name = tag_value_to_name[tag_value]
+                else:
+                    tag_name = f"boundary_{tag_value}"
+                self.boundary_tags[tag_name] = list(facet_indices[facet_values == tag_value])
+        
+        # Set up region_indices and tags_dict for compatibility
+        self.region_names = list(self.subdomain_tags.keys())
+        self.n_regions = len(self.region_names)
+        self.region_indices = self.subdomain_tags
+
+    def _extract_grid_data_from_tags(self):
+        """
+        Build region indices for elements based on cell tags.
+        This is a simplified version that uses tags we've already extracted,
+        avoiding the need to call get_subdomain_tag() which requires dolfin_tags
+        to be fully populated.
+        """
+        # Use the tags and subdomain_tags we've already extracted
+        # region_indices is already set to subdomain_tags in _load_boundaries_from_mesh
+        # Just ensure tags_dict is properly mapped
+        pass  # Everything is already done in _build_tags_from_mesh and _load_boundaries_from_mesh
+
+    def _build_dolfin_tags(self):
+        """
+        Build dolfin_tags dictionary from boundary_tags and subdomain_tags.
+        This mimics the behavior of GridHandlerGMSH.get_tags_from_file().
+        """
+        self.dolfin_tags = {1: {}, 2: {}, 3: {}}
+        
+        # Add subdomain (volume) tags (dimension domain_dim, e.g., 3 for 3D)
+        # Create reverse mapping: tag_name -> tag_value
+        for tag_name, tag_value in self.tags_dict.items():
+            # tags_dict maps: tag_value -> tag_name, so we need to reverse it
+            self.dolfin_tags[self.domain_dim][tag_name] = tag_value
+        
+        # Add boundary tags (dimension boundary_dim, e.g., 2 for 3D boundaries)
+        if self.boundaries is not None:
+            facet_values = self.boundaries.values
+            facet_indices = self.boundaries.indices
+            
+            for tag_name, facet_list in self.boundary_tags.items():
+                # Find the tag value from the boundaries MeshTags
+                for face_val in set(facet_values):
+                    face_indices = facet_indices[facet_values == face_val]
+                    # Check if any of our facets match this tag value
+                    if len(facet_list) > 0 and face_val in facet_values:
+                        # Check if facets with this value are in our list
+                        if any(idx in facet_list for idx in face_indices[:min(10, len(face_indices))]):
+                            self.dolfin_tags[self.boundary_dim][tag_name] = face_val
+                            break
+        self.tags_dict = {i: name for i, name in enumerate(self.region_names)}
+
+    def _generate_mesh_from_script(self):
+        """
+        Load and execute the mesh generation script, returning DOLFINx objects.
+
+        The script must define a `main()` function that returns (mesh, cell_tags, facet_tags).
+
+        Returns
+        -------
+        tuple[mesh, cell_tags, facet_tags]
+            DOLFINx Mesh, cell MeshTags, and facet MeshTags.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the script file does not exist.
+        AttributeError
+            If the script does not define a main() function.
+        RuntimeError
+            If main() execution fails or returns invalid types.
+        """
+        import importlib.util
+        from pathlib import Path
+
+        script_path_obj = Path(self.script_path).resolve()
+
+        # Check file exists
+        if not script_path_obj.exists():
+            raise FileNotFoundError(
+                f"Mesh generation script not found: {script_path_obj}"
+            )
+
+        # Load the script as a module
+        spec = importlib.util.spec_from_file_location(
+            script_path_obj.stem, script_path_obj
+        )
+        if spec is None or spec.loader is None:
+            raise RuntimeError(
+                f"Failed to load script module from {script_path_obj}"
+            )
+        module = importlib.util.module_from_spec(spec)
+        
+        # Register module in sys.modules before executing so it can be found by the MeshGenerator class
+        import sys
+        sys.modules[spec.name] = module
+        
+        spec.loader.exec_module(module)
+
+        # Get the main() function
+        if not hasattr(module, "main"):
+            available = [
+                name
+                for name in dir(module)
+                if callable(getattr(module, name)) and not name.startswith("_")
+            ]
+            raise AttributeError(
+                f"Script must define a main() function. Available callables: "
+                f"{', '.join(available)}"
+            )
+
+        func = getattr(module, "main")
+
+        # Execute main() with provided parameters
+        # YAML-invoked scripts should not save mesh files to disk by default
+        try:
+            if self.rank == 0:
+                print(
+                    f"[GridHandlerPythonScript] Executing main({self.parameters})"
+                )
+            result = func(save_to_disk=False, **self.parameters)
+        except Exception as e:
+            raise RuntimeError(
+                f"main() execution failed with error: {e}"
+            ) from e
+
+        # Validate return type
+        if not isinstance(result, tuple) or len(result) != 3:
+            raise RuntimeError(
+                f"Expected main() to return (mesh, cell_tags, facet_tags) tuple, "
+                f"got {type(result)}"
+            )
+
+        mesh, cell_tags, facet_tags = result
+
+        # Validate types
+        from dolfinx.mesh import Mesh, MeshTags
+
+        if not isinstance(mesh, Mesh):
+            raise RuntimeError(
+                f"First return value must be dolfinx.mesh.Mesh, got {type(mesh)}"
+            )
+        if not isinstance(cell_tags, MeshTags):
+            raise RuntimeError(
+                f"Second return value must be dolfinx.mesh.MeshTags, got {type(cell_tags)}"
+            )
+        if not isinstance(facet_tags, MeshTags):
+            raise RuntimeError(
+                f"Third return value must be dolfinx.mesh.MeshTags, got {type(facet_tags)}"
+            )
+
+        if self.rank == 0:
+            domain_dim = mesh.topology.dim
+            n_cells = mesh.topology.index_map(domain_dim).size_local + len(mesh.topology.index_map(domain_dim).ghosts)
+            n_vertices = mesh.topology.index_map(0).size_local + len(mesh.topology.index_map(0).ghosts)
+            print(
+                f"[GridHandlerPythonScript] Mesh generated: {n_cells} cells, "
+                f"{n_vertices} vertices"
+            )
+
+        return mesh, cell_tags, facet_tags

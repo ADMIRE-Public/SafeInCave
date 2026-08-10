@@ -1271,32 +1271,59 @@ _TOP_LEVEL_KEYS = (
 def _parse_grid(root: dict, context: str) -> ObjectSpec:
     """Build the grid ObjectSpec from either 'grid' (full form) or 'mesh' (shorthand).
 
-    'mesh: path/to/name.msh' (or 'mesh: {file: path/to/name.msh}') is sugar
-    for a GridHandlerGMSH block, splitting the path into grid_folder and
-    geometry_name.
+    'mesh' can now be:
+      - 'mesh: path/to/name.msh' (or 'mesh: {file: path/to/name.msh}') → GridHandlerGMSH
+      - 'mesh: {file: path/to/script.py, parameters: {...}}' → GridHandlerPythonScript
+    
+    For .msh files, the path is split into grid_folder and geometry_name.
+    For .py files, the full path is passed along with optional parameters.
+    The script must define a main(**kwargs) function.
     """
     if "grid" in root and "mesh" in root:
         raise TranspileError(f"{context}: specify either 'grid' or 'mesh', not both.")
     if "mesh" in root:
         mesh_value = root["mesh"]
+        
+        # Parse mesh config (string path or nested dict)
         if isinstance(mesh_value, dict):
-            _check_keys(mesh_value, ("file",), f"{context}.mesh")
+            _check_keys(mesh_value, ("file", "parameters"), f"{context}.mesh")
             mesh_path = mesh_value.get("file")
+            parameters = mesh_value.get("parameters", {})
         else:
             mesh_path = mesh_value
+            parameters = {}
+        
         if not isinstance(mesh_path, str):
             raise TranspileError(
                 f"{context}.mesh: expected a string path (or {{file: path}}), got {mesh_path!r}."
             )
-        grid_folder, filename = _posixpath_split(mesh_path)
-        geometry_name, ext = _posixpath_splitext(filename)
-        if ext.lower() != ".msh":
-            raise TranspileError(f"{context}.mesh: expected a '.msh' file, got {mesh_path!r}.")
-        cls = registry.resolve("grid", "GridHandlerGMSH", f"{context}.mesh")
-        return ObjectSpec(
-            section="grid", type_name="GridHandlerGMSH", cls=cls,
-            kwargs={"geometry_name": geometry_name, "grid_folder": grid_folder or "."},
-        )
+        
+        # Determine file type and route to appropriate handler
+        _, filename = _posixpath_split(mesh_path)
+        _, ext = _posixpath_splitext(filename)
+        
+        if ext.lower() == ".msh":
+            # Route to GridHandlerGMSH for file-based mesh
+            grid_folder, _ = _posixpath_split(mesh_path)
+            geometry_name, _ = _posixpath_splitext(filename)
+            cls = registry.resolve("grid", "GridHandlerGMSH", f"{context}.mesh")
+            return ObjectSpec(
+                section="grid", type_name="GridHandlerGMSH", cls=cls,
+                kwargs={"geometry_name": geometry_name, "grid_folder": grid_folder or "."},
+            )
+        elif ext.lower() == ".py":
+            # Route to GridHandlerPythonScript for script-based mesh generation
+            # Script must define main(**kwargs) that returns (mesh, cell_tags, facet_tags)
+            cls = registry.resolve("grid", "GridHandlerPythonScript", f"{context}.mesh")
+            return ObjectSpec(
+                section="grid", type_name="GridHandlerPythonScript", cls=cls,
+                kwargs={"script_path": mesh_path, "parameters": parameters},
+            )
+        else:
+            raise TranspileError(
+                f"{context}.mesh: expected a '.msh' or '.py' file, got {mesh_path!r}."
+            )
+    
     return build_object("grid", root["grid"], "grid")
 
 
