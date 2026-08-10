@@ -32,7 +32,7 @@ from .Derivatives import (
     get_default_derivative_method,
     evaluate_derivative,
 )
-from .Mesh.Grid import GridHandlerGMSH
+from .Mesh.Grid import GridHandlerGMSH, GridHandlerPythonScript
 from .Equations.Heat import HeatDiffusion
 from .Equations.Momentum import LinearMomentumBase, LinearMomentum, LinearMomentumMixed
 from .Materials.Material import Material
