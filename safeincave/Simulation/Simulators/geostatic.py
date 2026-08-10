@@ -390,7 +390,8 @@ class GeostaticStep(Simulator):
         Forwarded to the internal simulator when given; left unset (``None``,
         the default) so each ``simulator_cls`` picks its own natural default
         (e.g. ``Simulator_M``'s ``"strain_based"`` vs. ``Simulator_MNewton``'s
-        ``NewtonResidualCriterion``) -- do not hardcode one here, it would
+        ``ForceDisplacementCriterion`` with its own Newton tolerances)
+        -- do not hardcode one here, it would
         silently override the other simulator's correct default.
     simulation_logger, merged_solutions, smooth_output,
     plastic_consistency_tolerance
