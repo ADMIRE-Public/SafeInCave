@@ -357,10 +357,12 @@ def _parse_material(node, equations: dict) -> MaterialSpec:
 # ------------------------------------------------------- named-block schema
 #
 # An alternate top-level schema (selected by the presence of a 'steps' key):
-# 'materials'/'boundaries'/'loads'/'outputs'/'logging' are named collections
-# defined once, and 'steps' (an ordered mapping, replacing 'stages') composes
-# them by name. A step that omits a field inherits it verbatim from the
-# previous step, so only genuine deltas need to be restated.
+# 'materials'/'boundaries'/'loads'/'outputs' are named collections defined
+# once, and 'steps' (an ordered list, replacing 'stages') both defines each
+# step's mechanics ('type', optional 'time'/'momentum'/'time_step') and
+# composes it by referencing those named collections directly. A step entry
+# that omits 'materials'/'boundaries'/'loads'/'outputs' inherits it verbatim
+# from the previous entry, so only genuine deltas need to be restated.
 #
 # Kept in sync with the identical schema in the
 # extensions/FullNewtonRaphsonSolver/Transpiler/model.py overlay, which adds
@@ -427,6 +429,7 @@ def _type_and_kwargs(value, context: str) -> tuple:
 
 
 def _parse_materials(node, equations: dict, context: str = "materials") -> dict:
+    properties_allowed = _material_property_names()
     parsed = {}
     for name, entry in _by_name(node, context).items():
         entry_context = f"{context}.{name}"
@@ -444,6 +447,15 @@ def _parse_materials(node, equations: dict, context: str = "materials") -> dict:
             model_type = model.pop("type", None)
             if not isinstance(model_type, str):
                 raise TranspileError(f"{model_context}: a 'type' key is required.")
+            if model_type == "basic":
+                _check_keys(model, properties_allowed, model_context)
+                for key, value in model.items():
+                    prop_context = f"{model_context}.{key}"
+                    if isinstance(value, dict):
+                        spec.properties[key] = _region_map(value, prop_context)
+                    else:
+                        spec.properties[key] = _require_number(value, prop_context)
+                continue
             category, type_name, cls = _resolve_material_element(model_type, model_context)
             elem = _finalize_object(
                 f"material.{category}", type_name, cls, model, model_context, tensor_aware=True,
@@ -897,93 +909,42 @@ def _load_bcs(names: list, loads: dict, start: float, end: float, context: str) 
     return specs
 
 
-def _parse_procedures(node, context: str = "procedures") -> dict:
-    parsed = {}
-    for name, entry in _by_name(node, context).items():
-        entry_context = f"{context}.{name}"
-        entry = dict(entry)
-        entry.pop("name")
-
-        procedure_type = entry.pop("type", None)
-        if not isinstance(procedure_type, str):
-            raise TranspileError(f"{entry_context}: a 'type' key is required.")
-
-        if "time" not in entry:
-            raise TranspileError(f"{entry_context}: 'time' is required.")
-        time_raw = _require_list(entry.pop("time"), f"{entry_context}.time")
-        if len(time_raw) != 2:
-            raise TranspileError(f"{entry_context}.time: expected [start, end].")
-        start = _require_number(time_raw[0], f"{entry_context}.time[0]")
-        end = _require_number(time_raw[1], f"{entry_context}.time[1]")
-
-        momentum_spec = None
-        if "momentum" in entry:
-            mom_context = f"{entry_context}.momentum"
-            mom_type, mom_kwargs = _type_and_kwargs(entry.pop("momentum"), mom_context)
-            mom_cls = registry.resolve("equations.momentum", mom_type, mom_context)
-            momentum_spec = _finalize_object(
-                "equations.momentum", mom_cls.__name__, mom_cls, mom_kwargs, mom_context
-            )
-
-        time_type, time_overrides = _type_and_kwargs(
-            entry.pop("time_step", "TimeControllerAdaptive"), f"{entry_context}.time_step"
-        )
-        time_kwargs = _default_time_controller_kwargs(start, end)
-        time_kwargs.update(time_overrides)
-        time_cls = registry.resolve("time", time_type, f"{entry_context}.time_step")
-        time_spec = _finalize_object(
-            "time", time_cls.__name__, time_cls, time_kwargs, f"{entry_context}.time_step"
-        )
-
-        parsed[name] = {
-            "type": procedure_type, "kwargs": entry,
-            "start": start, "end": end,
-            "momentum": momentum_spec, "time_spec": time_spec,
-        }
-    return parsed
-
-
-def _resolve_equations(procedures: dict, steps_node, context: str = "steps") -> dict:
-    """Determine the momentum equation from the procedures actually referenced by steps.
+def _resolve_step_equations(node, context: str = "steps") -> dict:
+    """Determine the momentum equation from the 'steps:' list.
 
     Equations are built once, before any step runs (the real API always
     constructs the momentum equation once and passes it by reference into
-    every stage's simulator), so every procedure referenced across all steps
-    (inheriting a step's 'procedure:' name forward when omitted) must agree.
+    every stage's simulator), so every step that defines 'momentum' must
+    agree.
     """
-    steps_list = _require_list(steps_node, context)
-    carried_procedure = None
-    referenced = []
-    for i, step_node in enumerate(steps_list):
-        step_node = _require_mapping(step_node, f"{context}[{i}]")
-        if "procedure" in step_node:
-            carried_procedure = step_node["procedure"]
-        if carried_procedure is not None and carried_procedure not in referenced:
-            referenced.append(carried_procedure)
-
+    entries = _require_list(node, context)
     momentum_spec = None
-    for procedure_name in referenced:
-        if procedure_name not in procedures:
-            raise TranspileError(
-                f"{context}: unknown procedure {procedure_name!r}. "
-                f"Defined: {', '.join(sorted(procedures)) or '(none)'}."
-            )
-        spec = procedures[procedure_name]["momentum"]
-        if spec is None:
+    for i, entry in enumerate(entries):
+        entry = _require_mapping(entry, f"{context}[{i}]")
+        if "momentum" not in entry:
             continue
+        mom_context = f"{context}[{i}].momentum"
+        mom_type, mom_kwargs = _type_and_kwargs(entry["momentum"], mom_context)
+        mom_cls = registry.resolve("equations.momentum", mom_type, mom_context)
+        spec = _finalize_object(
+            "equations.momentum", mom_cls.__name__, mom_cls, mom_kwargs, mom_context
+        )
         if momentum_spec is None:
             momentum_spec = spec
         elif (spec.type_name, spec.kwargs) != (momentum_spec.type_name, momentum_spec.kwargs):
             raise TranspileError(
-                f"{context}: procedures referenced across steps define different 'momentum' "
-                f"specs; the momentum equation is built once and must be identical."
+                f"{context}: steps define different 'momentum' specs; the momentum "
+                f"equation is built once and must be identical across every step "
+                f"that defines one."
             )
     return {"momentum": momentum_spec} if momentum_spec is not None else {}
 
 
+_STEP_STRUCTURAL_KEYS = ("materials", "boundaries", "loads", "outputs")
+
+
 def _parse_steps(node, equations: dict, materials: dict, boundaries: dict, loads: dict,
-                 outputs_defs: dict, procedures: dict,
-                 context: str = "steps") -> tuple:
+                 outputs_defs: dict, context: str = "steps") -> tuple:
     steps_list = _require_list(node, context)
     if not steps_list:
         raise TranspileError(f"{context}: at least one step is required.")
@@ -999,24 +960,35 @@ def _parse_steps(node, equations: dict, materials: dict, boundaries: dict, loads
         if not isinstance(step_name, str):
             raise TranspileError(f"{context}[{i}]: a string 'name' is required.")
         step_context = f"{context}.{step_name}"
-        _check_keys(
-            step_node,
-            ("name", "materials", "boundaries", "loads", "procedure", "outputs"),
-            step_context,
-        )
-        merged = {**carried, **{k: v for k, v in step_node.items() if k != "name"}}
-        carried = merged
 
-        if "procedure" not in merged:
-            raise TranspileError(f"{step_context}: 'procedure' is required (directly or inherited).")
-        procedure_name = merged["procedure"]
-        if procedure_name not in procedures:
-            raise TranspileError(
-                f"{step_context}.procedure: unknown procedure {procedure_name!r}. "
-                f"Defined: {', '.join(sorted(procedures)) or '(none)'}."
-            )
-        procedure_def = procedures[procedure_name]
-        start, end, time_spec = procedure_def["start"], procedure_def["end"], procedure_def["time_spec"]
+        entry = dict(step_node)
+        entry.pop("name")
+
+        step_type = entry.pop("type", None)
+        if not isinstance(step_type, str):
+            raise TranspileError(f"{step_context}: a 'type' key is required.")
+
+        time_raw = _require_list(entry.pop("time", [0.0, 1.0]), f"{step_context}.time")
+        if len(time_raw) != 2:
+            raise TranspileError(f"{step_context}.time: expected [start, end].")
+        start = _require_number(time_raw[0], f"{step_context}.time[0]")
+        end = _require_number(time_raw[1], f"{step_context}.time[1]")
+
+        entry.pop("momentum", None)  # already folded into 'equations' by _resolve_step_equations
+
+        time_type, time_overrides = _type_and_kwargs(
+            entry.pop("time_step", "TimeControllerAdaptive"), f"{step_context}.time_step"
+        )
+        time_kwargs = _default_time_controller_kwargs(start, end)
+        time_kwargs.update(time_overrides)
+        time_cls = registry.resolve("time", time_type, f"{step_context}.time_step")
+        time_spec = _finalize_object(
+            "time", time_cls.__name__, time_cls, time_kwargs, f"{step_context}.time_step"
+        )
+
+        carried = {**carried, **{k: v for k, v in entry.items() if k in _STEP_STRUCTURAL_KEYS}}
+        merged = carried
+        step_kwargs = {k: v for k, v in entry.items() if k not in _STEP_STRUCTURAL_KEYS}
 
         material_names = (
             _select_names(merged["materials"], f"{step_context}.materials")
@@ -1091,14 +1063,13 @@ def _parse_steps(node, equations: dict, materials: dict, boundaries: dict, loads
             output_format="xdmf", folder=f"output/{step_name}", fields=fields,
         )]
 
-        procedure_kwargs = dict(procedure_def["kwargs"])
-        procedure_kwargs["merged_solutions"] = merged_solutions_values.pop() if merged_solutions_values else False
-        procedure_kwargs["smooth_output"] = smooth_output_values.pop() if smooth_output_values else False
-        procedure_cls = registry.resolve("simulator", procedure_def["type"], f"{step_context}.procedure")
+        step_kwargs["merged_solutions"] = merged_solutions_values.pop() if merged_solutions_values else False
+        step_kwargs["smooth_output"] = smooth_output_values.pop() if smooth_output_values else False
+        step_cls = registry.resolve("simulator", step_type, step_context)
         simulator = _finalize_object(
-            "simulator", procedure_cls.__name__, procedure_cls, procedure_kwargs, f"{step_context}.procedure"
+            "simulator", step_cls.__name__, step_cls, step_kwargs, step_context
         )
-        _check_simulator_wiring(simulator, equations, [], extracts, f"{step_context}.procedure")
+        _check_simulator_wiring(simulator, equations, [], extracts, step_context)
 
         stages.append(StageSpec(
             name=step_name, time=time_spec, bcs=bcs, caverns=[], extracts=extracts,
@@ -1262,9 +1233,8 @@ _TOP_LEVEL_KEYS = (
     "materials",
     "boundaries",
     "loads",
-    "procedures",
-    "outputs",
     "steps",
+    "outputs",
 )
 
 
@@ -1358,14 +1328,12 @@ def parse(yaml_path) -> CaseModel:
         if "equations" in root:
             raise TranspileError(
                 f"{yaml_path}: top-level 'equations' is not used with the 'steps' schema; "
-                f"define a 'procedures' entry's 'momentum:' field instead."
+                f"define a 'steps' entry's 'momentum:' field instead."
             )
-        procedures = _parse_procedures(root.get("procedures", []))
-        equations = _resolve_equations(procedures, root["steps"])
+        equations = _resolve_step_equations(root["steps"])
         if not equations:
             raise TranspileError(
-                f"{yaml_path}: at least one step must define 'momentum' "
-                f"(directly or inherited from an earlier step)."
+                f"{yaml_path}: at least one entry under 'steps' must define 'momentum'."
             )
     else:
         if "equations" not in root:
@@ -1393,7 +1361,7 @@ def parse(yaml_path) -> CaseModel:
         if "stages" in root or "material" in root:
             raise TranspileError(
                 f"{yaml_path}: specify either the legacy 'material'/'stages' schema or the "
-                f"'materials'/'boundaries'/'loads'/'procedures'/'outputs'/'steps' schema, not a "
+                f"'materials'/'boundaries'/'loads'/'steps'/'outputs' schema, not a "
                 f"mix of both."
             )
         materials = _parse_materials(root.get("materials", []), equations)
@@ -1402,7 +1370,6 @@ def parse(yaml_path) -> CaseModel:
         outputs_defs = _parse_outputs_defs(root.get("outputs", []))
         stages, material = _parse_steps(
             root["steps"], equations, materials, boundaries, loads, outputs_defs,
-            procedures,
         )
     else:
         if "material" not in root:

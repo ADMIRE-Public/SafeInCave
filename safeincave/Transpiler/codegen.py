@@ -298,9 +298,39 @@ def _generate_stage(w: CodeWriter, model: CaseModel, stage: StageSpec, index: in
         for param, var in wired.items()
         if var is not None and param in sim_params
     ]
+    # A stage that follows a geostatic step must continue from the committed
+    # reference state. The elastic pre-solve is on by default and overwrites
+    # exactly that: it re-solves from scratch and rewrites u/eps_tot,
+    # discarding the zero deformation the commit just established. Default it
+    # off here so a geostatic workflow is correct with nothing extra in the
+    # YAML; an explicit value in the case file still wins.
+    if (
+        "compute_elastic_response" in sim_params
+        and "compute_elastic_response" not in stage.simulator.kwargs
+        and any(
+            earlier.simulator.cls.__name__ == "GeostaticStep"
+            for earlier in model.stages[:index]
+        )
+    ):
+        args.append("compute_elastic_response=False")
     args += _kwargs_args(stage.simulator, f"{context}.simulator")
     w.call("sim", _callee(stage.simulator), args)
-    w.line("sim.run()")
+    if stage.simulator.cls.__name__ == "GeostaticStep":
+        # GeostaticStep.run() reports whether the internal equilibrium solve
+        # converged instead of raising; on non-convergence it skips
+        # commit_as_reference() entirely, leaving u/eps_tot at whatever the
+        # failed solve left them at. Left unchecked, that's silent: the
+        # generated script would carry on into the next stage with nonzero
+        # "initial" deformation instead of the zero state a geostatic step
+        # is supposed to guarantee.
+        w.line("geo_report = sim.run()")
+        w.line("if not geo_report.converged:")
+        w.indent += 1
+        message_prefix = f"Geostatic step {stage.name!r} did not converge:\n"
+        w.line(f"raise RuntimeError({message_prefix!r} + geo_report.summary())")
+        w.indent -= 1
+    else:
+        w.line("sim.run()")
     w.line("")
 
     # post-run extraction profiles: read the fields just written back out
