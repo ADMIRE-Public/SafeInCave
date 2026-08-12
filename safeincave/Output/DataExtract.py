@@ -109,8 +109,8 @@ def point_file_name(name: str, point: Sequence[float]) -> str:
 
 
 def variable_file_name(name: str, variable: str) -> str:
-    """Per-variable layout file name: ``{name}_{variable}.csv``."""
-    return f"{name}_{variable}.csv"
+    """Per-variable layout file name: ``{name}.csv``."""
+    return f"{name}.csv"
 
 
 # ============================================================================

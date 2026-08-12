@@ -56,20 +56,42 @@ automatically:
 
 Why this always runs with ``compute_elastic_response=False``
 --------------------------------------------------------------
-Two defects in the public elastic pre-solve corrupt exactly the state a
-geostatic step exists to produce:
+The public elastic pre-solve (``solve_elastic_response`` +
+``compute_elastic_stress``, run when a simulator's
+``compute_elastic_response=True``, the default) is not the right thing to
+run right after a commit: it re-solves the elastic BVP from scratch and
+overwrites ``u``/``eps_tot`` with its own result, discarding the zero
+deformation :meth:`commit_as_reference` just established. Measured directly
+(not just by inspection) on a real case: calling it immediately after commit
+moved ``u`` from ``0`` to 27 mm and the committed stress by 12.5 MPa on a 3D
+cavern case (0.1 mm / 0.4 MPa on an equivalent, more tightly boundary-
+constrained 2D case -- the corruption is real in both, just far more visible
+in 3D). This is the actual, verified reason a stage following a geostatic
+one must not run the elastic pre-solve; the transpiler now defaults
+``compute_elastic_response=False`` automatically for such a stage (see
+``Transpiler/codegen.py``), so this only matters when driving a post-
+geostatic stage directly through the Python API.
 
-* ``Equations/Momentum/standard.py``'s ``solve_elastic_response`` assembles
-  the initial-stress term with a ``+`` sign where the consistent form (the
-  one ``compute_stress`` and the transient ``solve`` both use) is a ``-``,
-  so a self-equilibrated ``sigma_0`` yields roughly twice the wrong elastic
-  displacement instead of ``u = 0``;
-* ``compute_elastic_stress`` (``stress = C:eps_e``, no ``sigma_0`` term) then
-  drops the initial stress from the committed stress state entirely.
+On top of that, ``compute_elastic_stress`` on the base/standard momentum
+equation (``stress = C:eps_e``, no ``sigma_0`` term) drops the initial
+stress from the committed stress state entirely if the elastic pre-solve
+does run -- the Newton-path equation overrides this to include ``eps0_to``
+and does not have this particular problem.
 
-Both are only reachable when ``compute_elastic_response=True``. This module
-never sets it, so the bugs are made unreachable here, not patched -- they
-should be fixed upstream separately.
+A claim that used to live here -- that ``solve_elastic_response``'s ``+``
+sign on the ``sigma_0`` term (vs. the ``-`` used by ``compute_stress`` and
+the transient ``solve``) is what causes nonzero displacement, and that
+flipping it yields ``u = 0`` -- was tested directly by patching the sign in
+the real source and re-running: the result was byte-identical to the
+unpatched version. That claim was wrong; do not "fix" the sign expecting it
+to solve a nonzero-``u`` symptom. Whatever asymmetry that sign represents,
+it is not what corrupts the geostatic reference state -- the pre-solve
+simply being re-run at all is.
+
+The elastic pre-solve is only reachable when ``compute_elastic_response=True``.
+This module never sets it, so it is made unreachable here, not fixed --
+callers driving a post-geostatic stage without going through the transpiler
+must set ``compute_elastic_response=False`` themselves.
 
 Scope: mechanical only -- thermo-mechanical simulators
 (``Simulator_TM``/-Newton) are not supported.
@@ -606,6 +628,36 @@ class GeostaticStep(Simulator):
             warn=False,
         )
 
+    def _write_reference_output(self) -> None:
+        """
+        Rewrite this step's output so it holds the committed reference state.
+
+        The internal simulator writes one frame per equilibration increment
+        and closes its writers before returning, so every frame on disk shows
+        *pre-commit* deformation -- not the state this step hands to the next
+        stage. :meth:`SaveFields.initialize` opens its files in ``"w"`` mode,
+        so re-running the open/write/close cycle here leaves exactly one
+        frame: the committed reference state (zero deformation, equilibrated
+        stress).
+
+        Deliberately called only after a successful commit. When the solve
+        fails, :meth:`run` returns before this point and the equilibration
+        transient is left on disk, which is what you want to look at to
+        diagnose the failure.
+        """
+        for output in self.outputs:
+            # initialize() appends to output_fields and re-registers the
+            # shared merged writer; reset the per-cycle state first so the
+            # second cycle does not stack duplicate (and already-closed)
+            # writers on top of the first.
+            output.output_fields = []
+            output.merged_output = None
+            output._merged_field_name_map = {}
+            output.initialize()
+            output.save_fields(self.t_control.t)
+            output.close()
+            output.save_mesh()
+
     def run(self, commit: bool = True) -> GeostaticReport:
         """
         Full geostatic step: diagnose, equilibrate, commit as reference.
@@ -614,6 +666,10 @@ class GeostaticStep(Simulator):
         count, converged ``u_max`` and the pre-solve imbalance. On
         non-convergence the solve report is returned unchanged and nothing
         is committed -- inspect ``converged`` and ``failure_reason``.
+
+        On success the step's output is rewritten to hold the committed
+        reference state (see :meth:`_write_reference_output`), so what is
+        saved for a geostatic stage is the state the next stage starts from.
         """
         solved = self.solve(_pre=self.check())
         if not solved.converged or not commit:
@@ -624,6 +680,7 @@ class GeostaticStep(Simulator):
         # fields (verdict at the now-committed state) come from the post-commit
         # check.
         post = self.commit_as_reference()
+        self._write_reference_output()
         return replace(
             solved,
             r_norm=post.r_norm,

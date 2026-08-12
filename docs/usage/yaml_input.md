@@ -148,17 +148,30 @@ stages:
            final_time: 30, time_unit: day, dt_max: 1.0}
     ...
     simulator:
-      type: Simulator_M
-      compute_elastic_response: false   # continue from the committed geostatic state
+      type: Simulator_M          # continues from the committed geostatic state
 ```
 
 `GeostaticStep` checks the initial stress set on the momentum equation
 against the applied loads/BCs, solves to equilibrium (always with
-`compute_elastic_response=false` internally, so two documented defects in
-the elastic pre-solve path are never reached), then commits the equilibrated
-stress as the new reference and zeros displacement, strain and inelastic
-history — hence `operation` should run with `compute_elastic_response:
-false` to continue from that committed state. Note there is currently no
+`compute_elastic_response=false` internally, since re-running the elastic
+pre-solve would overwrite the zero-deformation state a geostatic step exists
+to produce), then commits the equilibrated stress as the new reference and
+zeros displacement, strain and inelastic history.
+
+Any stage *after* a geostatic step is generated with
+`compute_elastic_response=False` automatically, so you do not need to write
+it in the case file: the elastic pre-solve would re-solve from scratch and
+overwrite exactly the zero-deformation reference the commit just
+established. Setting it explicitly in the YAML still wins, if you want the
+old behaviour.
+
+The output written for a geostatic stage is the *committed* reference state
+(zero deformation, equilibrated stress), not the equilibration transient —
+the step rewrites its own output after committing. If the solve fails to
+converge nothing is committed and the transient is left in place, which is
+what you want for diagnosing the failure.
+
+Note there is currently no
 YAML key to set an initial stress before stage 0 (`apply_initial_stress` is
 Python-API only), so a fully YAML-only geostatic workflow needs that set up
 separately, e.g. via `sic y2p` and a small edit to the generated script.

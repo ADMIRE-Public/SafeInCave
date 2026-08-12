@@ -70,12 +70,37 @@ def build_uniform_stress(element_set: ElementSet, sigma: StressLike) -> to.Tenso
     return sigma0
 
 
+def _as_grid_parameter(value, grid: "GridHandlerGMSH", context: str):
+    """Reduce a tensor to something `Grid.get_parameter` can consume.
+
+    Material properties built by codegen are sized by the constitutive batch
+    dimension (`n_state_points` on the Newton/quadrature-state path, which
+    can differ from `grid.n_elems`), while `get_parameter` only accepts a
+    scalar, a per-region sequence, or a per-element (`n_elems`) sequence. A
+    property that's genuinely uniform (the common case for a scalar
+    `density:` in YAML) is safe to collapse to a plain float, which
+    `get_parameter` then broadcasts correctly regardless of the original
+    tensor's length.
+    """
+    if not isinstance(value, to.Tensor) or value.numel() in (grid.n_elems, grid.n_regions):
+        return value
+    if to.all(value == value.flatten()[0]):
+        return value.flatten()[0].item()
+    raise ValueError(
+        f"{context}: has {value.numel()} values, matching neither grid.n_elems "
+        f"({grid.n_elems}) nor grid.n_regions ({grid.n_regions}), and isn't uniform "
+        f"either -- a genuinely spatially varying value here isn't supported when the "
+        f"constitutive batch size differs from the element count (e.g. quadrature-point "
+        f"state on the Newton path)."
+    )
+
+
 def build_geostatic_gradient_stress(
     element_set: ElementSet,
     minimum_horizontal_stress_ratio=1.0,
     maximum_horizontal_stress_ratio=1.0,
     density=None,
-    gravity: float = 9.81,
+    gravity: float = -9.81,
     ref_pos: float = None,
     vertical_axis: int = 2,
 ) -> to.Tensor:
@@ -98,7 +123,14 @@ def build_geostatic_gradient_stress(
         from `element_set.material.density` (i.e. the material already
         assigned to these elements); if neither is available, raises.
     gravity : float
-        Gravitational acceleration magnitude.
+        Signed gravitational acceleration along `vertical_axis`, in the same
+        convention as `LinearMomentumBase.build_body_force` (e.g. -9.81 for
+        an axis that points up, `[0, 0, -9.81]`). `vertical_stress` grows
+        *compressive* (negative) below `ref_pos` only when `gravity` is
+        negative; a positive value silently produces a tensile in-situ
+        stress field instead. Pass the same signed value used for the
+        case's body-force load when one is present, so the geostatic stress
+        stays self-equilibrated against the force actually applied.
     ref_pos : float, optional
         Coordinate along `vertical_axis` where the vertical stress is zero
         (e.g. ground surface elevation). Defaults to the top of the model,
@@ -128,9 +160,13 @@ def build_geostatic_gradient_stress(
             )
         density = element_set.material.density
 
-    density_t = grid.get_parameter(density)
-    k0_min_t = grid.get_parameter(minimum_horizontal_stress_ratio)
-    k0_max_t = grid.get_parameter(maximum_horizontal_stress_ratio)
+    density_t = grid.get_parameter(_as_grid_parameter(density, grid, "density"))
+    k0_min_t = grid.get_parameter(
+        _as_grid_parameter(minimum_horizontal_stress_ratio, grid, "minimum_horizontal_stress_ratio")
+    )
+    k0_max_t = grid.get_parameter(
+        _as_grid_parameter(maximum_horizontal_stress_ratio, grid, "maximum_horizontal_stress_ratio")
+    )
 
     coord_fns = [lambda x, y, z: x, lambda x, y, z: y, lambda x, y, z: z]
     coord = create_field_elems(grid, coord_fns[vertical_axis])
