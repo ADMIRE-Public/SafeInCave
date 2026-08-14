@@ -160,10 +160,5 @@ cython_debug/
 #.idea/
 
 **/output/
-**/extensions/
-**extensions
 **/jit*/
 *.pyc
-
-# Local extensions (private module trees, machine-local symlink)
-/extensions
