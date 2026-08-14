@@ -175,8 +175,8 @@ def _add_container_or_entry(found: dict[str, tuple[Path, tuple[str, ...]]], fold
         _add_target_entry(found, folder)
         return
     for entry in sorted(folder.iterdir(), key=lambda p: p.name):
-        if entry.name.startswith(".") or not entry.is_dir():
-            continue  # skip .gitignore, README.md, hidden entries
+        if entry.name.startswith((".", "__")) or not entry.is_dir():
+            continue  # skip .gitignore, README.md, __pycache__, hidden entries
         _add_target_entry(found, entry)
 
 
