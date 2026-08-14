@@ -8,15 +8,9 @@ Local extension mechanism for SafeInCave.
 An *extension* is a directory (an "entry") that declares, via a single-line
 ``TARGET`` file at its root, which ``safeincave.*`` prefix it provides —
 then lays its files out directly at their natural relative path underneath,
-no mirroring required. Made visible through the gitignored ``extensions``
-path at the repository root; the simplest setup is a single symlink into a
-private extension repository:
+no mirroring required:
 
-    SafeInCave/
-    ├── safeincave/                # the public package
-    └── extensions -> /path/to/SafeInCave_extensions/extensions   # symlink
-
-    SafeInCave_extensions/extensions/
+    extensions/
     └── AutoDiffJAX/
         ├── TARGET                      # contents: "../safeincave/AutoDiffJAX"
         ├── __init__.py                 # -> safeincave.AutoDiffJAX
@@ -24,15 +18,14 @@ private extension repository:
             └── Mechanism.py            # -> safeincave.AutoDiffJAX.Constitutive.Mechanism
 
 ``TARGET``'s content is the relative path this entry would sit at, relative
-to itself, if it were merged straight into a checkout — mirroring the real
-``SafeInCave/extensions -> .../extensions`` symlink topology above, where
-``extensions/`` and ``safeincave/`` are siblings, so ``../safeincave/X`` from
-inside an entry lands where ``X`` would really live. A deeper single
-namespace works the same way (``../safeincave/Materials/Constitutive``).
-Every ``.py`` file under an entry replaces the public module at that
-relative path; files that don't exist publicly are added as new modules
-(and participate in package auto-discovery, e.g. constitutive models become
-``safeincave.MyModel`` like built-ins).
+to itself, if it were merged straight into ``safeincave/``'s parent
+directory — so ``../safeincave/X`` from inside an entry lands where ``X``
+would really live. A deeper single namespace works the same way
+(``../safeincave/Materials/Constitutive``).  Every ``.py`` file under an
+entry replaces the public module at that relative path; files that don't
+exist publicly are added as new modules (and participate in package
+auto-discovery, e.g. constitutive models become ``safeincave.MyModel`` like
+built-ins).
 
 ``TARGET`` declares *one* prefix per entry — for an extension spanning
 several unrelated namespaces, group its files under the highest prefix they
@@ -42,15 +35,23 @@ touching ``Simulation.Convergence``, ``Simulation.Simulators``, and
 ``Convergence/``, ``Simulators/``, ``TimeControl/`` as real subfolders
 underneath it.
 
-``extensions`` may itself be a single entry (has its own ``TARGET``) or a
-real directory holding *several* entries — one subfolder per extension,
-each with its own ``TARGET``, e.g.:
+Extensions are discovered exclusively from **installed Python packages**
+that register a ``"safeincave.extensions"`` entry point resolving
+(``.load()``) to a directory path — that directory is then treated as a
+*container* of entries, one subfolder per extension, each with its own
+``TARGET``, e.g.:
 
     extensions/
     ├── ConstitutiveModels/TARGET   # "../safeincave/Materials/Constitutive"
     └── AutoDiffJAX/TARGET          # "../safeincave/AutoDiffJAX"
 
-Entries are applied in sorted order, first match wins per module.
+(or the container path can itself be a single entry, with its own
+``TARGET`` directly at its root). No other discovery path exists: extension
+code is only active while its providing package is ``pip install``ed in the
+current environment; uninstalling it (or never installing it) means
+``import safeincave`` behaves exactly like a vanilla checkout. Entries from
+different packages are applied in sorted-by-name order, first match wins
+per module.
 
 The extension is applied by a :data:`sys.meta_path` finder installed at the
 very top of ``safeincave/__init__.py`` — before any submodule import — so
@@ -64,12 +65,6 @@ Rules and escape hatches:
 
 - Every entry must have a valid ``TARGET``; one without it is skipped with a
   warning (see :func:`_add_target_entry`) rather than guessed at.
-- ``SAFEINCAVE_NO_EXTENSIONS=1`` disables the mechanism (vanilla SafeInCave —
-  use it to check whether a bug is upstream's or an extension's).
-- ``SAFEINCAVE_EXTENSIONS_DIR`` may list additional extension folders
-  (``os.pathsep``-separated) — useful when SafeInCave is not installed from a
-  source checkout. Each listed path is always a single entry directly (never
-  a container of further entries): list one path per extension.
 - :func:`discovered_extensions` and :func:`active_extensions` report what was
   found and which modules were actually shadowed/added — log them with
   simulation output for reproducibility.
@@ -100,9 +95,7 @@ def _read_target_prefix(entry: Path) -> tuple[str, ...] | None:
     ``../safeincave/Materials/Constitutive``, or bare ``../safeincave`` for
     an entry that mirrors several unrelated namespaces and shares no single
     prefix) — the path this entry would sit at, relative to itself, were it
-    merged straight into the public checkout (mirroring the real
-    ``SafeInCave/extensions -> .../extensions`` symlink topology, where
-    ``extensions/`` and ``safeincave/`` are siblings). Declares which
+    merged straight into ``safeincave/``'s parent directory. Declares which
     ``safeincave.*`` namespace this entry's *own root* (no nested
     ``safeincave/``/prefix folders needed) provides — everything after the
     ``safeincave`` path component becomes the dotted prefix (empty for bare
@@ -169,37 +162,77 @@ def _add_target_entry(found: dict[str, tuple[Path, tuple[str, ...]]], entry: Pat
     found[name] = (entry, prefix)
 
 
-def _discover_extensions() -> dict[str, tuple[Path, tuple[str, ...]]]:
-    """Find extension entries in ``<repo>/extensions/`` and env-var locations.
+def _add_container_or_entry(found: dict[str, tuple[Path, tuple[str, ...]]], folder: Path) -> None:
+    """
+    Register ``folder`` as a single entry if it has its own ``TARGET``,
+    otherwise treat it as a container directory and register each
+    subfolder as its own entry -- an entry-point-supplied directory can be
+    either shape.
+    """
+    if not folder.is_dir():
+        return
+    if (folder / "TARGET").is_file():
+        _add_target_entry(found, folder)
+        return
+    for entry in sorted(folder.iterdir(), key=lambda p: p.name):
+        if entry.name.startswith((".", "__")) or not entry.is_dir():
+            continue  # skip .gitignore, README.md, __pycache__, hidden entries
+        _add_target_entry(found, entry)
 
-    The default ``extensions`` path is either one entry itself (has its own
+
+def _entry_point_extension_dirs() -> list[Path]:
+    """
+    Resolve every installed ``"safeincave.extensions"`` entry point to a
+    directory ``Path``. Each entry point's value, once loaded, must be a
+    ``Path`` (or ``str``) pointing at a directory -- typically a small
+    module-level constant in the installed package (see the module
+    docstring). Tolerates a broken/misconfigured entry point with a
+    warning rather than failing all of discovery over it.
+    """
+    from importlib.metadata import entry_points
+
+    dirs: list[Path] = []
+    try:
+        eps = sorted(entry_points(group="safeincave.extensions"), key=lambda ep: ep.name)
+    except Exception as e:
+        warnings.warn(f"SafeInCave: could not query extension entry points: {e}", RuntimeWarning)
+        return dirs
+
+    for ep in eps:
+        try:
+            value = ep.load()
+        except Exception as e:
+            warnings.warn(
+                f"SafeInCave extension entry point '{ep.name}' failed to load: {e}",
+                RuntimeWarning,
+            )
+            continue
+        path = Path(value)
+        if path.is_dir():
+            dirs.append(path)
+        else:
+            warnings.warn(
+                f"SafeInCave extension entry point '{ep.name}' resolved to "
+                f"'{path}', which is not a directory; skipping.",
+                RuntimeWarning,
+            )
+    return dirs
+
+
+def _discover_extensions() -> dict[str, tuple[Path, tuple[str, ...]]]:
+    """
+    Find extension entries from every installed ``"safeincave.extensions"``
+    entry point (first match wins per module, see :func:`_add_target_entry`,
+    applied in sorted-by-name order across entry points). Each
+    entry-point-resolved directory is either one entry itself (has its own
     ``TARGET``) or a real directory holding several — one subfolder per
-    extension, each with its own ``TARGET`` — applied in sorted order, first
-    match wins per module. Each ``SAFEINCAVE_EXTENSIONS_DIR`` entry
-    (``os.pathsep``-separated) is always treated as a single entry directly
-    — list one path per extension there rather than pointing at a container
-    folder.
+    extension, each with its own ``TARGET`` (see
+    :func:`_add_container_or_entry`). No other discovery source exists: an
+    extension is active only while its providing package is installed.
     """
     found: dict[str, tuple[Path, tuple[str, ...]]] = {}
-
-    default_folder = Path(__file__).resolve().parent.parent / "extensions"
-    if default_folder.is_dir():
-        if (default_folder / "TARGET").is_file():
-            _add_target_entry(found, default_folder)
-        else:
-            for entry in sorted(default_folder.iterdir(), key=lambda p: p.name):
-                if entry.name.startswith(".") or not entry.is_dir():
-                    continue  # skip .gitignore, README.md, hidden entries
-                _add_target_entry(found, entry)
-
-    extra = os.environ.get("SAFEINCAVE_EXTENSIONS_DIR", "")
-    for p in extra.split(os.pathsep):
-        if not p:
-            continue
-        folder = Path(p)
-        if folder.is_dir():
-            _add_target_entry(found, folder)
-
+    for folder in _entry_point_extension_dirs():
+        _add_container_or_entry(found, folder)
     return found
 
 
@@ -288,8 +321,6 @@ def install() -> None:
     """
     global _finder
     if _finder is not None:
-        return
-    if os.environ.get("SAFEINCAVE_NO_EXTENSIONS"):
         return
     try:
         roots = _discover_extensions()
