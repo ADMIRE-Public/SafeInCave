@@ -13,8 +13,8 @@
 # Pa, times in seconds, temperatures in K.
 #
 # The material definition lives in material.yaml (same directory) and is
-# pulled in below with '!include', to show how a case can be split across
-# files.
+# pulled in below with 'material: {file: ...}', to show how a case can be
+# split across files.
 #
 # Note: main.py subclasses LinearMomentum to also write the per-mechanism
 # strains (eps_ve, eps_cr, eps_vp, Fvp). Custom subclasses are outside the
@@ -27,7 +27,8 @@ equations:
     type: LinearMomentum
     theta: 0.5
 
-material: !include material.yaml
+material:
+  file: material.yaml
 
 body_force: [0.0, 0.0, 0.0]
 initial_temperature: 293

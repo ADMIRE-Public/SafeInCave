@@ -7,19 +7,31 @@
 All validation happens here, before a single line of Python is generated:
 type names are resolved through :mod:`.registry`, keyword blocks are checked
 against the real constructor signatures through :mod:`.signatures`, and all
-numeric leaves are coerced to plain numbers (everything is SI; there is no
-expression language).
+numeric leaves are coerced to plain numbers (everything is SI). A numeric
+leaf may be written as a bare number or as a left-to-right ``*``/``/``
+chain (e.g. ``24*60*60``, ``1e6/10``) -- see
+``_coerce_scalar``/``_muldiv_chain`` -- but nothing more elaborate; there
+is no general expression language (no ``+``/``-``, no parentheses).
 
-Reading the file, including any ``!include`` references, is
-:mod:`.include`'s job; by the time anything here runs the case is a single
-plain dict.
+Reading the raw file is :mod:`.include`'s job. Splitting a case across
+files is handled here instead, via ``_resolve_file_ref``: a bare
+``{file: <path>}`` mapping in one of the sections that accepts it
+(``materials``, ``boundaries``, ``loads``, ``outputs``, ``steps``, legacy
+``material``) is replaced with that file's own YAML content, resolved
+relative to the root case file. This runs at validation time rather than
+during YAML parsing so it can be scoped to exactly those sections and
+never collide with the unrelated ``mesh: {file: <path-to-.msh>}`` shape,
+which ``_parse_grid`` already owns.
 """
 
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import yaml
 
 from . import include, registry, signatures
 from .errors import TranspileError
@@ -118,11 +130,34 @@ class CaseModel:
 
 # ------------------------------------------------------------------- primitives
 
+def _muldiv_chain(text: str) -> float:
+    """Evaluate a left-to-right chain of '*'/'/' operations on number tokens,
+    e.g. '24*60*60' -> 86400.0, '1e6/10' -> 100000.0, '1e6/10*2' -> 200000.0.
+
+    Raises ValueError if any token isn't a valid number or a division by
+    zero is attempted (same contract as float(), so callers can try it as
+    a fallback the same way).
+    """
+    tokens = re.split(r"([*/])", text)
+    try:
+        result = float(tokens[0])
+        for i in range(1, len(tokens), 2):
+            operand = float(tokens[i + 1])
+            result = result * operand if tokens[i] == "*" else result / operand
+    except ZeroDivisionError:
+        raise ValueError(f"division by zero in {text!r}") from None
+    return result
+
+
 def _coerce_scalar(value, context: str):
     """Coerce a YAML leaf to a number where it looks like one.
 
     PyYAML (YAML 1.1) parses e.g. ``1e-20`` as a string, so numeric-looking
-    strings are converted to floats. Non-numeric strings are returned as-is.
+    strings are converted to floats. A string that isn't a plain number but
+    is a '*'/'/' chained expression (e.g. ``'24*60*60'``, ``'1e6/10'``) is
+    evaluated too -- lets any numeric field in the schema, not just scale
+    factors, be written as an expression. Anything else non-numeric is
+    returned as-is (e.g. an enum-like kwarg such as ``direction: "x"``).
     """
     if isinstance(value, bool) or value is None:
         return value
@@ -131,6 +166,10 @@ def _coerce_scalar(value, context: str):
     if isinstance(value, str):
         try:
             return float(value)
+        except ValueError:
+            pass
+        try:
+            return _muldiv_chain(value)
         except ValueError:
             return value
     if isinstance(value, list):
@@ -164,6 +203,33 @@ def _check_keys(node: dict, allowed, context: str) -> None:
             f"{context}: unknown key(s) {', '.join(map(repr, unknown))}. "
             f"Allowed keys: {', '.join(sorted(allowed))}."
         )
+
+
+def _resolve_file_ref(value, case_dir: Path, sources: list, stack: tuple = ()):
+    """If ``value`` is a bare ``{file: X}`` mapping, load X as YAML (relative
+    to ``case_dir``) and return its content, resolving recursively.
+
+    Anything else -- a list, a number, or a mapping with keys other than
+    just ``file`` (e.g. the unrelated ``mesh: {file: ..., parameters: ...}``
+    shape, which callers must never pass here) -- is returned unchanged.
+    Every file actually read is appended to ``sources`` so it still shows
+    up in the generated script's "built from these files" listing.
+    """
+    while isinstance(value, dict) and set(value.keys()) == {"file"}:
+        target = (case_dir / value["file"]).resolve()
+        if target in stack:
+            chain = " -> ".join(str(p) for p in (*stack, target))
+            raise TranspileError(f"circular file reference: {chain}")
+        if not target.is_file():
+            raise TranspileError(f"{target}: no such file.")
+        sources.append(target)
+        with open(target) as f:
+            try:
+                value = yaml.safe_load(f)
+            except yaml.YAMLError as exc:
+                raise TranspileError(f"{target}: invalid YAML: {exc}") from exc
+        stack = (*stack, target)
+    return value
 
 
 def _region_map(node: dict, context: str) -> dict:
@@ -1313,6 +1379,7 @@ def parse(yaml_path) -> CaseModel:
     """Load and fully validate a YAML case file."""
     yaml_path = Path(yaml_path)
     root, sources = include.load(yaml_path)
+    case_dir = yaml_path.parent
 
     root = _require_mapping(root, str(yaml_path))
     _check_keys(root, _TOP_LEVEL_KEYS, str(yaml_path))
@@ -1330,6 +1397,7 @@ def parse(yaml_path) -> CaseModel:
                 f"{yaml_path}: top-level 'equations' is not used with the 'steps' schema; "
                 f"define a 'steps' entry's 'momentum:' field instead."
             )
+        root["steps"] = _resolve_file_ref(root["steps"], case_dir, sources)
         equations = _resolve_step_equations(root["steps"])
         if not equations:
             raise TranspileError(
@@ -1364,10 +1432,16 @@ def parse(yaml_path) -> CaseModel:
                 f"'materials'/'boundaries'/'loads'/'steps'/'outputs' schema, not a "
                 f"mix of both."
             )
-        materials = _parse_materials(root.get("materials", []), equations)
-        boundaries = _parse_boundaries(root.get("boundaries", []))
-        loads = _parse_loads(root.get("loads", []))
-        outputs_defs = _parse_outputs_defs(root.get("outputs", []))
+        materials = _parse_materials(
+            _resolve_file_ref(root.get("materials", []), case_dir, sources), equations
+        )
+        boundaries = _parse_boundaries(
+            _resolve_file_ref(root.get("boundaries", []), case_dir, sources)
+        )
+        loads = _parse_loads(_resolve_file_ref(root.get("loads", []), case_dir, sources))
+        outputs_defs = _parse_outputs_defs(
+            _resolve_file_ref(root.get("outputs", []), case_dir, sources)
+        )
         stages, material = _parse_steps(
             root["steps"], equations, materials, boundaries, loads, outputs_defs,
         )
@@ -1377,7 +1451,9 @@ def parse(yaml_path) -> CaseModel:
         if "stages" not in root:
             raise TranspileError(f"{yaml_path}: top-level section 'stages' is required.")
 
-        material = _parse_material(root["material"], equations)
+        material = _parse_material(
+            _resolve_file_ref(root["material"], case_dir, sources), equations
+        )
 
         stages_node = _require_list(root["stages"], "stages")
         if not stages_node:
