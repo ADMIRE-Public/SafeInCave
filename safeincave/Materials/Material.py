@@ -141,6 +141,37 @@ class Material:
         self.nu = elem.nu
         self.ShearMod = 3 * self.K * self.E / (9 * self.K - self.E)
 
+    def rebuild_elastic(self) -> None:
+        """
+        Re-accumulate the elastic operators from the current parameters of the
+        already-attached elastic elements.
+
+        Needed by elements whose modulus evolves during the simulation (e.g.
+        compaction hardening): `add_to_elastic` accumulates with `+=`, so
+        re-adding an element would double-count it, and re-calling only the
+        element's `initialize()` would leave the material's `C`, `C_inv`,
+        `C_tilde`, `C_tilde_inv` at their stale values.
+
+        Side Effects
+        ------------
+        Rebuilds `C`, `C_inv`, `C_tilde`, `C_tilde_inv` and refreshes `K`,
+        `E`, `nu`, `ShearMod`. Does not change `elems_e`.
+        """
+        self.C = to.zeros_like(self.C)
+        self.C_inv = to.zeros_like(self.C_inv)
+        self.C_tilde = to.zeros_like(self.C_tilde)
+        self.C_tilde_inv = to.zeros_like(self.C_tilde_inv)
+        for elem in self.elems_e:
+            elem.initialize()
+            self.C_inv += elem.C_inv
+            self.C += elem.C
+            self.C_tilde_inv += elem.C_tilde_inv
+            self.C_tilde += elem.C_tilde
+            self.K = elem.K
+            self.E = elem.E
+            self.nu = elem.nu
+        self.ShearMod = 3 * self.K * self.E / (9 * self.K - self.E)
+
     def add_to_non_elastic(self, elem) -> None:
         """
         Add a non-elastic element contributor.
