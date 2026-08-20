@@ -4,7 +4,7 @@
 
 """
 Conventional geostatic equilibrium step -- the SafeInCave equivalent of
-Abaqus' ``*GEOSTATIC`` procedure.
+a standard geostatic-equilibration procedure.
 
 A geostatic step answers one question: *is the specified initial stress in
 equilibrium with the applied loads and boundary conditions?* It then leaves
@@ -275,7 +275,7 @@ def check_equilibrium(
     restore: bool = True,
 ) -> GeostaticReport:
     """
-    Abaqus-style geostatic diagnostic: report the force imbalance at the
+    Geostatic diagnostic: report the force imbalance at the
     current state without solving.
 
     Parameters

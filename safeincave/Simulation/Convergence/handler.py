@@ -136,8 +136,8 @@ class ConvergenceErrorHandler:
         # non-negligible margin. Tolerance calibration on the cavern2D
         # benchmark: 1e-3 lets per-step residuals compound to a 10%+ bias
         # over a long load ramp (do not loosen); 1e-4 is validated stable
-        # across the full ramp (~3.4% vs COMSOL, plateaued, ~20-25
-        # iters/step); 1e-6 adds ~1.5-2x more iterations with no measurable
+        # across the full ramp (~3.4% vs the reference solution, plateaued,
+        # ~20-25 iters/step); 1e-6 adds ~1.5-2x more iterations with no measurable
         # accuracy gain. Kept out of individual criteria so their reported
         # error stays a truthful, single-purpose metric -- this is a safety
         # net on top, not folded into any one criterion's number.

@@ -121,7 +121,7 @@ SECTIONS = {
         prefix="sf.",
         bases=("safeincave.Simulation.Simulators.base.Simulator",),
         aliases={
-            "quasi_static": "Simulator_MNewton",
+            "newton": "Simulator_MNewton",
             "thermo_mechanical_newton": "Simulator_TMNewton",
             "geostatic": "GeostaticStep",
         },

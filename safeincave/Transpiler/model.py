@@ -875,6 +875,8 @@ def _parse_outputs_defs(node, context: str = "outputs") -> dict:
     parsed = {}
     for name, entry in _by_name(node, context).items():
         entry_context = f"{context}.{name}"
+        if name in parsed:
+            raise TranspileError(f"{entry_context}: duplicate name {name!r}.")
         entry = dict(entry)
         entry.pop("name")
         kind = entry.pop("type", None)
@@ -899,6 +901,25 @@ def _parse_outputs_defs(node, context: str = "outputs") -> dict:
                 "merged_solutions": bool(entry.get("merged_solutions", False)),
                 "smooth_output": bool(entry.get("smooth_output", False)),
             }
+        elif kind == "extract_fixed_variable" and isinstance(entry.get("variable"), list):
+            variable_list = entry["variable"]
+            if not variable_list:
+                raise TranspileError(f"{entry_context}.variable: must not be empty.")
+            member_names = []
+            for var in variable_list:
+                sub_name = f"{name}_{var}"
+                if sub_name in parsed:
+                    raise TranspileError(f"{entry_context}: duplicate name {sub_name!r}.")
+                sub_entry = dict(entry)
+                sub_entry["variable"] = var
+                parsed[sub_name] = {
+                    "kind": kind,
+                    "extract": _parse_extract_entry(
+                        sub_name, kind, sub_entry, f"{entry_context}[{var}]"
+                    ),
+                }
+                member_names.append(sub_name)
+            parsed[name] = {"kind": "group", "members": member_names}
         elif kind in ("extract_fixed_point", "extract_fixed_variable"):
             parsed[name] = {
                 "kind": kind,
@@ -1104,7 +1125,14 @@ def _parse_steps(node, equations: dict, materials: dict, boundaries: dict, loads
         )
         if not output_names:
             raise TranspileError(f"{step_context}: 'outputs' is required (directly or inherited).")
-        output_defs = _lookup_all(output_names, outputs_defs, f"{step_context}.outputs")
+        expanded_output_names = []
+        for oname in output_names:
+            odef_lookup = outputs_defs.get(oname)
+            if odef_lookup is not None and odef_lookup.get("kind") == "group":
+                expanded_output_names.extend(odef_lookup["members"])
+            else:
+                expanded_output_names.append(oname)
+        output_defs = _lookup_all(expanded_output_names, outputs_defs, f"{step_context}.outputs")
         fields = {}
         merged_solutions_values = set()
         smooth_output_values = set()
