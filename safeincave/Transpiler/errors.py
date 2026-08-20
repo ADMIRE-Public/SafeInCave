@@ -10,5 +10,5 @@ class TranspileError(Exception):
 
     The message always names the YAML location (section/keyword) that caused
     the failure and, where applicable, lists the legal alternatives, in the
-    spirit of keyword validation in commercial FEM input decks.
+    spirit of keyword validation in conventional FEM input decks.
     """

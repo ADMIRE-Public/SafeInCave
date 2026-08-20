@@ -6,7 +6,7 @@
 
 Every YAML block is checked against ``inspect.signature`` of the class it
 instantiates: missing required parameters and unknown keywords are reported
-with the full real signature, Abaqus-keyword style. There is no schema to
+with the full real signature, keyword-deck style. There is no schema to
 maintain — the code *is* the schema.
 
 The small exceptions are ``KEYWORD_ALIASES``/``TYPE_ALIASES``/``FIELD_ALIASES``
@@ -41,7 +41,8 @@ TYPE_ALIASES: dict = {
 FIELD_ALIASES: dict = {
     "displacements": "u",
     "stress_tensors": "sig",
-    "strain_tensors": "eps_tot",
+    "total_strain_tensors": "eps_tot",
+    "total_principal_strains": "principal_strains",
 }
 
 

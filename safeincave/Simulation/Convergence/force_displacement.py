@@ -21,8 +21,8 @@ class ForceDisplacementCriterion(ConvergenceCriterion):
       including reactions), and
     - ``‖δu‖ / ‖Δu_step‖ ≤ displacement_tolerance`` — last Newton correction
       over the accumulated step displacement increment. The default (1e-2)
-      matches Abaqus's displacement-correction check: the force residual is
-      the physical equilibrium gate; the displacement check only guards
+      matches the conventional displacement-correction check: the force
+      residual is the physical equilibrium gate; the displacement check only guards
       against acceptance while corrections are still large. A much tighter
       value stalls steps where the active plastic set oscillates even
       though force equilibrium and yield consistency are satisfied.
@@ -64,7 +64,7 @@ class ForceDisplacementCriterion(ConvergenceCriterion):
     residual, so MORE steps fall under the tolerance and are skipped, and the
     solution stops converging under refinement altogether.
 
-    The fix is Abaqus's own rule — an increment always takes at least one
+    The fix is a standard, well-established rule — an increment always takes at least one
     iteration — with one exception kept for the geostatic/held-load steps the
     Newton path relies on: a step whose load genuinely did not change starts at
     round-off (measured at ~4e-16 relative, nine orders below a real
