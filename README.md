@@ -44,19 +44,20 @@ See SafeInCave [documentation](https://admire-public.github.io/SafeInCave/) for 
 Users can build their own simulators using the *safeincave* package. The [documentation](https://admire-public.github.io/SafeInCave/) webpage shows detailed examples of how to set up purely **mechanical**, **heat diffusion**, and **thermomechanical** simulations. These examples show how to build constitutive models, apply different types of boundary conditions, assign material properties, etc.
 
 
-## Mantainers
+## License
+SafeInCave is released under the **BSD 3-Clause License** (BSD-3-Clause), a permissive open-source license that allows use, modification, and redistribution in both open-source and proprietary software.
+
+See the [LICENSE](https://opensource.org/license/BSD-3-clause) file for the complete license terms.
+
+
+## List of contributors
 - [Davi R. Damasceno](https://www.linkedin.com/in/drdamasceno/)
 - [Gijs van den Brekel](https://www.linkedin.com/in/gijs-van-den-brekel-041866229/)
 - [Hadi Hajibeygi](https://www.tudelft.nl/en/ceg/about-faculty/departments/geoscience-engineering/sections/reservoir-engineering/staff/academic-staff/profdr-h-hajibeygi)
 - [Hermínio Tasinafo Honório](https://www.linkedin.com/in/herminioth/)
 - [Lucas Landeweerd](https://www.linkedin.com/in/lucaslandeweerd/)
 - [Mathias Jose Kreutz Erdtmann](https://www.linkedin.com/in/mathias-kreutz-erdtmann/)
-
-
-## License
-SafeInCave is released under the **BSD 3-Clause License** (BSD-3-Clause), a permissive open-source license that allows use, modification, and redistribution in both open-source and proprietary software.
-
-See the [LICENSE](https://opensource.org/license/BSD-3-clause) file for the complete license terms.
+- [Mohammad Saeed Amini](https://www.linkedin.com/in/mohammad-saeed-amini/)
 
 
 ## Key publications
@@ -65,6 +66,8 @@ See the [LICENSE](https://opensource.org/license/BSD-3-clause) file for the comp
 - Honório, H.T., Franceschini, A., Ferronato, M., & Hajibeygi, H. [Salt cavern simulations with a stabilized mixed finite element formulation for low-order tetrahedral elements](https://doi.org/10.1016/j.cma.2026.119073). CMAME, 2026.
 
 - Honório, H.T., Amini, M.S., Landeweerd, L., & Hajibeygi, H. [SafeInCave: An Open-Source Simulator for Energy Storage in Heterogeneous Salt Caverns](https://smri.memberclicks.net/assets/docs/Fall2025/TechSessions/20_MP2025F_Honorio.pdf). In Proceedings of the SMRI Fall Technical Conference, Whichita, Kansas, US, 2025.
+
+- Amini, M.S., Honório, H.T., Vuik, C., Hajibeygi, H. [Impact of pressure solution creep on the performance of salt caverns for underground hydrogen storage](https://www.sciencedirect.com/science/article/pii/S1365160926001607). International Journal of Rock Mechanics and Mining Sciences 203, 106555, 2026.
 
 
 ## Acknowledgements

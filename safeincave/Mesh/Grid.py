@@ -734,7 +734,6 @@ class GridHandlerPythonScript(GridHandlerGMSH):
         # Try to get boundary group names from the script module that was just executed
         tag_value_to_name = {}
         try:
-            import importlib
             import sys
             from pathlib import Path
             
@@ -747,7 +746,7 @@ class GridHandlerPythonScript(GridHandlerGMSH):
                     if hasattr(module, "_MESH_METADATA"):
                         tag_value_to_name = module._MESH_METADATA
                         break
-        except Exception as e:
+        except Exception:
             pass  # Fall back to generic names
         
         # Initialize tags dictionary from DOLFINx MeshTags
