@@ -87,6 +87,7 @@ __all__ = [
     "get_default_derivative_method",
     "evaluate_derivative",
     "GridHandlerGMSH",
+    "GridHandlerPythonScript",
     "HeatDiffusion",
     "LinearMomentumBase",
     "LinearMomentum",

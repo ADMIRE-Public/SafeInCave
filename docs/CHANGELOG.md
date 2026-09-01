@@ -31,7 +31,7 @@
 - Made simulation output format agnostic and added a VTKHDF output backend.
 - Added YAML case definitions.
 - Implemented geostatic step.
-- Credits update in README.md.
+- Credits update in README.md and fixed linting issues.
 
 ## 3.0.3
 - Fixed mean stress calculation in P1P1 (mixed) formulation
