@@ -12,6 +12,7 @@ from .Readers import (
     read_node_scalar,
     read_node_vector,
 )
+from .read import read, Dataset, Variable, TimeVariable
 
 # Point-wise extraction (extract_point/extract_variable, SimulationLogging,
 # and the shared naming helpers) lives in safeincave.Output.DataExtract --
@@ -28,4 +29,8 @@ __all__ = [
     "read_cell_scalar",
     "read_node_scalar",
     "read_node_vector",
+    "read",
+    "Dataset",
+    "Variable",
+    "TimeVariable",
 ]
