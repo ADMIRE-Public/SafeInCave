@@ -74,6 +74,7 @@ from .Simulation.TimeControl import (
 )
 from . import BC
 from . import PostProcessing
+from .PostProcessing import read
 from . import Utils
 
 
@@ -116,6 +117,7 @@ __all__ = [
     "Cavern",
     "CavernThermodynamics",
     "PostProcessing",
+    "read",
     "Utils",
     "ConvergenceCriterion",
     "StrainBasedCriterion",
