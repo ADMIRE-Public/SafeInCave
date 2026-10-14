@@ -326,7 +326,7 @@ def check_equilibrium(
         try:
             stress_to = numpy2torch(stress_field.x.array.reshape((n, 3, 3)))
             residual_vector, ref_norm = _compute_force_residual(eq_mom, stress_to)
-            r_norm = _compute_vector_norm(residual_vector)
+            r_norm = _compute_vector_norm(residual_vector, eq_mom.grid.mesh.comm)
         finally:
             if snap is not None:
                 stress_field.x.array[:] = snap

@@ -4,6 +4,7 @@
 
 from typing import TYPE_CHECKING, Sequence, Union
 import torch as to
+from mpi4py import MPI
 
 from .IO import create_field_elems
 
@@ -172,7 +173,8 @@ def build_geostatic_gradient_stress(
     coord = create_field_elems(grid, coord_fns[vertical_axis])
 
     if ref_pos is None:
-        ref_pos = grid.mesh.geometry.x[:, vertical_axis].max()
+        # Global top: each rank only holds its own partition's nodes.
+        ref_pos = grid.mesh.comm.allreduce(float(grid.mesh.geometry.x[:, vertical_axis].max()), op=MPI.MAX)
 
     vertical_stress = density_t * gravity * (ref_pos - coord)
 

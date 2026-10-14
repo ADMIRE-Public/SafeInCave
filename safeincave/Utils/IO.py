@@ -333,19 +333,18 @@ def create_field_elems(grid: "GridHandlerGMSH", fun: Fn) -> to.Tensor:
 
     Notes
     -----
-    The centroid is computed as the arithmetic mean of the 4 vertex coordinates
-    for each tetrahedral cell. This evaluates `fun` in a Python loop.
+    The centroid is computed as the arithmetic mean of the cell's geometry
+    nodes (the 4 vertices of a linear tetrahedron). This evaluates `fun` in a Python loop.
     """
     dummy = fun(0, 0, 0)  # to check the return shape
     shape_fun = np.shape(dummy)
     shape = (grid.n_elems,) + shape_fun
     field = to.zeros(shape, dtype=to.float64)
-    coordinates = grid.mesh.geometry.x
-    conn_aux = grid.mesh.topology.connectivity(3, 0)
-    conn = conn_aux.array.reshape((grid.n_elems, 4))
-    for i in range(grid.n_elems):
-        cell_vertices = conn[i]
-        x = sum(coordinates[v] for v in cell_vertices) / len(cell_vertices)
+    # Geometry dofmap, not topology connectivity(3, 0): the two numberings
+    # coincide in serial but not in parallel, where indexing geometry.x with
+    # topology vertex ids gives wrong centroids.
+    centroids = grid.mesh.geometry.x[grid.mesh.geometry.dofmap].mean(axis=1)
+    for i, x in enumerate(centroids):
         field[i] = fun(x[0], x[1], x[2])
     return field
 

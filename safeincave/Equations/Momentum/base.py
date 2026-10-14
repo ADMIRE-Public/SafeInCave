@@ -16,7 +16,7 @@ from petsc4py import PETSc
 import torch as to
 from ...Materials.Material import Material
 from ...Mesh.Grid import GridHandlerGMSH
-from ...Utils import numpy2torch, project, epsilon
+from ...Utils import numpy2torch, epsilon
 
 class LinearMomentumBase(EquationBase, ABC):
     """
@@ -535,9 +535,17 @@ class LinearMomentumBase(EquationBase, ABC):
 
         Notes
         -----
-        Uses :func:`project` on ``ε(u)``.
+        Interpolates ``ε(u)`` into :attr:`eps_tot` in place. The Expression
+        is compiled once per displacement Function: building a new one per
+        call (as :func:`project` does) re-enters the FFCx JIT cache lookup
+        every Newton iteration.
         """
-        self.eps_tot = project(epsilon(self.u), self.DG0_3x3)
+        if getattr(self, "_eps_tot_expr_key", None) != id(self.u):
+            self._eps_tot_expr = do.fem.Expression(
+                epsilon(self.u), self.DG0_3x3.element.interpolation_points()
+            )
+            self._eps_tot_expr_key = id(self.u)
+        self.eps_tot.interpolate(self._eps_tot_expr)
         eps_to = numpy2torch(self.eps_tot.x.array.reshape((self.n_elems, 3, 3)))
         return eps_to
 

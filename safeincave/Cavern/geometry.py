@@ -4,6 +4,7 @@
 
 import ufl
 from dolfinx import fem
+from dolfinx.mesh import entities_to_geometry
 from mpi4py import MPI
 import numpy as np
 
@@ -156,7 +157,7 @@ Additionally, it must be on the intersection of all symmetry planes.
             Triangle connectivity indexing into coords_wall, with consistent
             outward orientation.
         wall_ids : (n_wall,) ndarray
-            Global vertex ids of the wall vertices.
+            Geometry node indices (into mesh.geometry.x) of the wall vertices.
         """
         mesh = self.grid.mesh
         tdim = mesh.topology.dim
@@ -183,21 +184,21 @@ Additionally, it must be on the intersection of all symmetry planes.
             )
 
         # Required connectivities
-        mesh.topology.create_connectivity(fdim, 0)  # facet -> vertices
         mesh.topology.create_connectivity(fdim, tdim)  # facet -> cell(s)
-        mesh.topology.create_connectivity(tdim, 0)  # cell  -> vertices
-
-        f2v = mesh.topology.connectivity(fdim, 0)
+        mesh.topology.create_connectivity(tdim, fdim)
         f2c = mesh.topology.connectivity(fdim, tdim)
-        c2v = mesh.topology.connectivity(tdim, 0)
+        # Vertices as geometry node indices (into geometry.x): topology vertex
+        # ids index geometry.x correctly only in serial.
+        f2g = entities_to_geometry(mesh, fdim, np.asarray(facets, dtype=np.int32))
+        c2g = mesh.geometry.dofmap
 
         coords_all = mesh.geometry.x
 
         tri_global = []
         wall_set = set()
 
-        for f in facets:
-            facet_vertices = np.array(f2v.links(f), dtype=np.int64)
+        for f, facet_nodes in zip(facets, f2g):
+            facet_vertices = np.array(facet_nodes, dtype=np.int64)
             if len(facet_vertices) != 3:
                 # Expected for tetrahedral boundary facets
                 continue
@@ -209,7 +210,7 @@ Additionally, it must be on the intersection of all symmetry planes.
                 )
 
             cell = attached_cells[0]
-            cell_vertices = np.array(c2v.links(cell), dtype=np.int64)
+            cell_vertices = np.array(c2g[cell], dtype=np.int64)
 
             # The tetra vertex opposite to this facet
             opposite = np.setdiff1d(cell_vertices, facet_vertices)

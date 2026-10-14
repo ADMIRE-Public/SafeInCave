@@ -12,7 +12,7 @@ momentum and heat equation BC handlers.
 
 
 
-def compute_cavern_pressure_load(cavern, x_coord):
+def compute_cavern_pressure_load(cavern, x_coord, pressure=None):
     """
     Compute the pressure load for a cavern boundary condition.
 
@@ -35,6 +35,9 @@ def compute_cavern_pressure_load(cavern, x_coord):
             Gravitational acceleration.
     x_coord : ufl.core.expr.Expr
         Spatial coordinate vector for hydrostatic calculations.
+    pressure : dolfinx.fem.Constant, optional
+        Stands in for ``cavern.P`` so callers can update the pressure in place
+        without rebuilding (and recompiling) the form.
 
     Returns
     -------
@@ -50,7 +53,7 @@ def compute_cavern_pressure_load(cavern, x_coord):
     i = cavern.direction
     rho = cavern.density
     H = cavern.ref_pos
-    p = -cavern.P
+    p = -(cavern.P if pressure is None else pressure)
     load = p + rho * cavern.gravity * (H - x_coord[i])
     return load
 

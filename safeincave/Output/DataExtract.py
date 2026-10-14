@@ -962,14 +962,9 @@ class SimulationLogging:
             Element centroids, shape (n_elems, 3), where each row is the
             arithmetic mean of the four vertices of the corresponding tetrahedral cell.
         """
-        conn = grid.mesh.topology.connectivity(3, 0).array.reshape(-1, 4)
-        coord = grid.mesh.geometry.x
-        centroids = np.zeros((grid.n_elems, 3))
-        for i in range(grid.n_elems):
-            nodes = conn[i]
-            centroids[i, :] = (
-                coord[nodes[0], :] + coord[nodes[1], :] + coord[nodes[2], :] + coord[nodes[3], :]
-            ) / 4.0
+        # Geometry dofmap, not topology connectivity(3, 0): the numberings
+        # differ in parallel.
+        centroids = grid.mesh.geometry.x[grid.mesh.geometry.dofmap].mean(axis=1)
         return centroids
 
     @staticmethod

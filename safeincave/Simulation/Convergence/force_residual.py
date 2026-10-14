@@ -87,7 +87,7 @@ class ForceResidualCriterion(ConvergenceCriterion):
         # reactions -- robust for displacement-controlled and fully
         # confined load cases where the free-DOF external load is ~zero).
         residual_vector, reference_norm = _compute_force_residual(momentum_eq, stress)
-        residual_norm = _compute_vector_norm(residual_vector)
+        residual_norm = _compute_vector_norm(residual_vector, momentum_eq.grid.mesh.comm)
 
         error_value = residual_norm / max(reference_norm, 1e-16)
         self.history.append(error_value)

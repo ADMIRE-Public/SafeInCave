@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Any
 import torch as to
 import numpy as np
+from mpi4py import MPI
 from petsc4py import PETSc
 import ufl
 from dolfinx import fem as do_fem
@@ -13,6 +14,20 @@ from dolfinx.fem import petsc as fem_petsc
 from ...Utils import epsilon
 
 """Shared numeric helpers for convergence criteria (force residuals, internal force vectors, norms)."""
+
+def _global_norm(values, comm) -> float:
+    """L2 norm over all ranks of locally owned ``values`` (torch or numpy).
+    Without the reduction each rank compares its own partial norm against the
+    tolerance, so ranks can disagree on convergence and deadlock."""
+    local = float((values * values).sum())
+    return float(np.sqrt(comm.allreduce(local, op=MPI.SUM)))
+
+
+def _owned_dirichlet_dofs(momentum_eq: Any, n_owned: int) -> np.ndarray:
+    """Dirichlet DOFs within the first ``n_owned`` (owned) entries of a vector."""
+    dofs = _dirichlet_dof_indices(momentum_eq)
+    return dofs[dofs < n_owned]
+
 
 def _compute_external_load_vector_norm(momentum_eq: Any) -> float:
     """
@@ -52,12 +67,12 @@ def _compute_external_load_vector_norm(momentum_eq: Any) -> float:
     # Zero the rows at Dirichlet-constrained DOFs: loads applied directly at
     # constrained DOFs are carried by reactions and play no role in the
     # free-DOF equilibrium the residual criterion measures.
-    loads = f_ext.array.copy()
-    dirichlet_dofs = _dirichlet_dof_indices(momentum_eq)
+    loads = f_ext.array.copy()  # owned entries only
+    dirichlet_dofs = _owned_dirichlet_dofs(momentum_eq, len(loads))
     if dirichlet_dofs.size:
         loads[dirichlet_dofs] = 0.0
 
-    norm = float(np.linalg.norm(loads))
+    norm = _global_norm(loads, momentum_eq.grid.mesh.comm)
 
     # Protect against zero norm
     norm = max(norm, 1e-16)
@@ -184,7 +199,7 @@ def _compute_force_residual(
     # Zero the residual at Dirichlet-constrained DOFs: the imbalance there
     # is the reaction force, which equilibrium never drives to zero and
     # which must not count against convergence.
-    dirichlet_dofs = _dirichlet_dof_indices(momentum_eq)
+    dirichlet_dofs = _owned_dirichlet_dofs(momentum_eq, len(residual_vector))
     if dirichlet_dofs.size:
         residual_vector[dirichlet_dofs] = 0.0
 
@@ -199,15 +214,16 @@ def _compute_force_residual(
     free_loads = external_loads_tensor.clone()
     if dirichlet_dofs.size:
         free_loads[dirichlet_dofs] = 0.0
+    comm = momentum_eq.grid.mesh.comm
     reference_norm = max(
-        float(to.linalg.norm(free_loads)),
-        float(to.linalg.norm(internal_forces_tensor)),
+        _global_norm(free_loads, comm),
+        _global_norm(internal_forces_tensor, comm),
     )
 
     return residual_vector, reference_norm
 
 
-def _compute_vector_norm(vector: to.Tensor) -> float:
+def _compute_vector_norm(vector: to.Tensor, comm=None) -> float:
     """
     Compute L2 norm of a tensor vector.
 
@@ -218,6 +234,9 @@ def _compute_vector_norm(vector: to.Tensor) -> float:
     ----------
     vector : torch.Tensor
         Vector to compute norm for (displacement, residual, etc.).
+    comm : MPI communicator, optional
+        When given, ``vector`` holds this rank's owned entries and the norm is
+        reduced over all ranks.
 
     Returns
     -------
@@ -233,7 +252,9 @@ def _compute_vector_norm(vector: to.Tensor) -> float:
 
     For torch tensors, computes torch.norm(u).item() and converts to float.
     """
-    if isinstance(vector, to.Tensor):
+    if comm is not None:
+        computed_norm = _global_norm(vector, comm)
+    elif isinstance(vector, to.Tensor):
         computed_norm = to.norm(vector).item()
     else:
         # Handle numpy arrays if needed

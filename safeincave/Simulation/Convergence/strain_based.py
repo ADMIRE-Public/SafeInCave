@@ -6,9 +6,8 @@
 
 from typing import TYPE_CHECKING, Optional, Any
 import torch as to
-import numpy as np
-from mpi4py import MPI
 from .base import ConvergenceCriterion, _is_momentum_solver_instance
+from .residuals import _global_norm
 
 if TYPE_CHECKING:
     pass
@@ -85,12 +84,18 @@ class StrainBasedCriterion(ConvergenceCriterion):
             self.history.append(error_value)
             return error_value
 
-        strain_previous_flat = to.flatten(strain_previous)
-        strain_current_flat = to.flatten(strain_current)
+        # Owned cells only, with the norms (not per-rank ratios) reduced
+        # across ranks, so the error does not depend on the rank count.
+        # Rows are cells (or cells x quadrature points), owned cells first.
+        cell_map = momentum_eq.grid.mesh.topology.index_map(momentum_eq.grid.mesh.topology.dim)
+        rows_per_cell = strain_current.shape[0] // (cell_map.size_local + cell_map.num_ghosts)
+        n_owned = cell_map.size_local * rows_per_cell
+        comm = momentum_eq.grid.mesh.comm
+        strain_previous_flat = to.flatten(strain_previous[:n_owned])
+        strain_current_flat = to.flatten(strain_current[:n_owned])
 
-        denom = max(np.linalg.norm(strain_current_flat), 1e-16)
-        local_error = np.linalg.norm(strain_previous_flat - strain_current_flat) / denom
-        error = momentum_eq.grid.mesh.comm.allreduce(local_error, op=MPI.SUM)
+        denom = max(_global_norm(strain_current_flat, comm), 1e-16)
+        error = _global_norm(strain_previous_flat - strain_current_flat, comm) / denom
 
         # Update tracked state for next call.
         momentum_eq._strain_previous = strain_current.clone()

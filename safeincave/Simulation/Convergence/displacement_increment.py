@@ -7,6 +7,7 @@
 from typing import Any,  TYPE_CHECKING, Optional
 import torch as to
 from .base import ConvergenceCriterion, _is_momentum_solver_instance
+from .residuals import _global_norm
 
 if TYPE_CHECKING:
     pass
@@ -138,20 +139,26 @@ class DisplacementIncrementCriterion(ConvergenceCriterion):
                 "(momentum_eq) or (momentum_eq, u_new, u_old)."
             )
 
+        # Norms over owned DOFs, reduced across ranks (ghost entries would be
+        # double counted, and per-rank norms let ranks disagree on convergence).
+        index_map = momentum_eq.u.function_space.dofmap.index_map
+        n_owned = index_map.size_local * momentum_eq.u.function_space.dofmap.index_map_bs
+        comm = momentum_eq.grid.mesh.comm
+
         # Compute Newton iteration correction (single step)
-        displacement_correction = u_new - u_old
-        correction_norm = float(to.linalg.norm(displacement_correction))
+        displacement_correction = (u_new - u_old)[:n_owned]
+        correction_norm = _global_norm(displacement_correction, comm)
 
         # Compute cumulative displacement increment from step start
-        displacement_total = u_new - self.u_step_start
-        total_increment_norm = float(to.linalg.norm(displacement_total))
+        displacement_total = (u_new - to.as_tensor(self.u_step_start))[:n_owned]
+        total_increment_norm = _global_norm(displacement_total, comm)
 
         # Degenerate step: displacement did not move at all relative to the
         # overall solution scale (e.g. a constant-load step already in
         # equilibrium). Both norms are ~zero; flooring both to 1e-16 would
         # yield a spurious ratio of 1.0 that never converges. Declare
         # converged instead.
-        solution_scale = max(float(to.linalg.norm(u_new)), 1e-16)
+        solution_scale = max(_global_norm(u_new[:n_owned], comm), 1e-16)
         if total_increment_norm <= 1e-12 * solution_scale or total_increment_norm <= 1e-30:
             error_value = 0.0
         else:

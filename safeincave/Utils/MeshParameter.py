@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import skops.io as sio
 import numpy as np
 import os
 from .IO import numpy2torch
@@ -32,13 +31,18 @@ class Element:
 
 class ModelML:
     def __init__(self):
+        # Imported here: skops pulls in scikit-learn and costs seconds on every
+        # `import safeincave` (far more on a parallel file system), while only
+        # this rarely used mesh-size model needs it.
+        import skops.io as sio
+
         with open(os.path.join(HERE, "model_h.skops"), "rb") as file:
             unknown_types = sio.get_untrusted_types(file=file)
             self.model = sio.load(file, trusted=unknown_types)
 
     def compute_mesh_h(self, mesh):
-        conn_aux = mesh.topology.connectivity(3, 0)
-        conn = conn_aux.array.reshape((-1, 4))
+        # Geometry node indices (topology vertex ids differ from them in parallel).
+        conn = mesh.geometry.dofmap
         n_elems = conn.shape[0]
         coords = mesh.geometry.x
         X = np.zeros((n_elems, 12))

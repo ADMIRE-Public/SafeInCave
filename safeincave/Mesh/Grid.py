@@ -149,10 +149,11 @@ class GridHandlerGMSH(object):
 
         Notes
         -----
-        Extracts connectivity (3→0) and coordinates from the DOLFINx mesh and
+        Uses the geometry dofmap and coordinates from the DOLFINx mesh and
         applies `__tetrahedron_volume` to each cell.
         """
-        conn = self.mesh.topology.connectivity(3, 0).array.reshape(-1, 4)
+        # Geometry node indices (topology vertex ids differ from them in parallel).
+        conn = self.mesh.geometry.dofmap
         coord = self.mesh.geometry.x
         self.volumes = np.zeros(self.n_elems)
         for i in range(self.n_elems):
@@ -428,9 +429,12 @@ class GridHandlerGMSH(object):
         Lx, Ly, Lz : float
             Sets the extents along x, y, z.
         """
-        self.Lx = self.mesh.geometry.x[:, 0].max() - self.mesh.geometry.x[:, 0].min()
-        self.Ly = self.mesh.geometry.x[:, 1].max() - self.mesh.geometry.x[:, 1].min()
-        self.Lz = self.mesh.geometry.x[:, 2].max() - self.mesh.geometry.x[:, 2].min()
+        # Reduced over ranks: each rank only holds its own partition's nodes.
+        x = self.mesh.geometry.x
+        x_max, x_min = np.empty(3), np.empty(3)
+        self.mesh.comm.Allreduce(np.ascontiguousarray(x[:, :3].max(axis=0)), x_max, op=MPI.MAX)
+        self.mesh.comm.Allreduce(np.ascontiguousarray(x[:, :3].min(axis=0)), x_min, op=MPI.MIN)
+        self.Lx, self.Ly, self.Lz = x_max - x_min
 
     def get_boundaries(self):
         """

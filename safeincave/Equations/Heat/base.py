@@ -15,7 +15,7 @@ import dolfinx as do
 import ufl
 import torch as to
 from petsc4py import PETSc
-from ...Utils import numpy2torch, project
+from ...Utils import numpy2torch
 
 
 class HeatDiffusion(EquationBase):
@@ -301,11 +301,15 @@ class HeatDiffusion(EquationBase):
 
         Notes
         -----
-        Uses :func:`Utils.project` to project `T` onto `DG0_1` and
-        :func:`Utils.numpy2torch` to convert to a Torch tensor.
+        Interpolates `T` onto `DG0_1` with an Expression compiled once (a
+        per-call :func:`Utils.project` re-enters the FFCx JIT every step) and
+        converts it with :func:`Utils.numpy2torch`.
         """
-        T_elems = project(self.T, self.DG0_1)
-        return numpy2torch(T_elems.x.array)
+        if getattr(self, "_T_elems_expr", None) is None:
+            self._T_elems_expr = do.fem.Expression(self.T, self.DG0_1.element.interpolation_points())
+            self._T_elems = do.fem.Function(self.DG0_1)
+        self._T_elems.interpolate(self._T_elems_expr)
+        return numpy2torch(self._T_elems.x.array.copy())
 
     def solve(self, t: float, dt: float) -> None:
         """

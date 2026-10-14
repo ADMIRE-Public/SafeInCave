@@ -68,6 +68,7 @@ class BcHandler:
         self.ds = ds
 
     def set_spatial_coordinates(self, mesh):
+        self.mesh = mesh
         self.x = ufl.SpatialCoordinate(mesh)
 
     def reset_boundary_conditions(self) -> None:
@@ -106,82 +107,85 @@ class BcHandler:
         else:
             raise Exception(f"Boundary type {bc.type} not supported.")
 
+    # The BC objects and UFL terms below are built once and their time-varying
+    # magnitudes live in dolfinx Constants updated in place. Rebuilding them
+    # with the value baked in as a Python float changed every form's
+    # signature each step, so each time step re-ran the FFCx JIT (a fresh
+    # compilation on a cold cache) and solvers caching compiled forms on term
+    # identity (LinearMomentumNewton._bc_forms_key) rebuilt them every step.
+    # They are rebuilt only when the registered boundaries/caverns change.
+
     def update_dirichlet(self, t: float) -> None:
         """
-        Build Dirichlet BC objects at time ``t``.
-
-        Parameters
-        ----------
-        t : float
-            Current simulation time.
-
-        Returns
-        -------
-        None
+        Set Dirichlet BC values at time ``t``.
 
         Side Effects
         ------------
-        Populates :attr:`dirichlet_bcs` with
-        :class:`dolfinx.fem.DirichletBC` constructed by:
-        - locating DOFs on each boundary for the target component, and
-        - interpolating the prescribed value via :func:`numpy.interp`.
+        :attr:`dirichlet_bcs` holds one :class:`dolfinx.fem.DirichletBC` per
+        registered Dirichlet boundary (DOFs located once per boundary set),
+        whose value is the prescribed history interpolated at ``t``.
         """
-        self.dirichlet_bcs = []
-        for bc in self.dirichlet_boundaries:
-            value = np.interp(t, bc.time_values, bc.values)
-            dofs = do.fem.locate_dofs_topological(
-                self.uV.sub(bc.component),
-                self.boundary_dim,
-                self.boundary_tags[bc.boundary_name],
-            )
-            self.dirichlet_bcs.append(
-                do.fem.dirichletbc(
-                    do.default_scalar_type(value), dofs, self.uV.sub(bc.component)
+        key = tuple(map(id, self.dirichlet_boundaries))
+        if getattr(self, "_dirichlet_key", None) != key:
+            self._dirichlet_values = []
+            self.dirichlet_bcs = []
+            for bc in self.dirichlet_boundaries:
+                V = self.uV.sub(bc.component)
+                dofs = do.fem.locate_dofs_topological(
+                    V, self.boundary_dim, self.boundary_tags[bc.boundary_name]
                 )
-            )
+                value = do.fem.Constant(self.mesh, do.default_scalar_type(0.0))
+                self._dirichlet_values.append(value)
+                self.dirichlet_bcs.append(do.fem.dirichletbc(value, dofs, V))
+            self._dirichlet_key = key
+        for bc, value in zip(self.dirichlet_boundaries, self._dirichlet_values):
+            value.value = np.interp(t, bc.time_values, bc.values)
 
     def update_neumann(self, t: float) -> None:
         """
-        Build Neumann contributions (tractions/pressures) at time ``t``.
+        Set Neumann contributions (tractions/pressures) at time ``t``.
 
-        For each :class:`NeumannBC`, the boundary term is constructed as
-        ``(p(t) + ρ g (H - x[i])) * n * ds(tag)``, where ``n`` is the outward
-        unit normal, and ``ds(tag)`` is the boundary measure for the target
-        boundary.
-
-        Parameters
-        ----------
-        t : float
-            Current simulation time.
-
-        Returns
-        -------
-        None
+        Each :class:`NeumannBC` contributes ``(p(t) + ρ g (H - x[i])) * n *
+        ds(tag)``, with ``p(t)`` the (sign-flipped) interpolated history held
+        in a Constant.
 
         Side Effects
         ------------
-        Populates :attr:`neumann_bcs` with UFL surface integrals to be added
-        to the right-hand side form.
+        :attr:`neumann_bcs` holds the UFL surface integrals to add to the
+        right-hand side form.
         """
-        self.neumann_bcs = []
-        for bc in self.neumann_boundaries:
-            i = bc.direction
-            rho = bc.density
-            H = bc.ref_pos
-            p = -np.interp(t, bc.time_values, bc.values)
-            value_neumann = p + rho * bc.gravity * (H - self.x[i])
-            self.neumann_bcs.append(
-                value_neumann
-                * self.normal
-                * self.ds(self.dolfin_tags[self.boundary_dim][bc.boundary_name])
-            )
+        key = tuple(map(id, self.neumann_boundaries))
+        if getattr(self, "_neumann_key", None) != key:
+            self._neumann_values = []
+            self.neumann_bcs = []
+            for bc in self.neumann_boundaries:
+                p = do.fem.Constant(self.mesh, do.default_scalar_type(0.0))
+                value_neumann = p + bc.density * bc.gravity * (bc.ref_pos - self.x[bc.direction])
+                self._neumann_values.append(p)
+                self.neumann_bcs.append(
+                    value_neumann
+                    * self.normal
+                    * self.ds(self.dolfin_tags[self.boundary_dim][bc.boundary_name])
+                )
+            self._neumann_key = key
+        for bc, p in zip(self.neumann_boundaries, self._neumann_values):
+            p.value = -np.interp(t, bc.time_values, bc.values)
 
     def update_cavern_bcs(self, cavern_handler: CavernHandler):
-        self.cavern_bcs = []
-        for cavern in cavern_handler.caverns_PT + cavern_handler.caverns_MFlux:
-            load = compute_cavern_pressure_load(cavern, self.x)
-            self.cavern_bcs.append(
-                load
-                * self.normal
-                * self.ds(self.dolfin_tags[self.boundary_dim][cavern.cavern_name])
-            )
+        caverns = cavern_handler.caverns_PT + cavern_handler.caverns_MFlux
+        key = tuple(map(id, caverns))
+        if getattr(self, "_cavern_key", None) != key:
+            self._cavern_pressures = []
+            self.cavern_bcs = []
+            for cavern in caverns:
+                P = do.fem.Constant(self.mesh, do.default_scalar_type(0.0))
+                load = compute_cavern_pressure_load(cavern, self.x, pressure=P)
+                self._cavern_pressures.append(P)
+                self.cavern_bcs.append(
+                    load
+                    * self.normal
+                    * self.ds(self.dolfin_tags[self.boundary_dim][cavern.cavern_name])
+                )
+            self._cavern_key = key
+        for cavern, P in zip(caverns, self._cavern_pressures):
+            P.value = cavern.P
